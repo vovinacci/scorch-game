@@ -58,8 +58,8 @@ Tool: [release-plz](https://release-plz.dev) (changelog by git-cliff), publishin
 3. release-plz tags `vX.Y.Z` and creates the GitHub Release with that changelog section as notes.
 4. The same workflow then builds the binaries on native runners and attaches them (`taiki-e/upload-rust-binary-action`).
    It must be the same workflow: tags pushed with `GITHUB_TOKEN` don't trigger other workflows.
-5. To (re)build the binaries of an existing tag (for example `v0.1.0`, which predates the workflow): Actions > Release >
-   Run workflow, with the tag.
+5. To rebuild the binaries of an existing release: Actions > Release > Run workflow, with its tag. Only tags from
+   `v0.1.1` on can be built: `v0.1.0` predates the packaging, so it has no downloads.
 
 Release PRs made with `GITHUB_TOKEN` don't start CI, so their required checks never run. Give the workflow a
 fine-grained personal access token as the secret `RELEASE_TOKEN` (this repository only; Contents and Pull requests: read
@@ -115,5 +115,6 @@ Commits and PRs carry no trailers (no "Co-authored-by" or "Generated with" lines
 
 1. Done: git, first commit, tag `v0.1.0`, hooks, the GitHub repository and its settings.
 2. Done: CI, PR title check, Dependabot, issue and PR templates, CONTRIBUTING and SECURITY, README badges, rulesets.
-3. Done: release workflow (release-plz, native builds, AppImage, macOS `.app`); first run builds `v0.1.0` by hand.
+3. Done: release workflow (release-plz, native builds, AppImage, macOS `.app`); `v0.1.1` is the first release with
+   downloads.
 4. Next: signing key and self-update.
