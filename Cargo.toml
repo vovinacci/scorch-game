@@ -1,0 +1,24 @@
+[package]
+name = "scorch"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Turn-based artillery game, a tribute to Scorched Earth (1991)"
+authors = ["Volodymyr Shcherbinin (vovin)"]
+
+[dependencies]
+dirs = "7.0.0"
+fluent-bundle = "0.16.0"
+macroquad = "0.4.16"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sys-locale = "0.3.2"
+unic-langid = "0.9.6"
+
+# Light optimization for our code (AI aiming simulates thousands of shots),
+# full optimization for dependencies. Still fast to compile.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

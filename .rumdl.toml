@@ -1,0 +1,10 @@
+# Markdown lint and format (https://rumdl.dev). `rumdl fmt` rewraps prose to 120 columns.
+[global]
+line-length = 120
+
+[MD013]
+line-length = 120
+reflow = true
+reflow-mode = "normalize"
+code-blocks = false
+tables = false
