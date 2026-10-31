@@ -26,10 +26,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
-      - name: Install system libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # The same hooks as a local commit (whitespace, ASCII, Markdown, rustfmt, clippy), with the tools from the
       # hash-pinned requirements.txt.
@@ -58,11 +54,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0 # build.rs reads the version from git tags
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
-      - name: Install system libraries
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build
         run: cargo build --release --locked

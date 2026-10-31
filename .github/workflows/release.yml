@@ -101,13 +101,11 @@ jobs:
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
           cache: false
-      - name: Install system libraries and appimagetool
+      - name: Install appimagetool
         env:
           ARCH: ${{ matrix.arch }}
           SHA256: ${{ matrix.appimagetool_sha256 }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev
           url="https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-$ARCH.AppImage"
           curl -fsSL -o "$RUNNER_TEMP/appimagetool" "$url"
           echo "$SHA256  $RUNNER_TEMP/appimagetool" | sha256sum -c -

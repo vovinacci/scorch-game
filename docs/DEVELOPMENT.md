@@ -17,9 +17,11 @@ numbers behind the rules, file formats, versioning and the code map.
 
 ## Binaries
 
-- **Linux:** links only glibc; OpenGL, X11/Wayland and ALSA are loaded at run time from the player's system, so the game
-  uses their GPU drivers. A fully static (musl) build couldn't load them. Release builds run on Ubuntu 22.04, so they
-  need glibc 2.35 or newer.
+- **Linux:** links only glibc (and libgcc). miniquad loads `libX11.so.6`, `libXi.so.6`, `libxkbcommon.so.0` and
+  `libGL.so.1` at run time (default X11 backend; Wayland desktops use XWayland), so the game uses the player's own GPU
+  driver; a fully static (musl) build couldn't load it. Nothing is needed at build time, and there is no audio
+  (macroquad's `audio` feature is off), so no ALSA. Release builds run on Ubuntu 22.04: glibc 2.35 or newer. The
+  player-facing list of packages is in the README.
 - **Windows:** the C runtime is linked statically (`.cargo/config.toml`), so no Visual C++ redistributable is needed.
 - **macOS:** links only system frameworks; one universal binary for Intel and Apple Silicon.
 

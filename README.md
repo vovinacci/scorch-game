@@ -48,6 +48,20 @@ Get the latest version from [Releases](https://github.com/vovinacci/scorch-game/
 | macOS | `scorch-...-macos.zip`: unzip, move `Scorch.app` to Applications |
 | Linux | `Scorch-....AppImage`: make it executable and run it; or the `.tar.gz` |
 
+### System requirements
+
+- **Windows** 10 or newer, x86_64 or ARM64. Nothing else to install.
+- **macOS** 11 (Big Sur) or newer, Intel or Apple Silicon.
+- **Linux** x86_64 or ARM64 with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 or newer) and OpenGL. The game
+  uses X11; on Wayland desktops it runs through XWayland. It needs these libraries, which almost every desktop already
+  has:
+
+  | Distribution | Packages |
+  |---|---|
+  | Debian, Ubuntu | `libx11-6 libxi6 libxkbcommon0 libgl1` |
+  | Fedora | `libX11 libXi libxkbcommon libglvnd-glx` |
+  | Arch | `libx11 libxi libxkbcommon libglvnd` |
+
 The builds aren't code-signed yet, so the first start shows a warning. Windows: "More info", then "Run anyway". macOS:
 right-click `Scorch.app`, then "Open".
 

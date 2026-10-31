@@ -1,5 +1,6 @@
-# NixOS: macroquad loads GL/X11/Wayland libraries at runtime via dlopen,
-# so they must be on LD_LIBRARY_PATH. Use: `nix-shell --run "cargo run"`
+# NixOS: miniquad loads libGL, libX11, libXi and libxkbcommon at run time (dlopen), so they must be on
+# LD_LIBRARY_PATH. These four are all the game needs (checked by running it with only them).
+# Use: `nix-shell --run "cargo run"`
 { pkgs ? import <nixpkgs> { } }:
 pkgs.mkShell {
   # The commit message check (tools/verify_commit.sh). Python tools come from requirements.txt (`make tools`).
@@ -8,9 +9,6 @@ pkgs.mkShell {
     libGL
     libx11
     libxi
-    libxcursor
     libxkbcommon
-    wayland
-    alsa-lib
   ]);
 }
