@@ -13,9 +13,9 @@ Files: `.github/workflows/ci.yml`, `release.yml`, `pr-title.yml`, `.github/depen
 - Social preview: the battle screenshot (1280x640).
 - README badges: CI, latest release, licence.
 - Squash merges only; the squash commit takes the PR title and body, so the PR title becomes the commit.
-- Rulesets: `main` needs a pull request with passing checks (Checks, the five builds, the PR title), linear history and
-  signed commits, and can't be deleted or force-pushed; `v*` tags can't be moved or deleted. Repository admins can
-  bypass both (for emergencies).
+- Rulesets: `main` needs a pull request with passing checks (Checks, the five builds, the Nix package, the PR title),
+  linear history and signed commits, and can't be deleted or force-pushed; `v*` tags can't be moved or deleted.
+  Repository admins can bypass both (for emergencies).
 - Dependabot: weekly for Cargo and GitHub Actions.
 - Issue templates: bug report (version, OS, crash report) and idea.
 

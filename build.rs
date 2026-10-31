@@ -1,10 +1,13 @@
 //! Embeds the build version as `SCORCH_BUILD`, following the rules in
-//! "Versioning" in docs/GUIDE.md:
+//! "Versioning" in docs/DEVELOPMENT.md:
 //!   0.1.0                   built from tag v0.1.0, no local changes
 //!   0.1.0+3.gabc1234        3 commits after the tag
 //!   0.1.0+3.gabc1234.dirty  ...with uncommitted changes
 //!   0.1.0+gabc1234          no release tag yet
 //!   0.1.0+nogit             not built from a git checkout
+//!
+//! Builds without a git checkout that know their commit (the Nix flake) pass the
+//! full version in `SCORCH_BUILD_VERSION` instead.
 
 use std::process::Command;
 
@@ -24,6 +27,12 @@ fn main() {
         for file in ["HEAD", "index", "refs"] {
             println!("cargo:rerun-if-changed={git_dir}/{file}");
         }
+    }
+
+    println!("cargo:rerun-if-env-changed=SCORCH_BUILD_VERSION");
+    if let Ok(build) = std::env::var("SCORCH_BUILD_VERSION") {
+        println!("cargo:rustc-env=SCORCH_BUILD={build}");
+        return;
     }
 
     let build = match git(&["rev-parse", "--short=7", "HEAD"]) {

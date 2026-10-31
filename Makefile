@@ -43,7 +43,7 @@ docs-check: tools
 	$(BIN)/rumdl check .
 
 ascii-check:    ## Code and config must be ASCII (see tools/check_ascii.sh)
-	tools/check_ascii.sh $$(find src tools build.rs Cargo.toml .cargo Makefile shell.nix mise.toml requirements.txt prek.toml .rumdl.toml .editorconfig -type f)
+	tools/check_ascii.sh $$(find src tools build.rs Cargo.toml .cargo Makefile shell.nix flake.nix mise.toml requirements.txt prek.toml .rumdl.toml .editorconfig -type f)
 
 tools: $(VENV)/.installed  ## Install the Python tools into .venv
 

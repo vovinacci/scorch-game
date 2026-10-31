@@ -20,8 +20,12 @@ numbers behind the rules, file formats, versioning and the code map.
 - **Linux:** links only glibc (and libgcc). miniquad loads `libX11.so.6`, `libXi.so.6`, `libxkbcommon.so.0` and
   `libGL.so.1` at run time (default X11 backend; Wayland desktops use XWayland), so the game uses the player's own GPU
   driver; a fully static (musl) build couldn't load it. Nothing is needed at build time, and there is no audio
-  (macroquad's `audio` feature is off), so no ALSA. Release builds run on Ubuntu 22.04: glibc 2.35 or newer. The
-  player-facing list of packages is in the README.
+  (macroquad's `audio` feature is off), so no ALSA. Release builds run on Ubuntu 22.04: glibc 2.35 or newer. On
+  distributions these libraries are part of every desktop (Debian/Ubuntu: `libx11-6 libxi6 libxkbcommon0 libgl1`).
+- **NixOS:** `flake.nix` packages the game and wraps it with those four libraries; `nix build` builds it (and runs the
+  tests), `nix run .` plays it, players use `nix run github:vovinacci/scorch-game`. The version comes from the flake's
+  commit (`SCORCH_BUILD_VERSION`, see `build.rs`). CI builds the flake; a weekly workflow updates `flake.lock`
+  (Dependabot doesn't handle Nix).
 - **Windows:** the C runtime is linked statically (`.cargo/config.toml`), so no Visual C++ redistributable is needed.
 - **macOS:** links only system frameworks; one universal binary for Intel and Apple Silicon.
 

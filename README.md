@@ -52,15 +52,12 @@ Get the latest version from [Releases](https://github.com/vovinacci/scorch-game/
 
 - **Windows** 10 or newer, x86_64 or ARM64. Nothing else to install.
 - **macOS** 11 (Big Sur) or newer, Intel or Apple Silicon.
-- **Linux** x86_64 or ARM64 with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 or newer) and OpenGL. The game
-  uses X11; on Wayland desktops it runs through XWayland. It needs these libraries, which almost every desktop already
-  has:
-
-  | Distribution | Packages |
-  |---|---|
-  | Debian, Ubuntu | `libx11-6 libxi6 libxkbcommon0 libgl1` |
-  | Fedora | `libX11 libXi libxkbcommon libglvnd-glx` |
-  | Arch | `libx11 libxi libxkbcommon libglvnd` |
+- **Linux** x86_64 or ARM64, from 2022 on (glibc 2.35: Ubuntu 22.04, Debian 12, Fedora 36 or newer). On a normal desktop
+  there's nothing to install: the game uses the graphics and windowing libraries every desktop already has (OpenGL, X11
+  or XWayland).
+- **NixOS:** downloaded Linux programs don't run on NixOS as they are, so use the Nix package instead:
+  `nix run github:vovinacci/scorch-game`, or add `github:vovinacci/scorch-game` as a flake input and install
+  `packages.<system>.default`.
 
 The builds aren't code-signed yet, so the first start shows a warning. Windows: "More info", then "Run anyway". macOS:
 right-click `Scorch.app`, then "Open".
@@ -71,8 +68,7 @@ It takes a few minutes the first time.
 
 1. Install [Rust](https://www.rust-lang.org/tools/install) (version 1.88 or newer; with [mise](https://mise.jdx.dev),
    the pinned version installs itself).
-2. On Linux, make sure the usual graphics libraries are installed (X11 or Wayland, and OpenGL). On NixOS, `make` takes
-   care of this through `nix-shell`.
+2. On Linux nothing else is needed on a normal desktop. On NixOS, `make` takes care of this through `nix-shell`.
 3. In this folder, run:
 
    ```text
