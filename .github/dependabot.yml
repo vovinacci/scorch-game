@@ -10,7 +10,7 @@ updates:
       cargo:
         patterns: ["*"]
   - package-ecosystem: pip
-    directory: /.github/ci-tools
+    directory: /
     schedule:
       interval: weekly
     commit-message:

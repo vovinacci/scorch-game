@@ -1,0 +1,5 @@
+# Python tools for development; Dependabot keeps the versions current.
+# Markdown lint and format (CI installs this; see docs/DEVELOPMENT.md).
+rumdl==0.2.63
+# Rebuilding the font (tools/patch_font.py).
+fonttools==4.60.1
