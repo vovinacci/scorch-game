@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Player's guide
+    url: https://github.com/vovinacci/scorch-game/blob/main/docs/GUIDE.md
+    about: How to play, controls, weapons, money and bots.
+  - name: Посібник гравця
+    url: https://github.com/vovinacci/scorch-game/blob/main/docs/GUIDE.uk.md
+    about: Як грати, керування, зброя, гроші та боти.

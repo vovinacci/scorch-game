@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Scorch app icon: a tank on a hill under a night sky, a shell arcing away. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d0f24"/>
+      <stop offset="1" stop-color="#4a2257"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="url(#sky)"/>
+  <path d="M0 196 C 60 150, 130 150, 256 186 L 256 208 C 256 234, 234 256, 208 256 L 48 256 C 22 256, 0 234, 0 208 Z"
+        fill="#7a5533"/>
+  <path d="M0 196 C 60 150, 130 150, 256 186" fill="none" stroke="#4caf50" stroke-width="6"/>
+  <path d="M128 104 Q 170 30, 214 92" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="5"
+        stroke-dasharray="2 12" stroke-linecap="round"/>
+  <circle cx="214" cy="92" r="8" fill="#ffa000"/>
+  <g fill="#ffffff">
+    <rect x="68" y="146" width="72" height="20" rx="4"/>
+    <path d="M80 146 A 24 24 0 0 1 128 146 Z"/>
+    <rect x="96" y="104" width="12" height="44" rx="3" transform="rotate(38 102 142)"/>
+  </g>
+</svg>

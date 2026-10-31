@@ -12,8 +12,8 @@ Scorched Earth style artillery game in Rust + macroquad.
 
 - Any change players can notice (gameplay, a control, a menu, a setting) must update `docs/GUIDE.md` and
   `docs/GUIDE.uk.md` in the same change. Exact numbers and internals go in `docs/DEVELOPMENT.md`, updated likewise.
-- Code and config are ASCII only (`make ascii-check`, also a commit hook). Docs and `.ftl` files are UTF-8. A line
-  that truly needs other characters ends with `ascii-ok`.
+- Code and config are ASCII only (`make ascii-check`, also a commit hook). Docs and `.ftl` files are UTF-8. A line that
+  truly needs other characters ends with `ascii-ok`.
 - All on-screen text goes through `t!("key")` with the key in both `assets/i18n/en-GB.ftl` (British spelling) and
   `assets/i18n/uk.ftl`. Never hard-code on-screen strings; tests check the keys.
 - Run `make lint` and `make test` before calling a change done. The `guide_lists_*` tests check that both guides name
@@ -22,6 +22,8 @@ Scorched Earth style artillery game in Rust + macroquad.
   the 1280x720 virtual screen in `ui.rs`; the window may be any size (Sway tiles it).
 - Markdown docs wrap at 120 columns: run `make docs` after editing them (`make docs-check` checks). Rust stays at
   rustfmt's 100. Hooks (`prek.toml`) run the same checks on commit.
+- Commits and PR titles are Conventional Commits (`feat(bots): ...`); the changelog is generated from them. No trailers
+  in commits or PRs (no Co-authored-by, no "Generated with").
 - New saved fields need `#[serde(default)]` so older save files still load.
 
 ## Gotchas
@@ -38,6 +40,6 @@ Scorched Earth style artillery game in Rust + macroquad.
   languages with `--shot`.
 - Fluent: messages referenced from other messages don't receive the caller's arguments, so inline plural selectors.
   Isolation marks are off (the font has no glyphs for them).
-- Player names are saved in English; show them with `Player::label()`. Ukrainian sentences avoid declining names
-  ("в танк Альфа"); use the `you` / `target_you` arguments for grammar.
+- Player names are saved in English; show them with `Player::label()`. Ukrainian sentences avoid declining names ("в
+  танк Альфа"); use the `you` / `target_you` arguments for grammar.
 - Text drawn over the battlefield goes inside `ui::with_shadow` (dark outline).

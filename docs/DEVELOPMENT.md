@@ -6,13 +6,28 @@ numbers behind the rules, file formats, versioning and the code map.
 
 ## Tools
 
-- **Rust** is pinned with [mise](https://mise.jdx.dev) in `mise.toml` (currently 1.99.1). With mise installed, entering
-  this folder selects that version; run `mise trust` once and `mise install` if it's missing. Without mise, any Rust
-  1.88 or newer builds the game.
-- **NixOS:** `shell.nix` provides the graphics libraries the game loads at run time, plus prek and rumdl (see below);
-  the `make` targets use it automatically.
-- Elsewhere, install [prek](https://prek.j178.dev) and [rumdl](https://rumdl.dev) yourself if you want the git hooks
-  and Markdown checks.
+- **Rust** is pinned with [mise](https://mise.jdx.dev) in `mise.toml` (1.99.1, with rustfmt and clippy). With mise
+  installed, entering this folder selects it (`mise trust` once, `mise install` if missing). CI uses the same file.
+  Without mise, any Rust 1.88 or newer builds the game.
+- **Python tools** (prek for git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in
+  `requirements.txt`; `make tools` installs them into `.venv`, and the other `make` targets use them from there. CI
+  installs the same file, and Dependabot keeps it current.
+- **NixOS:** `shell.nix` provides the graphics libraries the game loads at run time and cocogitto (commit message
+  check); the `make` targets use it automatically. Elsewhere install cocogitto with `cargo install cocogitto`.
+
+## Binaries
+
+- **Linux:** links only glibc (and libgcc). miniquad loads `libX11.so.6`, `libXi.so.6`, `libxkbcommon.so.0` and
+  `libGL.so.1` at run time (default X11 backend; Wayland desktops use XWayland), so the game uses the player's own GPU
+  driver; a fully static (musl) build couldn't load it. Nothing is needed at build time, and there is no audio
+  (macroquad's `audio` feature is off), so no ALSA. Release builds run on Ubuntu 22.04: glibc 2.35 or newer. On
+  distributions these libraries are part of every desktop (Debian/Ubuntu: `libx11-6 libxi6 libxkbcommon0 libgl1`).
+- **NixOS:** `flake.nix` packages the game and wraps it with those four libraries; `nix build` builds it (and runs the
+  tests), `nix run .` plays it, players use `nix run github:vovinacci/scorch-game`. The version comes from the flake's
+  commit (`SCORCH_BUILD_VERSION`, see `build.rs`). CI builds the flake; a weekly workflow updates `flake.lock`
+  (Dependabot doesn't handle Nix).
+- **Windows:** the C runtime is linked statically (`.cargo/config.toml`), so no Visual C++ redistributable is needed.
+- **macOS:** links only system frameworks; one universal binary for Intel and Apple Silicon.
 
 ## Building and running
 
@@ -43,6 +58,14 @@ echo '{"settings":{"language":"Ukrainian"},"intro_seen":true}' > /tmp/s/scorch/p
 XDG_DATA_HOME=/tmp/s scorch --screen shop --shot shop.png
 ```
 
+## CI and releases
+
+GitHub Actions check every push and pull request, and release-plz turns Conventional Commits into versions, a changelog
+and GitHub Releases with binaries for Linux, Windows and macOS. Details and the release steps:
+[RELEASING.md](RELEASING.md). `tools/package.sh` packs the release files (tar.gz, AppImage, zip, macOS `.app`); the app
+icon is `assets/icon/scorch.svg`. Windows release builds have no console window (`windows_subsystem`), so command line
+output only shows in debug builds there.
+
 ## Code style and git hooks
 
 - `.editorconfig` sets the basics for any editor: UTF-8, LF, final newline, no trailing spaces, 4-space indents (2 for
@@ -51,9 +74,10 @@ XDG_DATA_HOME=/tmp/s scorch --screen shop --shot shop.png
   `make docs-check` checks. Tables and code blocks are left alone.
 - Git hooks run with [prek](https://prek.j178.dev) (`prek.toml`), a fast drop-in for pre-commit. Install them once in a
   git checkout with `make hooks-install`; `make hooks` runs them all by hand.
+  - On commit message: it must be a Conventional Commit (cocogitto, `tools/verify_commit.sh`).
   - On commit: ASCII-only code and config (`tools/check_ascii.sh`; docs and translations are UTF-8), whitespace and
-    line-ending fixes, merge-conflict markers, large files, TOML/YAML/JSON syntax, Markdown,
-    `cargo fmt --check` and clippy.
+    line-ending fixes, merge-conflict markers, large files, TOML/YAML/JSON syntax, Markdown, `cargo fmt --check` and
+    clippy.
   - On push: the tests.
 - On NixOS, prek and rumdl come from `shell.nix`, and the `make` targets run them inside `nix-shell`.
 

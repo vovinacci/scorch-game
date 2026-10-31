@@ -1,0 +1,211 @@
+name: Release
+
+# On every push to main, release-plz keeps a release PR up to date (version bump + CHANGELOG.md). Merging that PR makes
+# release-plz tag vX.Y.Z and create the GitHub Release; the build jobs below then attach the binaries. The build has to
+# live in this workflow: a tag pushed with GITHUB_TOKEN does not start other workflows.
+#
+# Run it by hand with a tag to (re)build the binaries of an existing release.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build binaries for, e.g. v0.1.0
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  CARGO_TERM_COLOR: always
+  APPIMAGETOOL_VERSION: "1.9.1"
+
+jobs:
+  release-plz:
+    name: Release PR and tag
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          cache: false
+      - name: Release (if a release PR was just merged)
+        id: release
+        uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
+        with:
+          command: release
+          # A personal token lets the release PR trigger CI; GITHUB_TOKEN works, but its PRs skip CI.
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+      - name: Update the release PR
+        uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
+        with:
+          command: release-pr
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+      - name: New tag
+        id: tag
+        if: steps.release.outputs.releases_created == 'true'
+        env:
+          RELEASES: ${{ steps.release.outputs.releases }}
+        run: echo "tag=$(jq -r '.[0].tag' <<< "$RELEASES")" >> "$GITHUB_OUTPUT"
+
+  plan:
+    name: Pick the tag
+    needs: release-plz
+    if: always() && (needs.release-plz.outputs.tag != '' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    permissions: {}
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - id: tag
+        env:
+          TAG: ${{ inputs.tag || needs.release-plz.outputs.tag }}
+        run: |
+          [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "not a release tag: $TAG" >&2; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    needs: plan
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            os: ubuntu-22.04
+            appimagetool_sha256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+          - arch: aarch64
+            os: ubuntu-22.04-arm
+            appimagetool_sha256: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          cache: false
+      - name: Install appimagetool
+        env:
+          ARCH: ${{ matrix.arch }}
+          SHA256: ${{ matrix.appimagetool_sha256 }}
+        run: |
+          url="https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-$ARCH.AppImage"
+          curl -fsSL -o "$RUNNER_TEMP/appimagetool" "$url"
+          echo "$SHA256  $RUNNER_TEMP/appimagetool" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          echo "APPIMAGETOOL=$RUNNER_TEMP/appimagetool" >> "$GITHUB_ENV"
+      - run: cargo build --release --locked
+      - name: Package
+        env:
+          ARCH: ${{ matrix.arch }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: tools/package.sh linux "$ARCH" "$TAG"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.AppImage
+          if-no-files-found: error
+
+  windows:
+    name: Windows ${{ matrix.arch }}
+    needs: plan
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64, os: windows-2025 }
+          - { arch: aarch64, os: windows-11-arm }
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          cache: false
+      - run: cargo build --release --locked
+      - name: Package
+        env:
+          ARCH: ${{ matrix.arch }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: tools/package.sh windows "$ARCH" "$TAG"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-${{ matrix.arch }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  macos:
+    name: macOS (universal)
+    needs: plan
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          cache: false
+      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: cargo build --release --locked --target aarch64-apple-darwin
+      - run: cargo build --release --locked --target x86_64-apple-darwin
+      - name: Package
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: tools/package.sh macos "$TAG"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos
+          path: dist/*.zip
+          if-no-files-found: error
+
+  publish:
+    name: Attach to the release
+    needs: [plan, linux, windows, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums and upload
+        working-directory: dist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          sha256sum -- * > SHA256SUMS
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "Scorch ${TAG#v}" --notes ""
+          gh release upload --clobber "$TAG" -- *

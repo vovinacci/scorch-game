@@ -1,0 +1,16 @@
+name: Idea
+description: Suggest a feature, a weapon, a bot, or a change to the rules
+labels: [idea]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the game do, and why would it make it more fun?
+    validations:
+      required: true
+  - type: textarea
+    id: original
+    attributes:
+      label: From the original?
+      description: If Scorched Earth (1991) had this, how did it work there?

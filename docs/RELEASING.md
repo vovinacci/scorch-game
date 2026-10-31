@@ -1,16 +1,21 @@
 # Scorch: GitHub, CI and releases
 
-Status: **planned**. This is the agreed target setup; tick items off in the roadmap as they land.
+Status: repository, CI, commit checks and the release workflow are in place; self-update is still to do (see the end).
+
+Files: `.github/workflows/ci.yml`, `release.yml`, `pr-title.yml`, `.github/dependabot.yml`, `release-plz.toml`,
+`tools/package.sh`, `packaging/` (desktop entry, macOS `Info.plist`), `assets/icon/scorch.svg` (app icon).
 
 ## GitHub repository
 
 - Name `scorch-game` (the game and binary stay "Scorch" / `scorch`), public, MIT.
-- Description: "Turn-based artillery game, a tribute to Scorched Earth (1991). Rust + macroquad. English and
-  Ukrainian."
+- Description: "Turn-based artillery game, a tribute to Scorched Earth (1991). Rust + macroquad. English and Ukrainian."
 - Topics: `game`, `artillery`, `scorched-earth`, `turn-based`, `retro`, `rust`, `macroquad`, `gamedev`.
 - Social preview: the battle screenshot (1280x640).
 - README badges: CI, latest release, licence.
-- `main` is protected: CI and the PR title check must pass; squash merges only, so the PR title becomes the commit.
+- Squash merges only; the squash commit takes the PR title and body, so the PR title becomes the commit.
+- Rulesets: `main` needs a pull request with passing checks (Checks, the five builds, the Nix package, the PR title),
+  linear history and signed commits, and can't be deleted or force-pushed; `v*` tags can't be moved or deleted.
+  Repository admins can bypass both (for emergencies).
 - Dependabot: weekly for Cargo and GitHub Actions.
 - Issue templates: bug report (version, OS, crash report) and idea.
 
@@ -32,7 +37,8 @@ Scopes are optional: `bots`, `battle`, `shop`, `ui`, `i18n`, `save`, `docs`, `ci
 
 Enforced twice:
 
-- locally: a prek `commit-msg` hook runs cocogitto's `cog verify` (cocogitto comes from `shell.nix`);
+- locally: a prek `commit-msg` hook runs cocogitto's `cog verify` (`tools/verify_commit.sh`; cocogitto comes from
+  `shell.nix`);
 - on GitHub: `amannn/action-semantic-pull-request` checks PR titles, which become the commits on `main`.
 
 ## CI (every push and pull request)
@@ -46,12 +52,18 @@ Enforced twice:
 
 Tool: [release-plz](https://release-plz.dev) (changelog by git-cliff), publishing to crates.io turned off.
 
-1. Every merge to `main` updates a **release PR**: version bump in `Cargo.toml` / `Cargo.lock` (`fix` = patch, `feat`
-   = minor, breaking = minor while below 1.0) and the new `CHANGELOG.md` section.
+1. Every merge to `main` updates a **release PR**: version bump in `Cargo.toml` / `Cargo.lock` (`fix` = patch, `feat` =
+   minor, breaking = minor while below 1.0) and the new `CHANGELOG.md` section.
 2. Review the PR, polish the wording if needed, merge it.
 3. release-plz tags `vX.Y.Z` and creates the GitHub Release with that changelog section as notes.
 4. The same workflow then builds the binaries on native runners and attaches them (`taiki-e/upload-rust-binary-action`).
    It must be the same workflow: tags pushed with `GITHUB_TOKEN` don't trigger other workflows.
+5. To (re)build the binaries of an existing tag (for example `v0.1.0`, which predates the workflow): Actions > Release >
+   Run workflow, with the tag.
+
+Release PRs made with `GITHUB_TOKEN` don't start CI, so their required checks never run. Give the workflow a
+fine-grained personal access token as the secret `RELEASE_TOKEN` (this repository only; Contents and Pull requests: read
+and write), and the release PR is checked like any other.
 
 Release files:
 
@@ -66,6 +78,17 @@ Release files:
 - Builds aren't code-signed at first: release notes explain SmartScreen ("More info" > "Run anyway") and macOS
   (right-click > Open). Signing (Apple Developer ID, Windows certificate) can come later.
 
+## Supply chain
+
+- Every GitHub Action is pinned to a full commit SHA, with the version in a comment (`# v7.0.1`); Dependabot updates
+  both. Python tools are pinned with hashes in `requirements.txt`; appimagetool is a pinned release checked against its
+  sha256. Runner images are pinned (`ubuntu-24.04`, `windows-2025`, `macos-15`), not `-latest`.
+- Workflows start with no permissions and each job asks only for what it needs; checkouts don't keep credentials;
+  release jobs don't use caches. The PR title check runs on `pull_request`, not `pull_request_target`.
+- Dependabot waits 7 days after a release before proposing it (`cooldown`).
+- Workflows are checked with [actionlint](https://github.com/rhysd/actionlint) and [zizmor](https://docs.zizmor.sh)
+  (both in nixpkgs).
+
 ## Self-update
 
 - **Consent:** the first start asks once "Check for updates automatically?" (Yes / No). Saved as Settings > "Check for
@@ -79,14 +102,18 @@ Release files:
     built into the game. A file that fails verification is never installed.
   - Replacement: the `self_update` crate (uses `self-replace`, which handles running executables on Windows). On macOS
     the binary inside `Scorch.app` is replaced; for an AppImage, the AppImage file itself (`$APPIMAGE`).
-- **Off** for development builds (versions with `+g...`, `.dirty`, `+nogit`) and for builds made by package managers
-  (a `self-update` Cargo feature, on by default, that packagers turn off).
+- **Off** for development builds (versions with `+g...`, `.dirty`, `+nogit`) and for builds made by package managers (a
+  `self-update` Cargo feature, on by default, that packagers turn off).
 - Cost: HTTPS (rustls) adds about 1-2 MB to the binary. Downloads run on a background thread so the game never stalls.
+
+## Commit messages from tools
+
+Dependabot uses `build:` for Cargo and `ci:` for Actions updates; release-plz's release PR is `chore: release vX.Y.Z`.
+Commits and PRs carry no trailers (no "Co-authored-by" or "Generated with" lines).
 
 ## Order of work
 
-1. `git init`, first commit, tag `v0.1.0`, `make hooks-install`; push to GitHub as `scorch-game` with the settings
-   above.
-2. CI workflow, PR title check, Dependabot, issue templates, README badges.
-3. Release workflow: release-plz + native builds + AppImage + macOS `.app`, first automated release.
-4. Signing key and self-update (needs releases to exist to test against).
+1. Done: git, first commit, tag `v0.1.0`, hooks, the GitHub repository and its settings.
+2. Done: CI, PR title check, Dependabot, issue and PR templates, CONTRIBUTING and SECURITY, README badges, rulesets.
+3. Done: release workflow (release-plz, native builds, AppImage, macOS `.app`); first run builds `v0.1.0` by hand.
+4. Next: signing key and self-update.

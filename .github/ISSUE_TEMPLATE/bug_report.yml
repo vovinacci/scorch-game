@@ -1,0 +1,53 @@
+name: Bug report
+description: Something in the game doesn't work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! The more of the fields below you fill in, the faster it can be fixed.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. New game with 3 bots, walls Bouncy
+        2. Fire a MIRV at the left wall
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Bottom right of the main menu, or on the About screen.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: System
+      options: [Linux, Windows, macOS, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: Game language
+      options: [English, Українська]
+  - type: textarea
+    id: crash
+    attributes:
+      label: Crash report
+      description: If the game crashed, it offers "Copy report" on the next start. Paste it here.
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, save files, ideas about the cause.
