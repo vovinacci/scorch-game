@@ -5,8 +5,9 @@
 #   tools/package.sh windows <arch> <version>   # target/release/scorch.exe -> zip
 #   tools/package.sh macos   <version>          # universal Scorch.app from both Apple targets -> zip
 #
-# <arch> is x86_64 or aarch64; <version> is the tag, e.g. v0.1.0. Needs rsvg-convert for icons, appimagetool for the
-# AppImage (APPIMAGETOOL, default "appimagetool"), 7z on Windows, lipo/iconutil/ditto on macOS.
+# <arch> is x86_64 or aarch64; <version> is the tag, e.g. v0.1.0. Icons come from the PNGs in assets/icon/ (rendered
+# from scorch.svg). Needs appimagetool for the AppImage (APPIMAGETOOL, default "appimagetool"), 7z on Windows, and
+# lipo/iconutil/ditto on macOS.
 set -euo pipefail
 
 os=$1
@@ -32,7 +33,7 @@ linux)
     mkdir -p "$app/usr/bin"
     cp target/release/scorch "$app/usr/bin/"
     cp packaging/scorch.desktop "$app/"
-    rsvg-convert -w 256 -h 256 assets/icon/scorch.svg -o "$app/scorch.png"
+    cp assets/icon/scorch-256.png "$app/scorch.png"
     ln -s usr/bin/scorch "$app/AppRun"
     ARCH=$arch APPIMAGE_EXTRACT_AND_RUN=1 "${APPIMAGETOOL:-appimagetool}" --no-appstream "$app" \
         "dist/Scorch-$version-$arch.AppImage"
@@ -56,8 +57,8 @@ macos)
     iconset=dist/Scorch.iconset
     mkdir -p "$iconset"
     for size in 16 32 128 256 512; do
-        rsvg-convert -w $size -h $size assets/icon/scorch.svg -o "$iconset/icon_${size}x${size}.png"
-        rsvg-convert -w $((size * 2)) -h $((size * 2)) assets/icon/scorch.svg -o "$iconset/icon_${size}x${size}@2x.png"
+        cp "assets/icon/scorch-$size.png" "$iconset/icon_${size}x${size}.png"
+        cp "assets/icon/scorch-$((size * 2)).png" "$iconset/icon_${size}x${size}@2x.png"
     done
     iconutil -c icns "$iconset" -o "$app/Contents/Resources/Scorch.icns"
     (cd dist && ditto -c -k --keepParent "$name" "$name.zip")

@@ -25,8 +25,8 @@ Start with [DEVELOPMENT.md](docs/DEVELOPMENT.md) (tools, building, the rules in 
 1. Fork, create a branch, make the change.
 2. Run `make hooks-install` once; the hooks then check every commit. Before pushing: `make hooks` and `make test`.
 3. Changes players can notice update both player's guides; new on-screen text goes into both `.ftl` files.
-4. Open a pull request. Its title becomes the commit on `main`, so it must be a [Conventional
-   Commit](https://www.conventionalcommits.org): `feat: ...`, `fix: ...`, `docs: ...`, optionally with a scope like
-   `feat(bots): ...`. The changelog is generated from these titles.
+4. Open a pull request. Its title becomes the commit on `main`, so it must be a
+   [Conventional Commit](https://www.conventionalcommits.org): `feat: ...`, `fix: ...`, `docs: ...`, optionally with a
+   scope like `feat(bots): ...`. The changelog is generated from these titles.
 
 By contributing you agree that your work is released under the [MIT License](LICENSE).

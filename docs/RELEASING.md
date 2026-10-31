@@ -78,6 +78,17 @@ Release files:
 - Builds aren't code-signed at first: release notes explain SmartScreen ("More info" > "Run anyway") and macOS
   (right-click > Open). Signing (Apple Developer ID, Windows certificate) can come later.
 
+## Supply chain
+
+- Every GitHub Action is pinned to a full commit SHA, with the version in a comment (`# v7.0.1`); Dependabot updates
+  both. Python tools are pinned with hashes in `requirements.txt`; appimagetool is a pinned release checked against its
+  sha256. Runner images are pinned (`ubuntu-24.04`, `windows-2025`, `macos-15`), not `-latest`.
+- Workflows start with no permissions and each job asks only for what it needs; checkouts don't keep credentials;
+  release jobs don't use caches. The PR title check runs on `pull_request`, not `pull_request_target`.
+- Dependabot waits 7 days after a release before proposing it (`cooldown`).
+- Workflows are checked with [actionlint](https://github.com/rhysd/actionlint) and [zizmor](https://docs.zizmor.sh)
+  (both in nixpkgs).
+
 ## Self-update
 
 - **Consent:** the first start asks once "Check for updates automatically?" (Yes / No). Saved as Settings > "Check for

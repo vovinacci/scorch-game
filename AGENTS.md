@@ -34,8 +34,8 @@ Scorched Earth style artillery game in Rust + macroquad.
   outputs, blank frames).
 - Never store GPU objects (Font, Texture) in a value that is dropped at exit: they get freed after the GL context is
   gone and the game segfaults. Leak them on purpose, like `FONT` in `ui.rs`.
-- The font (Scorch Mono) has no emoji. Before using a new symbol, check the font has it: `fc-query
-  assets/fonts/ScorchMono.ttf`.
+- The font (Scorch Mono) has no emoji. Before using a new symbol, check the font has it:
+  `fc-query assets/fonts/ScorchMono.ttf`.
 - Ukrainian runs ~25% longer than English: give bounded text `ui::text_fit` / `ui::text_wrapped`, then check both
   languages with `--shot`.
 - Fluent: messages referenced from other messages don't receive the caller's arguments, so inline plural selectors.

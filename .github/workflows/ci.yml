@@ -6,8 +6,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -20,23 +19,22 @@ jobs:
   checks:
     name: Checks
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-      - uses: jdx/mise-action@v2
-      - name: Install system libraries and tools
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+      - name: Install system libraries
         run: |
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev
-          python3 -m venv "$RUNNER_TEMP/tools"
-          "$RUNNER_TEMP/tools/bin/pip" install --quiet -r requirements.txt
-          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
-      - uses: Swatinem/rust-cache@v2
-      # The same hooks as a local commit: whitespace, ASCII, Markdown, rustfmt, clippy.
-      - uses: j178/prek-action@v1
-        with:
-          extra-args: --all-files
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      # The same hooks as a local commit (whitespace, ASCII, Markdown, rustfmt, clippy), with the tools from the
+      # hash-pinned requirements.txt.
+      - name: Hooks
+        run: make hooks
       - name: Tests
         run: cargo test --locked
 
@@ -48,23 +46,23 @@ jobs:
         include:
           - { name: Linux x86_64, os: ubuntu-22.04 }
           - { name: Linux ARM64, os: ubuntu-22.04-arm }
-          - { name: Windows x86_64, os: windows-latest }
+          - { name: Windows x86_64, os: windows-2025 }
           - { name: Windows ARM64, os: windows-11-arm }
-          - { name: macOS, os: macos-latest }
+          - { name: macOS, os: macos-15 }
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-      - uses: jdx/mise-action@v2
+          persist-credentials: false
+          fetch-depth: 0 # build.rs reads the version from git tags
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       - name: Install system libraries
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build
         run: cargo build --release --locked
-      - name: Version
-        shell: bash
-        run: ./target/release/scorch --version || true

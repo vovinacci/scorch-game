@@ -8,9 +8,9 @@ removed, so all sizes use the outlines.
 The SIL Open Font License (`LICENSE-OFL.txt`) reserves the names "Terminus Font" and "Terminus (TTF)", so the modified
 font is renamed "Scorch Mono".
 
-Rebuild with `tools/patch_font.py` (needs Python with fontTools: `pip install -r requirements.txt`):
+Rebuild with `tools/patch_font.py`, using the pinned fontTools from `make tools` (`.venv/bin/python3`):
 
-    python3 tools/patch_font.py TerminusTTF-4.49.3.ttf ter-u16n.bdf assets/fonts/ScorchMono.ttf
+    .venv/bin/python3 tools/patch_font.py TerminusTTF-4.49.3.ttf ter-u16n.bdf assets/fonts/ScorchMono.ttf
 
 where `TerminusTTF-4.49.3.ttf` comes from the Terminus (TTF) release and `ter-u16n.bdf` from the Terminus 4.49 source
 with `alt/dv1.diff` applied.

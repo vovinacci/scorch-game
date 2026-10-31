@@ -6,14 +6,22 @@ numbers behind the rules, file formats, versioning and the code map.
 
 ## Tools
 
-- **Rust** is pinned with [mise](https://mise.jdx.dev) in `mise.toml` (currently 1.99.1). With mise installed, entering
-  this folder selects that version; run `mise trust` once and `mise install` if it's missing. Without mise, any Rust
-  1.88 or newer builds the game.
-- **NixOS:** `shell.nix` provides the graphics libraries the game loads at run time, plus prek and rumdl (see below);
-  the `make` targets use it automatically.
-- Elsewhere, install [prek](https://prek.j178.dev) and [rumdl](https://rumdl.dev) yourself if you want the git hooks and
-  Markdown checks. Python tool versions (rumdl, fonttools) are pinned in `requirements.txt` (kept current by
-  Dependabot); the older rumdl in nixpkgs accepts what the newer one formats.
+- **Rust** is pinned with [mise](https://mise.jdx.dev) in `mise.toml` (1.99.1, with rustfmt and clippy). With mise
+  installed, entering this folder selects it (`mise trust` once, `mise install` if missing). CI uses the same file.
+  Without mise, any Rust 1.88 or newer builds the game.
+- **Python tools** (prek for git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in
+  `requirements.txt`; `make tools` installs them into `.venv`, and the other `make` targets use them from there. CI
+  installs the same file, and Dependabot keeps it current.
+- **NixOS:** `shell.nix` provides the graphics libraries the game loads at run time and cocogitto (commit message
+  check); the `make` targets use it automatically. Elsewhere install cocogitto with `cargo install cocogitto`.
+
+## Binaries
+
+- **Linux:** links only glibc; OpenGL, X11/Wayland and ALSA are loaded at run time from the player's system, so the game
+  uses their GPU drivers. A fully static (musl) build couldn't load them. Release builds run on Ubuntu 22.04, so they
+  need glibc 2.35 or newer.
+- **Windows:** the C runtime is linked statically (`.cargo/config.toml`), so no Visual C++ redistributable is needed.
+- **macOS:** links only system frameworks; one universal binary for Intel and Apple Silicon.
 
 ## Building and running
 

@@ -1,21 +1,23 @@
 name: PR title
 
-# Squash merges make the PR title the commit on main, so it must be a Conventional Commit.
+# Squash merges make the PR title the commit on main, so it must be a Conventional Commit. Uses pull_request, not
+# pull_request_target: the check only reads the title, so it needs no write access or secrets.
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, synchronize, reopened]
 
-permissions:
-  pull-requests: read
+permissions: {}
 
 jobs:
   conventional:
     name: Conventional PR title
     runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: read
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           types: |
             feat
@@ -29,4 +31,3 @@ jobs:
             build
             chore
             revert
-          requireScope: false
