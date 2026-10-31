@@ -1,6 +1,9 @@
 # Scorch: GitHub, CI and releases
 
-Status: **planned**. This is the agreed target setup; tick items off in the roadmap as they land.
+Status: repository, CI, commit checks and the release workflow are in place; self-update is still to do (see the end).
+
+Files: `.github/workflows/ci.yml`, `release.yml`, `pr-title.yml`, `.github/dependabot.yml`, `release-plz.toml`,
+`tools/package.sh`, `packaging/` (desktop entry, macOS `Info.plist`), `assets/icon/scorch.svg` (app icon).
 
 ## GitHub repository
 
@@ -10,7 +13,10 @@ Status: **planned**. This is the agreed target setup; tick items off in the road
 - Topics: `game`, `artillery`, `scorched-earth`, `turn-based`, `retro`, `rust`, `macroquad`, `gamedev`.
 - Social preview: the battle screenshot (1280x640).
 - README badges: CI, latest release, licence.
-- `main` is protected: CI and the PR title check must pass; squash merges only, so the PR title becomes the commit.
+- Squash merges only; the squash commit takes the PR title and body, so the PR title becomes the commit.
+- Rulesets: `main` needs a pull request with passing checks (Checks, the five builds, the PR title), linear history and
+  signed commits, and can't be deleted or force-pushed; `v*` tags can't be moved or deleted. Repository admins can
+  bypass both (for emergencies).
 - Dependabot: weekly for Cargo and GitHub Actions.
 - Issue templates: bug report (version, OS, crash report) and idea.
 
@@ -32,7 +38,8 @@ Scopes are optional: `bots`, `battle`, `shop`, `ui`, `i18n`, `save`, `docs`, `ci
 
 Enforced twice:
 
-- locally: a prek `commit-msg` hook runs cocogitto's `cog verify` (cocogitto comes from `shell.nix`);
+- locally: a prek `commit-msg` hook runs cocogitto's `cog verify` (`tools/verify_commit.sh`; cocogitto comes from
+  `shell.nix`);
 - on GitHub: `amannn/action-semantic-pull-request` checks PR titles, which become the commits on `main`.
 
 ## CI (every push and pull request)
@@ -52,6 +59,12 @@ Tool: [release-plz](https://release-plz.dev) (changelog by git-cliff), publishin
 3. release-plz tags `vX.Y.Z` and creates the GitHub Release with that changelog section as notes.
 4. The same workflow then builds the binaries on native runners and attaches them (`taiki-e/upload-rust-binary-action`).
    It must be the same workflow: tags pushed with `GITHUB_TOKEN` don't trigger other workflows.
+5. To (re)build the binaries of an existing tag (for example `v0.1.0`, which predates the workflow): Actions >
+   Release > Run workflow, with the tag.
+
+Release PRs made with `GITHUB_TOKEN` don't start CI, so their required checks never run. Give the workflow a
+fine-grained personal access token as the secret `RELEASE_TOKEN` (this repository only; Contents and Pull requests: read
+and write), and the release PR is checked like any other.
 
 Release files:
 
@@ -83,10 +96,14 @@ Release files:
   (a `self-update` Cargo feature, on by default, that packagers turn off).
 - Cost: HTTPS (rustls) adds about 1-2 MB to the binary. Downloads run on a background thread so the game never stalls.
 
+## Commit messages from tools
+
+Dependabot uses `build:` for Cargo and `ci:` for Actions updates; release-plz's release PR is `chore: release vX.Y.Z`.
+Commits and PRs carry no trailers (no "Co-authored-by" or "Generated with" lines).
+
 ## Order of work
 
-1. `git init`, first commit, tag `v0.1.0`, `make hooks-install`; push to GitHub as `scorch-game` with the settings
-   above.
-2. CI workflow, PR title check, Dependabot, issue templates, README badges.
-3. Release workflow: release-plz + native builds + AppImage + macOS `.app`, first automated release.
-4. Signing key and self-update (needs releases to exist to test against).
+1. Done: git, first commit, tag `v0.1.0`, hooks, the GitHub repository and its settings.
+2. Done: CI, PR title check, Dependabot, issue and PR templates, CONTRIBUTING and SECURITY, README badges, rulesets.
+3. Done: release workflow (release-plz, native builds, AppImage, macOS `.app`); first run builds `v0.1.0` by hand.
+4. Next: signing key and self-update.

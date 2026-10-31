@@ -2,6 +2,10 @@
 [global]
 line-length = 120
 
+# GitHub templates start with a comment, not a heading.
+[per-file-ignores]
+".github/pull_request_template.md" = ["MD041"]
+
 [MD013]
 line-length = 120
 reflow = true

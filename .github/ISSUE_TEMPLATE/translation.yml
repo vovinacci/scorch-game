@@ -1,0 +1,29 @@
+name: Translation
+description: Fix a translation, or offer a new language
+labels: [translation]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind?
+      options:
+        - Fix a wrong or awkward text
+        - Add a new language
+    validations:
+      required: true
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      placeholder: Українська, Deutsch, ...
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: |
+        For a fix: where it appears (screen), the current text and your suggestion.
+        For a new language: are you a native speaker, and would you like to translate assets/i18n/en-GB.ftl yourself?
+    validations:
+      required: true

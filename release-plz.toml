@@ -1,0 +1,20 @@
+# Releases: https://release-plz.dev. A release PR bumps the version and writes CHANGELOG.md from Conventional Commits;
+# merging it tags vX.Y.Z and creates the GitHub Release. Nothing is published to crates.io.
+[workspace]
+git_only = true
+git_tag_name = "v{{ version }}"
+git_release_enable = true
+release_always = false
+semver_check = false
+pr_labels = ["release"]
+
+[changelog]
+protect_breaking_commits = true
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Fixes" },
+    { message = "^perf", group = "Changed" },
+    { message = "^revert", group = "Changed" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^(refactor|style|test|ci|build|chore)", skip = true },
+]

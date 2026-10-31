@@ -1,3 +1,6 @@
+// No console window behind the game in Windows release builds.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 //! Scorch: a Scorched Earth style artillery game.
 //!
 //! The game is a state machine. `Game::screen` says which screen is active;

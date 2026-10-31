@@ -46,7 +46,7 @@ ascii-check:    ## Code and config must be ASCII (see tools/check_ascii.sh)
 	tools/check_ascii.sh $$(find src tools build.rs Cargo.toml Makefile shell.nix mise.toml prek.toml .rumdl.toml .editorconfig -type f)
 
 hooks-install:  ## Install the git hooks (needs a git repository)
-	$(call TOOL,prek install --hook-type pre-commit --hook-type pre-push)
+	$(call TOOL,prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push)
 
 hooks:          ## Run all git hooks on every file
 	$(call TOOL,prek run --all-files)

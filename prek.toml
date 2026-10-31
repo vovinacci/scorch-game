@@ -2,6 +2,9 @@
 # Set up once with `prek install`; run by hand with `prek run --all-files`.
 #:schema https://www.schemastore.org/prek.json
 
+# Hooks run on commit unless they say otherwise (tests on push, the message check on commit-msg).
+default_stages = ["pre-commit"]
+
 # Third-party licence text stays exactly as published.
 exclude = '^assets/fonts/LICENSE-OFL\.txt$'
 
@@ -23,6 +26,7 @@ hooks = [
 [[repos]]
 repo = "local"
 hooks = [
+    { id = "conventional-commit", name = "Conventional Commit message", entry = "tools/verify_commit.sh", language = "system", stages = ["commit-msg"] },
     { id = "ascii", name = "ASCII in code and config", entry = "tools/check_ascii.sh", language = "system", files = '(\.(rs|toml|py|nix|sh)|Makefile|\.editorconfig)$' },
     { id = "docs", name = "markdown (rumdl)", entry = "make docs-check", language = "system", types = ["markdown"], pass_filenames = false },
     { id = "cargo-fmt", name = "cargo fmt", entry = "make fmt-check", language = "system", types = ["rust"], pass_filenames = false },

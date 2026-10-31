@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Scorch
+GenericName=Artillery game
+Comment=Turn-based artillery game, a tribute to Scorched Earth (1991)
+Exec=scorch
+Icon=scorch
+Terminal=false
+Categories=Game;StrategyGame;

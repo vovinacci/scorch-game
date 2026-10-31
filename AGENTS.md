@@ -22,6 +22,8 @@ Scorched Earth style artillery game in Rust + macroquad.
   the 1280x720 virtual screen in `ui.rs`; the window may be any size (Sway tiles it).
 - Markdown docs wrap at 120 columns: run `make docs` after editing them (`make docs-check` checks). Rust stays at
   rustfmt's 100. Hooks (`prek.toml`) run the same checks on commit.
+- Commits and PR titles are Conventional Commits (`feat(bots): ...`); the changelog is generated from them. No
+  trailers in commits or PRs (no Co-authored-by, no "Generated with").
 - New saved fields need `#[serde(default)]` so older save files still load.
 
 ## Gotchas

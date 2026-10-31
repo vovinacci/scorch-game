@@ -43,6 +43,14 @@ echo '{"settings":{"language":"Ukrainian"},"intro_seen":true}' > /tmp/s/scorch/p
 XDG_DATA_HOME=/tmp/s scorch --screen shop --shot shop.png
 ```
 
+## CI and releases
+
+GitHub Actions check every push and pull request, and release-plz turns Conventional Commits into versions, a changelog
+and GitHub Releases with binaries for Linux, Windows and macOS. Details and the release steps:
+[RELEASING.md](RELEASING.md). `tools/package.sh` packs the release files (tar.gz, AppImage, zip, macOS `.app`); the app
+icon is `assets/icon/scorch.svg`. Windows release builds have no console window (`windows_subsystem`), so command line
+output only shows in debug builds there.
+
 ## Code style and git hooks
 
 - `.editorconfig` sets the basics for any editor: UTF-8, LF, final newline, no trailing spaces, 4-space indents (2 for
@@ -51,6 +59,7 @@ XDG_DATA_HOME=/tmp/s scorch --screen shop --shot shop.png
   `make docs-check` checks. Tables and code blocks are left alone.
 - Git hooks run with [prek](https://prek.j178.dev) (`prek.toml`), a fast drop-in for pre-commit. Install them once in a
   git checkout with `make hooks-install`; `make hooks` runs them all by hand.
+  - On commit message: it must be a Conventional Commit (cocogitto, `tools/verify_commit.sh`).
   - On commit: ASCII-only code and config (`tools/check_ascii.sh`; docs and translations are UTF-8), whitespace and
     line-ending fixes, merge-conflict markers, large files, TOML/YAML/JSON syntax, Markdown,
     `cargo fmt --check` and clippy.

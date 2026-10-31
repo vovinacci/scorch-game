@@ -1,0 +1,169 @@
+name: Release
+
+# On every push to main, release-plz keeps a release PR up to date (version bump + CHANGELOG.md). Merging that PR makes
+# release-plz tag vX.Y.Z and create the GitHub Release; the build jobs below then attach the binaries. The build has to
+# live in this workflow: a tag pushed with GITHUB_TOKEN does not start other workflows.
+#
+# Run it by hand with a tag to (re)build the binaries of an existing release.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build binaries for, e.g. v0.1.0
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release-plz:
+    name: Release PR and tag
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          # A personal token lets the release PR trigger CI; GITHUB_TOKEN works but its PRs skip CI.
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - uses: jdx/mise-action@v2
+      - name: Release (if a release PR was just merged)
+        id: release
+        uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Update the release PR
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: New tag
+        id: tag
+        if: steps.release.outputs.releases_created == 'true'
+        env:
+          RELEASES: ${{ steps.release.outputs.releases }}
+        run: echo "tag=$(jq -r '.[0].tag' <<< "$RELEASES")" >> "$GITHUB_OUTPUT"
+
+  plan:
+    name: Pick the tag
+    needs: release-plz
+    if: always() && (needs.release-plz.outputs.tag != '' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - id: tag
+        env:
+          TAG: ${{ github.event.inputs.tag || needs.release-plz.outputs.tag }}
+        run: echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    needs: plan
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64, os: ubuntu-22.04 }
+          - { arch: aarch64, os: ubuntu-22.04-arm }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - name: Install system libraries and tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev librsvg2-bin
+          curl -fsSL -o /usr/local/bin/appimagetool \
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.arch }}.AppImage"
+          sudo chmod +x /usr/local/bin/appimagetool
+      - run: cargo build --release --locked
+      - run: tools/package.sh linux ${{ matrix.arch }} ${{ needs.plan.outputs.tag }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.AppImage
+
+  windows:
+    name: Windows ${{ matrix.arch }}
+    needs: plan
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64, os: windows-latest }
+          - { arch: aarch64, os: windows-11-arm }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - run: cargo build --release --locked
+      - run: tools/package.sh windows ${{ matrix.arch }} ${{ needs.plan.outputs.tag }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: dist/*.zip
+
+  macos:
+    name: macOS (universal)
+    needs: plan
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: brew install librsvg
+      - run: cargo build --release --locked --target aarch64-apple-darwin
+      - run: cargo build --release --locked --target x86_64-apple-darwin
+      - run: tools/package.sh macos ${{ needs.plan.outputs.tag }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.zip
+
+  publish:
+    name: Attach to the release
+    needs: [plan, linux, windows, macos]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums and upload
+        working-directory: dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          sha256sum -- * > SHA256SUMS
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Scorch ${TAG#v}" --notes-file /dev/null
+          gh release upload --clobber "$TAG" -- *

@@ -1,5 +1,9 @@
 # Scorch
 
+[![CI](https://github.com/vovinacci/scorch-game/actions/workflows/ci.yml/badge.svg)](https://github.com/vovinacci/scorch-game/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/vovinacci/scorch-game)](https://github.com/vovinacci/scorch-game/releases/latest)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
+
 **Tanks, hills, and far too many explosives.**
 
 Scorch is a turn-based artillery game for one or two players against up to three computer opponents. Aim, mind the wind,
@@ -34,7 +38,22 @@ Mother of All Games".
 
 ## Getting started
 
-There are no ready-made downloads yet, so you build the game yourself. It takes a few minutes the first time.
+### Download
+
+Get the latest version from [Releases](https://github.com/vovinacci/scorch-game/releases/latest):
+
+| System | File |
+|---|---|
+| Windows | `scorch-...-windows-x86_64.zip` (or `aarch64` for ARM laptops): unzip, run `scorch.exe` |
+| macOS | `scorch-...-macos.zip`: unzip, move `Scorch.app` to Applications |
+| Linux | `Scorch-....AppImage`: make it executable and run it; or the `.tar.gz` |
+
+The builds aren't code-signed yet, so the first start shows a warning. Windows: "More info", then "Run anyway". macOS:
+right-click `Scorch.app`, then "Open".
+
+### Build it yourself
+
+It takes a few minutes the first time.
 
 1. Install [Rust](https://www.rust-lang.org/tools/install) (version 1.88 or newer; with [mise](https://mise.jdx.dev),
    the pinned version installs itself).
@@ -47,8 +66,6 @@ There are no ready-made downloads yet, so you build the game yourself. It takes 
    ```
 
    The game builds and starts. Next time, the same command starts it right away.
-
-Windows and macOS builds are planned; see the [roadmap](docs/ROADMAP.md).
 
 ## How to play
 
@@ -81,11 +98,14 @@ the details.
 Your saved game, settings and statistics are kept in your user data folder, for example `~/.local/share/scorch/` on
 Linux. Deleting that folder resets the game.
 
-## Reporting problems
+## Reporting problems and contributing
 
-If the game crashes, it saves a report and offers to copy it the next time you start it. Please send the report, or
-describe what happened, together with the version number from the bottom right of the main menu. The game never sends
-anything by itself.
+If the game crashes, it saves a report and offers to copy it the next time you start it. Please
+[open a bug report](https://github.com/vovinacci/scorch-game/issues/new/choose) with the report, or describe what
+happened, together with the version number from the bottom right of the main menu. The game never sends anything by
+itself.
+
+Ideas, translations and code are welcome too: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## For developers
 

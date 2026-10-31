@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - name: Install system libraries and tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev
+          pipx install rumdl
+      - uses: Swatinem/rust-cache@v2
+      # The same hooks as a local commit: whitespace, ASCII, Markdown, rustfmt, clippy.
+      - uses: j178/prek-action@v1
+        with:
+          extra_args: --all-files
+      - name: Tests
+        run: cargo test --locked
+
+  build:
+    name: Build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux x86_64, os: ubuntu-22.04 }
+          - { name: Linux ARM64, os: ubuntu-22.04-arm }
+          - { name: Windows x86_64, os: windows-latest }
+          - { name: Windows ARM64, os: windows-11-arm }
+          - { name: macOS, os: macos-latest }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - name: Install system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --locked
+      - name: Version
+        shell: bash
+        run: ./target/release/scorch --version || true
