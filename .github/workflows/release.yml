@@ -47,13 +47,16 @@ jobs:
         uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
         with:
           command: release
-          # A personal token lets the release PR trigger CI; GITHUB_TOKEN works, but its PRs skip CI.
-          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+        env:
+          # release-plz reads the GitHub token from GITHUB_TOKEN (its `token` input is for crates.io).
+          # A personal token lets the release PR trigger CI; the built-in token works, but its PRs skip CI.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
       - name: Update the release PR
         uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
         with:
           command: release-pr
-          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
       - name: New tag
         id: tag
         if: steps.release.outputs.releases_created == 'true'
