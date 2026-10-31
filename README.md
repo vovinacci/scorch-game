@@ -68,7 +68,8 @@ It takes a few minutes the first time.
 
 1. Install [Rust](https://www.rust-lang.org/tools/install) (version 1.88 or newer; with [mise](https://mise.jdx.dev),
    the pinned version installs itself).
-2. On Linux nothing else is needed on a normal desktop. On NixOS, `make` takes care of this through `nix-shell`.
+2. On Linux nothing else is needed on a normal desktop. On NixOS, `make` provides the libraries through `nix-shell` (or
+   just `nix run .`).
 3. In this folder, run:
 
    ```text
