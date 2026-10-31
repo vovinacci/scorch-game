@@ -11,8 +11,9 @@ numbers behind the rules, file formats, versioning and the code map.
   1.88 or newer builds the game.
 - **NixOS:** `shell.nix` provides the graphics libraries the game loads at run time, plus prek and rumdl (see below);
   the `make` targets use it automatically.
-- Elsewhere, install [prek](https://prek.j178.dev) and [rumdl](https://rumdl.dev) yourself if you want the git hooks
-  and Markdown checks. Use rumdl 0.1.94, the version in nixpkgs and CI: newer versions format Markdown differently.
+- Elsewhere, install [prek](https://prek.j178.dev) and [rumdl](https://rumdl.dev) yourself if you want the git hooks and
+  Markdown checks. CI's rumdl version is pinned in `.github/ci-tools/requirements.txt` (kept current by Dependabot); the
+  older rumdl in nixpkgs accepts what the newer one formats.
 
 ## Building and running
 
@@ -61,8 +62,8 @@ output only shows in debug builds there.
   git checkout with `make hooks-install`; `make hooks` runs them all by hand.
   - On commit message: it must be a Conventional Commit (cocogitto, `tools/verify_commit.sh`).
   - On commit: ASCII-only code and config (`tools/check_ascii.sh`; docs and translations are UTF-8), whitespace and
-    line-ending fixes, merge-conflict markers, large files, TOML/YAML/JSON syntax, Markdown,
-    `cargo fmt --check` and clippy.
+    line-ending fixes, merge-conflict markers, large files, TOML/YAML/JSON syntax, Markdown, `cargo fmt --check` and
+    clippy.
   - On push: the tests.
 - On NixOS, prek and rumdl come from `shell.nix`, and the `make` targets run them inside `nix-shell`.
 

@@ -9,6 +9,12 @@ updates:
     groups:
       cargo:
         patterns: ["*"]
+  - package-ecosystem: pip
+    directory: /.github/ci-tools
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
   - package-ecosystem: github-actions
     directory: /
     schedule:

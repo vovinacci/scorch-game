@@ -16,8 +16,8 @@ the guide as they ship.
 
 ## Platforms and releases
 
-- **GitHub, CI, releases and self-update:** planned in detail in [RELEASING.md](RELEASING.md) (Linux, Windows and
-  macOS binaries, AppImage, generated changelog, signed self-update).
+- **GitHub, CI, releases and self-update:** planned in detail in [RELEASING.md](RELEASING.md) (Linux, Windows and macOS
+  binaries, AppImage, generated changelog, signed self-update).
 - **Browser build:** saves and stats in browser storage instead of files, crash reports to the browser console, replace
   `SystemTime` (panics in the browser), hide Quit, `make web`.
 

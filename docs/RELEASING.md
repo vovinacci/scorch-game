@@ -8,8 +8,7 @@ Files: `.github/workflows/ci.yml`, `release.yml`, `pr-title.yml`, `.github/depen
 ## GitHub repository
 
 - Name `scorch-game` (the game and binary stay "Scorch" / `scorch`), public, MIT.
-- Description: "Turn-based artillery game, a tribute to Scorched Earth (1991). Rust + macroquad. English and
-  Ukrainian."
+- Description: "Turn-based artillery game, a tribute to Scorched Earth (1991). Rust + macroquad. English and Ukrainian."
 - Topics: `game`, `artillery`, `scorched-earth`, `turn-based`, `retro`, `rust`, `macroquad`, `gamedev`.
 - Social preview: the battle screenshot (1280x640).
 - README badges: CI, latest release, licence.
@@ -53,14 +52,14 @@ Enforced twice:
 
 Tool: [release-plz](https://release-plz.dev) (changelog by git-cliff), publishing to crates.io turned off.
 
-1. Every merge to `main` updates a **release PR**: version bump in `Cargo.toml` / `Cargo.lock` (`fix` = patch, `feat`
-   = minor, breaking = minor while below 1.0) and the new `CHANGELOG.md` section.
+1. Every merge to `main` updates a **release PR**: version bump in `Cargo.toml` / `Cargo.lock` (`fix` = patch, `feat` =
+   minor, breaking = minor while below 1.0) and the new `CHANGELOG.md` section.
 2. Review the PR, polish the wording if needed, merge it.
 3. release-plz tags `vX.Y.Z` and creates the GitHub Release with that changelog section as notes.
 4. The same workflow then builds the binaries on native runners and attaches them (`taiki-e/upload-rust-binary-action`).
    It must be the same workflow: tags pushed with `GITHUB_TOKEN` don't trigger other workflows.
-5. To (re)build the binaries of an existing tag (for example `v0.1.0`, which predates the workflow): Actions >
-   Release > Run workflow, with the tag.
+5. To (re)build the binaries of an existing tag (for example `v0.1.0`, which predates the workflow): Actions > Release >
+   Run workflow, with the tag.
 
 Release PRs made with `GITHUB_TOKEN` don't start CI, so their required checks never run. Give the workflow a
 fine-grained personal access token as the secret `RELEASE_TOKEN` (this repository only; Contents and Pull requests: read
@@ -92,8 +91,8 @@ Release files:
     built into the game. A file that fails verification is never installed.
   - Replacement: the `self_update` crate (uses `self-replace`, which handles running executables on Windows). On macOS
     the binary inside `Scorch.app` is replaced; for an AppImage, the AppImage file itself (`$APPIMAGE`).
-- **Off** for development builds (versions with `+g...`, `.dirty`, `+nogit`) and for builds made by package managers
-  (a `self-update` Cargo feature, on by default, that packagers turn off).
+- **Off** for development builds (versions with `+g...`, `.dirty`, `+nogit`) and for builds made by package managers (a
+  `self-update` Cargo feature, on by default, that packagers turn off).
 - Cost: HTTPS (rustls) adds about 1-2 MB to the binary. Downloads run on a background thread so the game never stalls.
 
 ## Commit messages from tools
