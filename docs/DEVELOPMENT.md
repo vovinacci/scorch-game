@@ -12,7 +12,7 @@ numbers behind the rules, file formats, versioning and the code map.
 - **NixOS:** `shell.nix` provides the graphics libraries the game loads at run time, plus prek and rumdl (see below);
   the `make` targets use it automatically.
 - Elsewhere, install [prek](https://prek.j178.dev) and [rumdl](https://rumdl.dev) yourself if you want the git hooks
-  and Markdown checks.
+  and Markdown checks. Use rumdl 0.1.94, the version in nixpkgs and CI: newer versions format Markdown differently.
 
 ## Building and running
 
