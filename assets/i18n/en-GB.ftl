@@ -103,9 +103,10 @@ bot-hits-by = usually on target by shot { $n }
 bot-rarely-hits = rarely hits
 
 SuddenDeath-Off = Off
-SuddenDeath-After15 = After 15 turns
-SuddenDeath-After25 = After 25 turns
-SuddenDeath-After40 = After 40 turns
+SuddenDeath-After8 = 8 shots each
+SuddenDeath-After12 = 12 shots each
+SuddenDeath-After16 = 16 shots each
+SuddenDeath-After24 = 24 shots each
 TerrainKind-Rolling = Rolling hills
 TerrainKind-Mountains = Mountains
 TerrainKind-Flat = Flatlands

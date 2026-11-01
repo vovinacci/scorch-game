@@ -257,9 +257,17 @@ pub struct Battle {
 }
 
 impl Battle {
-    pub fn new(players: &[Player], first: usize, round: u32, rounds: u32, rules: Rules) -> Self {
+    pub fn new(
+        players: &[Player],
+        first: usize,
+        round: u32,
+        rounds: u32,
+        mut rules: Rules,
+    ) -> Self {
         let mut terrain = Terrain::generate(rules.world.terrain);
         let n = players.len();
+        // Shots per tank -> the turn it starts (every tank's shot is one turn).
+        rules.sudden_death = rules.sudden_death.map(|each| each * n as u32);
         // Shuffle who stands where.
         let mut slots: Vec<usize> = (0..n).collect();
         for i in (1..n).rev() {
@@ -1583,6 +1591,14 @@ mod tests {
         assert!(r > DEATH_RADIUS && d > DEATH_DAMAGE);
         p.ammo[3] = 100;
         assert_eq!(death_blast(&p), (DEATH_MAX_RADIUS, DEATH_MAX_DAMAGE));
+    }
+
+    #[test]
+    fn sudden_death_scales_with_the_number_of_tanks() {
+        let mut rules = Setup::default().rules();
+        rules.sudden_death = Some(12);
+        assert_eq!(battle(&bots(2), rules).rules.sudden_death, Some(24));
+        assert_eq!(battle(&bots(4), rules).rules.sudden_death, Some(48));
     }
 
     #[test]

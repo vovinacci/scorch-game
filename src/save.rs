@@ -215,6 +215,23 @@ mod tests {
     }
 
     #[test]
+    fn old_sudden_death_turns_map_to_shots_each() {
+        use crate::setup::SuddenDeath;
+        let load = |v: &str| {
+            let json = format!(r#"{{"setup":{{"sudden_death":"{v}","rounds":7}}}}"#);
+            let p: Profile = serde_json::from_str(&json).unwrap();
+            assert_eq!(p.setup.rounds, 7, "the rest of the setup survives");
+            p.setup.sudden_death
+        };
+        assert_eq!(load("After15"), SuddenDeath::After8);
+        assert_eq!(load("After25"), SuddenDeath::After12);
+        assert_eq!(load("After40"), SuddenDeath::After16);
+        assert_eq!(load("Off"), SuddenDeath::Off);
+        assert_eq!(load("After16"), SuddenDeath::After16);
+        assert_eq!(load("After24"), SuddenDeath::After24);
+    }
+
+    #[test]
     fn old_system_language_is_detected_again() {
         use crate::i18n::Language;
         let old: Profile =

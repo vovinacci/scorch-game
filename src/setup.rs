@@ -14,20 +14,35 @@ use crate::world::{TerrainKind, World};
 
 choice!(SuddenDeath {
     Off,
-    After15,
-    After25,
-    After40,
+    After8,
+    After12,
+    After16,
+    After24,
 });
 
 impl SuddenDeath {
-    pub fn turn(self) -> Option<u32> {
+    /// Shots each tank fires before sudden death starts.
+    pub fn shots_each(self) -> Option<u32> {
         match self {
             SuddenDeath::Off => None,
-            SuddenDeath::After15 => Some(15),
-            SuddenDeath::After25 => Some(25),
-            SuddenDeath::After40 => Some(40),
+            SuddenDeath::After8 => Some(8),
+            SuddenDeath::After12 => Some(12),
+            SuddenDeath::After16 => Some(16),
+            SuddenDeath::After24 => Some(24),
         }
     }
+}
+
+/// Reads a saved sudden death setting. Settings once counted all turns ("After15", "After25", "After40"); they map
+/// to the closest choice in shots per tank, and anything unknown to the default.
+fn lenient_sudden_death<'de, D: serde::Deserializer<'de>>(d: D) -> Result<SuddenDeath, D::Error> {
+    Ok(match String::deserialize(d).unwrap_or_default().as_str() {
+        "Off" => SuddenDeath::Off,
+        "After8" | "After15" => SuddenDeath::After8,
+        "After16" | "After40" => SuddenDeath::After16,
+        "After24" => SuddenDeath::After24,
+        _ => SuddenDeath::After12,
+    })
 }
 
 const ROUND_CHOICES: [u32; 4] = [3, 5, 7, 10];
@@ -46,6 +61,7 @@ pub struct Setup {
     pub rounds: u32,
     /// Max shot power = health x 10, like the original game.
     pub power_limit: bool,
+    #[serde(deserialize_with = "lenient_sudden_death")]
     pub sudden_death: SuddenDeath,
     pub world: World,
 }
@@ -59,7 +75,7 @@ impl Default for Setup {
             ladder: false,
             rounds: 5,
             power_limit: true,
-            sudden_death: SuddenDeath::After25,
+            sudden_death: SuddenDeath::After12,
             world: World::default(),
         }
     }
@@ -71,6 +87,8 @@ impl Default for Setup {
 pub struct Rules {
     pub world: World,
     pub power_limit: bool,
+    /// From the setup: shots each tank fires before sudden death. A battle turns it into the turn sudden death starts
+    /// (shots x tanks), which is what saved battles store.
     pub sudden_death: Option<u32>,
 }
 
@@ -79,7 +97,7 @@ impl Setup {
         Rules {
             world: self.world,
             power_limit: self.power_limit,
-            sudden_death: self.sudden_death.turn(),
+            sudden_death: self.sudden_death.shots_each(),
         }
     }
 

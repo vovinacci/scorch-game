@@ -108,9 +108,10 @@ bot-hits-by = зазвичай влучає з { $n }-го пострілу
 bot-rarely-hits = рідко влучає
 
 SuddenDeath-Off = Вимк.
-SuddenDeath-After15 = Після 15 ходів
-SuddenDeath-After25 = Після 25 ходів
-SuddenDeath-After40 = Після 40 ходів
+SuddenDeath-After8 = По 8 пострілів
+SuddenDeath-After12 = По 12 пострілів
+SuddenDeath-After16 = По 16 пострілів
+SuddenDeath-After24 = По 24 постріли
 TerrainKind-Rolling = Пагорби
 TerrainKind-Mountains = Гори
 TerrainKind-Flat = Рівнина
