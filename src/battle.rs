@@ -1629,8 +1629,12 @@ mod tests {
         for i in 0..2 {
             b.tanks[i].pos.y -= 150.0; // both in the air, well above the ground
         }
+        // Only the landing: stop as soon as the turn moves on, before any bot fires.
         b.phase = Phase::Settle;
         for _ in 0..600 {
+            if !matches!(b.phase, Phase::Settle) {
+                break;
+            }
             b.update(1.0 / 60.0, &mut players);
         }
         assert_eq!(b.tanks[0].health, 100.0, "the parachute opened");
