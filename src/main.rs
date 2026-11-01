@@ -520,7 +520,7 @@ impl Game {
         next
     }
 
-    /// "The game crashed last time" with a button to copy the report for sending.
+    /// "The game crashed" (once or several times) with a button to copy the reports for sending.
     fn crash_notice(&mut self, cx: f32) {
         if let Some(note) = self.crash_note.clone() {
             ui::text_centered(&note, cx, 40.0, 18.0, SKYBLUE);
@@ -531,7 +531,7 @@ impl Game {
         let area = Rect::new(cx - 420.0, 10.0, 840.0, 76.0);
         ui::panel(area);
         ui::text_fit(
-            &t!("crash-last-time"),
+            &t!("crash-last-time", n = pending.count()),
             area.x + 16.0,
             area.y + 28.0,
             area.w - 340.0,
@@ -539,7 +539,7 @@ impl Game {
             ORANGE,
         );
         ui::text_fit(
-            &pending.path.display().to_string(),
+            &pending.location().display().to_string(),
             area.x + 16.0,
             area.y + 56.0,
             area.w - 340.0,
@@ -548,7 +548,7 @@ impl Game {
         );
         let copy = ui::button(
             Rect::new(area.x + area.w - 314.0, area.y + 19.0, 170.0, 38.0),
-            &t!("crash-copy"),
+            &t!("crash-copy", n = pending.count()),
             true,
         );
         let dismiss = ui::button(
@@ -558,7 +558,7 @@ impl Game {
         );
         if copy {
             miniquad::window::clipboard_set(&pending.text);
-            self.crash_note = Some(t!("crash-copied"));
+            self.crash_note = Some(t!("crash-copied", n = pending.count()));
         }
         if copy || dismiss {
             crash::mark_seen(pending);
@@ -715,10 +715,11 @@ impl Game {
             "settings" => Screen::Settings,
             "stats" => Screen::Stats,
             "crash" => {
+                let report = |t| {
+                    std::path::PathBuf::from(format!("/home/you/.local/share/scorch/crash-{t}.log"))
+                };
                 self.crash = Some(crash::Pending {
-                    path: std::path::PathBuf::from(
-                        "/home/you/.local/share/scorch/crash-1793470061.log",
-                    ),
+                    paths: vec![report(1793470061), report(1793460000)],
                     text: String::new(),
                 });
                 Screen::Menu

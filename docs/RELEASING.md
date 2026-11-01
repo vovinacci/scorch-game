@@ -1,7 +1,5 @@
 # Scorch: GitHub, CI and releases
 
-Status: repository, CI, commit checks and the release workflow are in place; self-update is still to do (see the end).
-
 Files: `.github/workflows/ci.yml`, `release.yml`, `pr-title.yml`, `.github/dependabot.yml`, `release-plz.toml`,
 `tools/package.sh`, `packaging/` (desktop entry, macOS `Info.plist`), `assets/icon/scorch.svg` (app icon).
 
@@ -56,10 +54,9 @@ Tool: [release-plz](https://release-plz.dev) (changelog by git-cliff), publishin
    minor, breaking = minor while below 1.0) and the new `CHANGELOG.md` section.
 2. Review the PR, polish the wording if needed, merge it.
 3. release-plz tags `vX.Y.Z` and creates the GitHub Release with that changelog section as notes.
-4. The same workflow then builds the binaries on native runners and attaches them (`taiki-e/upload-rust-binary-action`).
-   It must be the same workflow: tags pushed with `GITHUB_TOKEN` don't trigger other workflows.
-5. To rebuild the binaries of an existing release: Actions > Release > Run workflow, with its tag. Only tags from
-   `v0.1.1` on can be built: `v0.1.0` predates the packaging, so it has no downloads.
+4. The same workflow then builds the binaries on native runners, packs them with `tools/package.sh` and attaches them
+   with `SHA256SUMS`. It must be the same workflow: tags pushed with `GITHUB_TOKEN` don't trigger other workflows.
+5. To rebuild the binaries of an existing release: Actions > Release > Run workflow, with its tag.
 
 Release PRs made with `GITHUB_TOKEN` don't start CI, so their required checks never run. Give the workflow a
 fine-grained personal access token as the secret `RELEASE_TOKEN` (this repository only; Contents and Pull requests: read
@@ -72,11 +69,12 @@ Release files:
 | Linux x86_64, ARM64 | `scorch-vX.Y.Z-linux-<arch>.tar.gz` and `Scorch-vX.Y.Z-<arch>.AppImage` |
 | Windows x86_64, ARM64 | `scorch-vX.Y.Z-windows-<arch>.zip` (no console window) |
 | macOS (Intel + Apple Silicon) | `scorch-vX.Y.Z-macos.zip` with a universal `Scorch.app` and icon |
-| All | `SHA256SUMS`, and a signature per file for self-update |
+| All | `SHA256SUMS` |
 
 - Linux builds run on an older Ubuntu for wider glibc compatibility; ARM64 on GitHub's ARM runners.
-- Builds aren't code-signed at first: release notes explain SmartScreen ("More info" > "Run anyway") and macOS
-  (right-click > Open). Signing (Apple Developer ID, Windows certificate) can come later.
+- No code signing with a paid certificate: Windows shows SmartScreen, and the macOS app has an ad-hoc signature, so
+  Gatekeeper asks once (Privacy & Security > Open Anyway). The README explains both. Real signing needs an Apple
+  Developer ID and a Windows certificate.
 
 ## Supply chain
 
@@ -89,7 +87,7 @@ Release files:
 - Workflows are checked with [actionlint](https://github.com/rhysd/actionlint) and [zizmor](https://docs.zizmor.sh)
   (both in nixpkgs).
 
-## Self-update
+## Self-update (not built)
 
 - **Consent:** the first start asks once "Check for updates automatically?" (Yes / No). Saved as Settings > "Check for
   updates"; Settings also has "Check now".
@@ -108,13 +106,6 @@ Release files:
 
 ## Commit messages from tools
 
-Dependabot uses `build:` for Cargo and `ci:` for Actions updates; release-plz's release PR is `chore: release vX.Y.Z`.
-Commits and PRs carry no trailers (no "Co-authored-by" or "Generated with" lines).
-
-## Order of work
-
-1. Done: git, first commit, tag `v0.1.0`, hooks, the GitHub repository and its settings.
-2. Done: CI, PR title check, Dependabot, issue and PR templates, CONTRIBUTING and SECURITY, README badges, rulesets.
-3. Done: release workflow (release-plz, native builds, AppImage, macOS `.app`); `v0.1.1` is the first release with
-   downloads.
-4. Next: signing key and self-update.
+Dependabot uses `build:` for Cargo and pip, `ci:` for Actions updates; the flake.lock workflow uses `build:`;
+release-plz's release PR is `chore: release vX.Y.Z`. Commits and PRs carry no trailers (no "Co-authored-by" or
+"Generated with" lines).

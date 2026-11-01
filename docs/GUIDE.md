@@ -283,8 +283,9 @@ counts). Abandoned games don't count as played, but their finished rounds do.
 ## If the game crashes
 
 The game writes a crash report to your user data folder. On the next start the main menu tells you and shows where the
-report is. **Copy report** puts it on the clipboard so you can paste it into a message to the author; **Dismiss** hides
-the notice. Nothing is ever sent anywhere by itself.
+report is. If it crashed several times since you last looked, one notice covers all of them. **Copy report** puts the
+reports on the clipboard so you can paste them into a message to the author; **Dismiss** hides the notice. Either way,
+those reports aren't offered again. Nothing is ever sent anywhere by itself.
 
 The version number is shown at the bottom right of the main menu and on the About screen; please include it when you
 report a problem.
