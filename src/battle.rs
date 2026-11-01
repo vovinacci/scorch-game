@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use crate::ai::AiProfile;
 use crate::economy;
 use crate::i18n::t;
+use crate::items::{ITEMS, PARACHUTE, Use, shield_to_raise};
 use crate::player::Player;
 use crate::save::Vec2Def;
 use crate::settings::{HealthDisplay, Settings};
@@ -37,6 +38,12 @@ const FALL_SPEED: f32 = 240.0;
 /// Falls shorter than this are free; every pixel beyond costs `FALL_DAMAGE` HP.
 pub const FALL_SAFE: f32 = 15.0;
 pub const FALL_DAMAGE: f32 = 0.4;
+/// A tank under a parachute drifts down this fast (px/s) and lands without damage.
+const PARACHUTE_SPEED: f32 = 90.0;
+/// Mag Deflector: enemy shells closer than this (px) to the tank are pushed away...
+pub const DEFLECT_RADIUS: f32 = 80.0;
+/// ...with this acceleration (px/s^2) at the tank, fading to nothing at the edge.
+pub const DEFLECT_FORCE: f32 = 3000.0;
 /// A dying tank explodes with this blast.
 pub const DEATH_RADIUS: f32 = 35.0;
 pub const DEATH_DAMAGE: f32 = 40.0;
@@ -99,6 +106,31 @@ struct Tank {
     /// Who hit this tank since its last shot. Bots shoot back.
     #[serde(default)]
     revenge: Option<usize>,
+    /// The shield raised at round start, while it has energy left.
+    #[serde(default)]
+    shield: Option<ActiveShield>,
+    /// A parachute is open (only while falling).
+    #[serde(default)]
+    parachute: bool,
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+struct ActiveShield {
+    /// Index into `items::ITEMS`.
+    item: usize,
+    energy: f32,
+}
+
+impl ActiveShield {
+    fn deflects(&self) -> bool {
+        matches!(ITEMS[self.item].kind, Use::Deflector { .. })
+    }
+
+    /// How much is left, 0..1.
+    fn strength(&self) -> f32 {
+        let full = ITEMS[self.item].shield_energy().unwrap_or(1.0);
+        (self.energy / full).clamp(0.0, 1.0)
+    }
 }
 
 impl Tank {
@@ -252,6 +284,8 @@ impl Battle {
                     last_trail: Vec::new(),
                     aim: None,
                     revenge: None,
+                    shield: None,
+                    parachute: false,
                 }
             })
             .collect();
@@ -274,6 +308,25 @@ impl Battle {
             log: Vec::new(),
             history: Vec::new(),
             shot_line: None,
+        }
+    }
+
+    /// Raises each player's strongest switched-on shield for this round (uses one up).
+    pub fn raise_shields(&mut self, players: &mut [Player]) {
+        for (i, player) in players.iter_mut().enumerate() {
+            let Some(item) = shield_to_raise(&player.items, &player.items_on) else {
+                continue;
+            };
+            player.items[item] -= 1;
+            let energy = ITEMS[item].shield_energy().unwrap_or(0.0);
+            self.tanks[i].shield = Some(ActiveShield { item, energy });
+            let text = t!(
+                "log-shield-up",
+                name = player.label(),
+                you = you(player),
+                item = ITEMS[item].text()
+            );
+            self.note(text, player.color);
         }
     }
 
@@ -487,6 +540,8 @@ impl Battle {
                 continue;
             }
 
+            deflect(p.pos, &mut p.vel, &self.deflectors(p.owner));
+
             let hit_tank = self
                 .tanks
                 .iter()
@@ -507,6 +562,16 @@ impl Battle {
                 self.tanks[p.owner].last_trail = p.trail;
             }
         }
+    }
+
+    /// Centres of the Mag Deflectors that push `owner`'s shells (everyone's but its own).
+    fn deflectors(&self, owner: usize) -> Vec<Vec2> {
+        self.tanks
+            .iter()
+            .enumerate()
+            .filter(|(i, t)| *i != owner && t.alive && t.shield.is_some_and(|s| s.deflects()))
+            .map(|(_, t)| t.center())
+            .collect()
     }
 
     fn detonate(&mut self, pos: Vec2, weapon: usize, owner: usize, players: &mut [Player]) {
@@ -540,9 +605,21 @@ impl Battle {
             if !tank.alive || d >= reach {
                 continue;
             }
-            let dmg = damage * (1.0 - 0.7 * d / reach);
+            let mut dmg = damage * (1.0 - 0.7 * d / reach);
+            // A shield takes the hit first.
+            let mut absorbed = 0.0;
+            let mut shield_down = false;
+            if let Some(shield) = &mut tank.shield {
+                absorbed = dmg.min(shield.energy);
+                shield.energy -= absorbed;
+                dmg -= absorbed;
+                if shield.energy <= 0.0 {
+                    tank.shield = None;
+                    shield_down = true;
+                }
+            }
             tank.health -= dmg;
-            hits.push((i, dmg));
+            hits.push((i, dmg, absorbed, shield_down));
             if let Some(o) = owner {
                 // Credit goes to the last *enemy* who hit this tank. If it later
                 // dies by its own shot, a fall or sudden death, that enemy still
@@ -550,17 +627,19 @@ impl Battle {
                 if o != i {
                     tank.last_hit_by = Some(o);
                     tank.revenge = Some(o);
-                    players[o].income.damage += (dmg * economy::DAMAGE_PAY) as i32;
+                    // A hit on a shield pays like a hit on health, so shields don't shut down the catch-up money.
+                    let hit = dmg + absorbed;
+                    players[o].income.damage += (hit * economy::DAMAGE_PAY) as i32;
                     let stats = &mut players[o].round_stats;
-                    stats.damage += dmg;
-                    stats.best_hit = stats.best_hit.max(dmg);
+                    stats.damage += hit;
+                    stats.best_hit = stats.best_hit.max(hit);
                 }
             }
         }
         if let Some(o) = owner {
-            for (i, dmg) in hits {
+            for (i, dmg, absorbed, shield_down) in hits {
                 let dmg = dmg.round();
-                let text = if o == i {
+                let mut text = if o == i {
                     t!(
                         "log-hit-self",
                         name = players[o].label(),
@@ -577,7 +656,18 @@ impl Battle {
                         dmg = dmg
                     )
                 };
+                if absorbed >= 0.5 {
+                    text += &t!("log-shield-absorbed", absorbed = absorbed.round());
+                }
                 self.log(text, players[o].color);
+                if shield_down {
+                    let text = t!(
+                        "log-shield-down",
+                        name = players[i].label(),
+                        you = you(&players[i])
+                    );
+                    self.log(text, GRAY);
+                }
             }
         }
         self.terrain.carve(pos, radius);
@@ -614,16 +704,47 @@ impl Battle {
     fn settle(&mut self, dt: f32, players: &mut [Player]) {
         let mut busy = !self.explosions.is_empty();
 
-        for tank in self.tanks.iter_mut().filter(|t| t.alive) {
+        let mut opened = Vec::new();
+        for (i, tank) in self.tanks.iter_mut().enumerate() {
+            if !tank.alive {
+                continue;
+            }
             let support = self.terrain.support_y(tank.pos.x, TANK_RADIUS);
             if tank.pos.y < support - 0.5 {
-                tank.fall_from.get_or_insert(tank.pos.y);
-                tank.pos.y = (tank.pos.y + FALL_SPEED * dt).min(support);
+                let start = *tank.fall_from.get_or_insert(tank.pos.y);
+                // A parachute opens once the fall would start to hurt.
+                let player = &mut players[i];
+                if !tank.parachute
+                    && tank.pos.y - start > FALL_SAFE
+                    && player.items_on[PARACHUTE]
+                    && player.items[PARACHUTE] > 0
+                {
+                    player.items[PARACHUTE] -= 1;
+                    tank.parachute = true;
+                    opened.push(i);
+                }
+                let speed = if tank.parachute {
+                    PARACHUTE_SPEED
+                } else {
+                    FALL_SPEED
+                };
+                tank.pos.y = (tank.pos.y + speed * dt).min(support);
                 busy = true;
             } else if let Some(start) = tank.fall_from.take() {
-                let fall = tank.pos.y - start;
-                tank.health -= (fall - FALL_SAFE).max(0.0) * FALL_DAMAGE;
+                if !tank.parachute {
+                    let fall = tank.pos.y - start;
+                    tank.health -= (fall - FALL_SAFE).max(0.0) * FALL_DAMAGE;
+                }
+                tank.parachute = false;
             }
+        }
+        for i in opened {
+            let text = t!(
+                "log-parachute",
+                name = players[i].label(),
+                you = you(&players[i])
+            );
+            self.log(text, players[i].color);
         }
 
         for i in 0..self.tanks.len() {
@@ -893,6 +1014,8 @@ impl Battle {
             weapon,
         };
         let mut best_distance = f32::MAX;
+        // Bots see deflectors like walls and wind, and aim around them.
+        let deflectors = self.deflectors(me);
         for angle in (4..=176).step_by(3) {
             for power in (50..=max_power as i32).step_by(25) {
                 let (angle, power) = (angle as f32, power as f32);
@@ -903,6 +1026,7 @@ impl Battle {
                     self.wind,
                     self.world(),
                     &self.terrain,
+                    &deflectors,
                 ) else {
                     continue;
                 };
@@ -1225,9 +1349,12 @@ fn simulate(
     wind: f32,
     world: &World,
     terrain: &Terrain,
+    deflectors: &[Vec2],
 ) -> Option<Vec2> {
     for _ in 0..2400 {
-        match step_shell(&mut pos, &mut vel, wind, world, STEP) {
+        let flight = step_shell(&mut pos, &mut vel, wind, world, STEP);
+        deflect(pos, &mut vel, deflectors);
+        match flight {
             Flight::Wall => return Some(pos),
             Flight::Lost => return None,
             Flight::Flying if terrain.is_solid(pos) => return Some(pos),
@@ -1235,6 +1362,17 @@ fn simulate(
         }
     }
     None
+}
+
+/// Mag Deflector push for one physics step: away from each deflector within `DEFLECT_RADIUS`, strongest close by.
+fn deflect(pos: Vec2, vel: &mut Vec2, deflectors: &[Vec2]) {
+    for &centre in deflectors {
+        let away = pos - centre;
+        let d = away.length();
+        if d < DEFLECT_RADIUS && d > 0.0 {
+            *vel += away / d * DEFLECT_FORCE * (1.0 - d / DEFLECT_RADIUS) * STEP;
+        }
+    }
 }
 
 fn approach(value: f32, target: f32, max_step: f32) -> f32 {
@@ -1252,6 +1390,43 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
     draw_line(base.x, base.y, tip.x, tip.y, 3.0, LIGHTGRAY);
     draw_circle(x, y - 8.0, 7.0, player.color);
     draw_rectangle(x - 12.0, y - 8.0, 24.0, 8.0, player.color);
+
+    if let Some(shield) = tank.shield {
+        let color = match ITEMS[shield.item].kind {
+            Use::Deflector { .. } => Color::new(0.85, 0.4, 1.0, 1.0),
+            _ if shield.item == 2 => Color::new(0.35, 0.55, 1.0, 1.0),
+            _ => SKYBLUE,
+        };
+        let a = 0.25 + 0.55 * shield.strength();
+        draw_circle(
+            x,
+            y - 8.0,
+            20.0,
+            Color {
+                a: a * 0.25,
+                ..color
+            },
+        );
+        draw_circle_lines(x, y - 8.0, 20.0, 1.5, Color { a, ..color });
+    }
+    if tank.parachute {
+        // Canopy: a half disc above the tank, with three lines down to it.
+        let (cx, cy, r) = (x, y - 44.0, 16.0);
+        let canopy = Color::new(0.95, 0.95, 0.9, 0.9);
+        for k in 0..12 {
+            let a0 = std::f32::consts::PI * (1.0 + k as f32 / 12.0);
+            let a1 = std::f32::consts::PI * (1.0 + (k + 1) as f32 / 12.0);
+            draw_triangle(
+                vec2(cx, cy),
+                vec2(cx + r * a0.cos(), cy + r * a0.sin()),
+                vec2(cx + r * a1.cos(), cy + r * a1.sin()),
+                canopy,
+            );
+        }
+        for dx in [-r, 0.0, r] {
+            draw_line(cx + dx, cy, x + dx * 0.5, y - 12.0, 1.0, LIGHTGRAY);
+        }
+    }
 
     let hp = (tank.health / 100.0).clamp(0.0, 1.0);
     let hp_color = if hp > 0.5 {
@@ -1305,6 +1480,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
 mod tests {
     use super::*;
     use crate::ai::PRESETS;
+    use crate::items::PARACHUTE;
     use crate::setup::Setup;
 
     fn bots(n: usize) -> Vec<Player> {
@@ -1437,6 +1613,100 @@ mod tests {
             }
         }
         assert!(b.tanks[0].alive);
+    }
+
+    #[test]
+    fn a_shield_takes_hits_before_health() {
+        let mut players = bots(2);
+        players[1].items[1] = 1; // a Shield (50)
+        let mut b = battle(&players, Setup::default().rules());
+        b.raise_shields(&mut players);
+        assert_eq!(players[1].items[1], 0, "raising uses it up");
+        let at = b.tanks[1].center();
+        b.blast(at, 20.0, 30.0, Some(0), &mut players);
+        assert_eq!(b.tanks[1].health, 100.0);
+        assert_eq!(b.tanks[1].shield.map(|s| s.energy), Some(20.0));
+        b.blast(at, 20.0, 40.0, Some(0), &mut players);
+        assert!(b.tanks[1].shield.is_none(), "shield is down");
+        assert_eq!(b.tanks[1].health, 80.0, "the rest goes to health");
+    }
+
+    #[test]
+    fn hitting_a_shield_pays_like_hitting_health() {
+        let mut players = bots(2);
+        players[1].items[2] = 1; // Heavy Shield (100)
+        let mut b = battle(&players, Setup::default().rules());
+        b.raise_shields(&mut players);
+        let at = b.tanks[1].center();
+        b.blast(at, 20.0, 30.0, Some(0), &mut players);
+        assert_eq!(b.tanks[1].health, 100.0, "all absorbed");
+        assert_eq!(players[0].income.damage, 30, "but the shooter is paid");
+    }
+
+    #[test]
+    fn bots_see_deflectors_in_their_aim() {
+        let world = Setup::default().rules().world;
+        let terrain = Terrain::generate(crate::world::TerrainKind::Flat);
+        let (pos, vel) = (vec2(200.0, 300.0), vec2(300.0, -200.0));
+        let plain = simulate(pos, vel, 0.0, &world, &terrain, &[]);
+        let bent = simulate(pos, vel, 0.0, &world, &terrain, &[vec2(330.0, 230.0)]);
+        assert_ne!(plain, bent, "the deflector changes where the shell lands");
+    }
+
+    #[test]
+    fn switched_off_shields_stay_in_the_inventory() {
+        let mut players = bots(2);
+        players[0].items[2] = 1;
+        players[0].items_on[2] = false;
+        let mut b = battle(&players, Setup::default().rules());
+        b.raise_shields(&mut players);
+        assert!(b.tanks[0].shield.is_none());
+        assert_eq!(players[0].items[2], 1);
+    }
+
+    #[test]
+    fn a_parachute_cancels_fall_damage() {
+        let mut players = bots(2);
+        players[0].items[PARACHUTE] = 1;
+        let mut b = battle(&players, Setup::default().rules());
+        for i in 0..2 {
+            b.tanks[i].pos.y -= 150.0; // both in the air, well above the ground
+        }
+        // Only the landing: stop as soon as the turn moves on, before any bot fires.
+        b.phase = Phase::Settle;
+        for _ in 0..600 {
+            if !matches!(b.phase, Phase::Settle) {
+                break;
+            }
+            b.update(1.0 / 60.0, &mut players);
+        }
+        assert_eq!(b.tanks[0].health, 100.0, "the parachute opened");
+        assert_eq!(players[0].items[PARACHUTE], 0, "and was used up");
+        assert!(b.tanks[1].health < 100.0, "no parachute, the fall hurt");
+    }
+
+    #[test]
+    fn a_mag_deflector_pushes_enemy_shells_away() {
+        let mut players = bots(2);
+        players[1].items[3] = 1;
+        let mut rules = Setup::default().rules();
+        rules.world.terrain = crate::world::TerrainKind::Flat;
+        let mut b = battle(&players, rules);
+        b.raise_shields(&mut players);
+        let target = b.tanks[1].center();
+        // An enemy shell inside the field and above the (flat) ground, flying at the tank.
+        let start = target + vec2(-60.0, -30.0);
+        b.projectiles.push(Projectile {
+            pos: start,
+            vel: vec2(200.0, 0.0),
+            weapon: 0,
+            owner: 0,
+            trail: Vec::new(),
+            child: false,
+        });
+        b.step_projectiles(&mut players);
+        let p = &b.projectiles[0];
+        assert!(p.vel.x < 200.0, "slowed down on its way in: {}", p.vel.x);
     }
 
     #[test]

@@ -381,3 +381,24 @@ update-up-to-date = У вас найновіша версія.
 update-check-failed = Не вдалося перевірити оновлення. Чи є інтернет?
 about-check-updates = Перевірити оновлення
 settings-updates = Перевіряти оновлення
+
+## Предмети
+
+shop-items = Предмети
+item-parachute = Парашут
+item-shield = Щит
+item-heavy-shield = Важкий щит
+item-mag-deflector = Магнітний відбивач
+log-shield-up = { $you ->
+    [yes] Ви піднімаєте захист: { $item }
+   *[no] { $name } піднімає захист: { $item }
+}
+log-shield-absorbed = {"  "}(щит -{ $absorbed })
+log-shield-down = { $you ->
+    [yes] Ваш щит зламано
+   *[no] Щит танка { $name } зламано
+}
+log-parachute = { $you ->
+    [yes] Ваш парашут розкрився
+   *[no] Парашут танка { $name } розкрився
+}

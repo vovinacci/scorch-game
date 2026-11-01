@@ -16,6 +16,7 @@ mod choice;
 mod crash;
 mod economy;
 mod i18n;
+mod items;
 mod logo;
 mod player;
 mod save;
@@ -151,14 +152,16 @@ impl Game {
         } else {
             economy::underdog(&self.players)
         };
+        let mut battle = Battle::new(
+            &self.players,
+            first,
+            self.round,
+            self.setup.rounds,
+            self.setup.rules(),
+        );
+        battle.raise_shields(&mut self.players);
         Screen::Battle {
-            battle: Battle::new(
-                &self.players,
-                first,
-                self.round,
-                self.setup.rounds,
-                self.setup.rules(),
-            ),
+            battle,
             paused: false,
         }
     }
@@ -765,7 +768,7 @@ impl Game {
     /// Developer aid: `scorch --screen <name> [--shot file.png]` opens one
     /// screen directly with a fresh game, to check layouts (for example in
     /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, stats, crash,
-    /// battle, pause, over, log, shop, abandon, final.
+    /// battle, pause, over, defence, log, shop, abandon, final.
     fn open_screen(&mut self, name: &str) -> Screen {
         self.has_saved_run = false;
         let game_screen = |game: &mut Game, paused: bool| match game.start() {
@@ -791,6 +794,20 @@ impl Game {
             }
             "battle" => game_screen(self, false),
             "pause" => game_screen(self, true),
+            // A battle where every tank has raised a shield (one of each kind).
+            "defence" => match game_screen(self, false) {
+                Screen::Battle { mut battle, .. } => {
+                    for (i, p) in self.players.iter_mut().enumerate() {
+                        p.items[1 + i % (items::ITEM_COUNT - 1)] = 1;
+                    }
+                    battle.raise_shields(&mut self.players);
+                    Screen::Battle {
+                        battle,
+                        paused: false,
+                    }
+                }
+                other => other,
+            },
             // A bot just won the round: you flee, the bots finish it.
             "over" => match game_screen(self, false) {
                 Screen::Battle { mut battle, .. } => {
@@ -960,6 +977,11 @@ async fn run() {
     // Closing the window should save first, so handle it ourselves.
     prevent_quit();
 
+    // `--screen` is a developer aid: nothing may be written, from the very start.
+    let screen = arg_after("--screen");
+    if screen.is_some() {
+        save::set_read_only();
+    }
     let mut profile = save::load_profile();
     // First run (or an old "System" setting): pick the OS language once and save it.
     if profile.settings.language.is_none() {
@@ -985,8 +1007,7 @@ async fn run() {
         preview: Preview::default(),
         screen: first_screen,
     };
-    if let Some(name) = arg_after("--screen") {
-        save::set_read_only();
+    if let Some(name) = screen {
         game.screen = game.open_screen(&name);
     }
     // With `--shot <file.png>`, save a screenshot after a moment and quit.
@@ -1056,6 +1077,7 @@ mod guide_tests {
         i18n::set_language(language);
         let mut names: Vec<String> = Vec::new();
         names.extend(crate::weapons::WEAPONS.iter().map(|w| w.text()));
+        names.extend(crate::items::ITEMS.iter().map(|i| i.text()));
         names.extend((0..crate::ai::DIFFICULTIES.len()).map(crate::ai::difficulty_text));
         names.extend(
             crate::ai::PRESETS
