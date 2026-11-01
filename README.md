@@ -55,12 +55,38 @@ Get the latest version from [Releases](https://github.com/vovinacci/scorch-game/
 - **Linux** x86_64 or ARM64, from 2022 on (glibc 2.35: Ubuntu 22.04, Debian 12, Fedora 36 or newer). On a normal desktop
   there's nothing to install: the game uses the graphics and windowing libraries every desktop already has (OpenGL, X11
   or XWayland).
-- **NixOS:** downloaded Linux programs don't run on NixOS as they are, so use the Nix package instead:
-  `nix run github:vovinacci/scorch-game`, or add `github:vovinacci/scorch-game` as a flake input and install
-  `packages.<system>.default`.
+- **NixOS:** see below; the downloaded Linux files don't run on NixOS.
 
-The builds aren't code-signed yet, so the first start shows a warning. Windows: "More info", then "Run anyway". macOS:
-right-click `Scorch.app`, then "Open".
+### First start (unsigned builds)
+
+The builds aren't code-signed yet, so the system asks once whether to trust them.
+
+- **Windows:** SmartScreen says it protected your PC. Click "More info", then "Run anyway".
+- **macOS 15 or newer:** open `Scorch.app`; macOS says it can't verify it, click "Done". Then open System Settings >
+  Privacy & Security, scroll down to "Scorch was blocked", click "Open Anyway" and confirm. From then on it opens
+  normally. (macOS 14 and older: right-click `Scorch.app` > Open.)
+- **macOS, if it says the app is damaged** (releases before 0.1.2 aren't signed at all): in Terminal, run
+  `xattr -dr com.apple.quarantine /Applications/Scorch.app`, then open it.
+
+### NixOS
+
+Try it without installing:
+
+```sh
+nix run github:vovinacci/scorch-game
+```
+
+To install it, add the flake to your system flake and the package to your system (or Home Manager) packages:
+
+```nix
+# flake.nix
+inputs.scorch.url = "github:vovinacci/scorch-game";
+
+# configuration.nix (with `inputs` passed in specialArgs)
+environment.systemPackages = [ inputs.scorch.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+```
+
+Adding only the input isn't enough: nothing is installed until the package is in a package list.
 
 ### Build it yourself
 
