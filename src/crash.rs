@@ -81,30 +81,66 @@ fn write(text: &str) -> Option<PathBuf> {
     Some(path)
 }
 
-/// A crash report not yet shown to the player.
+/// Crash reports not yet shown to the player, offered together in one notice.
 pub struct Pending {
-    pub path: PathBuf,
+    /// Newest first.
+    pub paths: Vec<PathBuf>,
+    /// All reports, newest first, ready to paste into a message.
     pub text: String,
 }
 
-/// The newest unseen crash report, if any.
+impl Pending {
+    pub fn count(&self) -> usize {
+        self.paths.len()
+    }
+
+    /// The report's path, or its folder when there are several.
+    pub fn location(&self) -> PathBuf {
+        match self.paths.as_slice() {
+            [one] => one.clone(),
+            _ => self.paths[0]
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+/// Every unseen crash report, if there are any.
 pub fn pending() -> Option<Pending> {
-    let path = fs::read_dir(dir()?)
+    pending_in(&dir()?)
+}
+
+fn pending_in(dir: &std::path::Path) -> Option<Pending> {
+    let mut paths: Vec<PathBuf> = fs::read_dir(dir)
         .ok()?
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| {
             let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
             name.starts_with("crash-") && name.ends_with(".log") && !name.ends_with(".seen.log")
         })
-        .max()?;
-    let text = fs::read_to_string(&path).ok()?;
-    Some(Pending { path, text })
+        .collect();
+    if paths.is_empty() {
+        return None;
+    }
+    // crash-<unix time>.log: newest first.
+    paths.sort_by(|a, b| b.cmp(a));
+    let text = paths
+        .iter()
+        .filter_map(|p| {
+            let name = p.file_name()?.to_string_lossy();
+            Some(format!("=== {name} ===\n{}", fs::read_to_string(p).ok()?))
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    Some(Pending { paths, text })
 }
 
-/// Marks a report as seen so it isn't offered again.
+/// Marks the reports as seen so they aren't offered again.
 pub fn mark_seen(pending: &Pending) {
-    let seen = pending.path.with_extension("seen.log");
-    let _ = fs::rename(&pending.path, seen);
+    for path in &pending.paths {
+        let _ = fs::rename(path, path.with_extension("seen.log"));
+    }
 }
 
 #[cfg(test)]
@@ -118,5 +154,29 @@ mod tests {
         assert!(text.contains("error: index out of bounds"));
         assert!(text.contains("at: src/battle.rs:10:5"));
         assert!(text.contains("backtrace:\n0: main"));
+    }
+
+    #[test]
+    fn all_unseen_reports_are_offered_once_together() {
+        let dir = std::env::temp_dir().join(format!("scorch-crash-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("crash-100.log"), "old").unwrap();
+        fs::write(dir.join("crash-200.log"), "new").unwrap();
+        fs::write(dir.join("crash-50.seen.log"), "already sent").unwrap();
+
+        let pending = pending_in(&dir).unwrap();
+        assert_eq!(pending.count(), 2);
+        assert_eq!(pending.location(), dir);
+        let (new, old) = (
+            pending.text.find("new").unwrap(),
+            pending.text.find("old").unwrap(),
+        );
+        assert!(new < old, "newest first: {}", pending.text);
+        assert!(!pending.text.contains("already sent"));
+
+        mark_seen(&pending);
+        assert!(pending_in(&dir).is_none(), "nothing is offered twice");
+        let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -153,7 +153,8 @@ JSON in the platform data folder (`~/.local/share/scorch/` on Linux):
 - `profile.json`: settings (including language), last setup, custom bot, stats, whether the intro was shown.
 - `run.json`: the game in progress; written at the start of every turn and when the shop opens, deleted when the game
   ends or is abandoned.
-- `crash-<time>.log`: crash reports; renamed to `crash-<time>.seen.log` once shown.
+- `crash-<time>.log`: crash reports. All unseen ones are offered in one notice (and copied together, newest first); then
+  each is renamed to `crash-<time>.seen.log`.
 
 New saved fields need `#[serde(default)]` so older files still load.
 

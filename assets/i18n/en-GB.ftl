@@ -53,10 +53,19 @@ menu-settings = Settings
 menu-about = About
 menu-quit = Quit
 tribute = A tribute to Scorched Earth (1991) by Wendell Hicks, "The Mother of All Games"
-crash-last-time = Scorch crashed last time. Please send the report.
-crash-copy = Copy report
+crash-last-time = { $n ->
+    [1] Scorch crashed last time. Please send the report.
+   *[other] Scorch crashed { $n } times. Please send the reports.
+}
+crash-copy = { $n ->
+    [1] Copy report
+   *[other] Copy reports
+}
 crash-dismiss = Dismiss
-crash-copied = Crash report copied to the clipboard. Paste it into a message.
+crash-copied = { $n ->
+    [1] Crash report copied to the clipboard. Paste it into a message.
+   *[other] { $n } crash reports copied to the clipboard. Paste them into a message.
+}
 
 ## New game
 
