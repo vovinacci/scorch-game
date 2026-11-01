@@ -184,7 +184,7 @@ mod tests {
         ];
         players[0].money = 321;
         let setup = Setup::default();
-        let battle = Battle::new(&players, 1, 3, 5, setup.rules());
+        let battle = Battle::new(&players, vec![1, 0], 3, 5, setup.rules());
         let json = serde_json::to_string(&RunOut {
             players: &players,
             setup: &setup,

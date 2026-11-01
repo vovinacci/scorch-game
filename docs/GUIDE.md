@@ -54,9 +54,15 @@ controls.
 
 ### Turns
 
-Tanks fire one at a time, in order. Their positions are shuffled every round. Round 1 starts with a random tank; later
-rounds start with whoever is in last place (fewest round wins, then fewest kills). The round ends when one tank or none
-is left.
+Tanks fire one at a time, in a cycle that repeats until the round ends, when one tank or none is left. Their positions
+on the hills are shuffled every round. Who starts and the order after that depend on the **Turn order** option:
+
+- **Losers first** (the default): whoever is in last place starts (fewest round wins, then fewest kills); a tie is
+  broken at random. The rest of the order is shuffled every round, so nobody always fires right after the same opponent.
+  In round 1 everyone is tied, so it's random.
+- **Winners first:** the same, but the leader starts.
+- **Random:** a new random order every round.
+- **Round robin:** always the same order (players first, then bots), with the first turn moving one place each round.
 
 ### Aiming and the wind
 
@@ -145,7 +151,7 @@ The game helps whoever is behind, so one bad start doesn't decide the whole game
 - everyone gets round pay, win or lose,
 - the loss bonus grows with every loss in a row,
 - the bounty makes the leader a valuable target,
-- the player in last place shoots first next round.
+- the player in last place shoots first next round (with the default turn order).
 
 Between rounds each human player gets a screen with three panels: what you earned last round and why (left), the
 **Shop** (middle: weapons and items) and your **Inventory** (right: what you own, a switch for each item, and your death
@@ -217,6 +223,7 @@ random except the number of human players; you can still check and change it all
 | Rounds | 3, 5, 7, 10 | 5 |
 | Health limits power | Off, On | On |
 | Sudden death | Off, 8/12/16/24 shots each | 12 shots each |
+| Turn order | Losers first, Winners first, Random, Round robin | Losers first |
 
 ### World
 

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::ai::{self, AiProfile, CUSTOM, DIFFICULTIES};
 use crate::choice::{Choice, choice};
 use crate::i18n::t;
+use crate::player::Player;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
 use crate::world::{TerrainKind, World};
@@ -19,6 +20,55 @@ choice!(SuddenDeath {
     After16,
     After24,
 });
+
+choice!(TurnOrder {
+    LosersFirst,
+    WinnersFirst,
+    Random,
+    RoundRobin,
+});
+
+/// The order tanks fire in this round: the first one starts, then the cycle repeats.
+///
+/// - Losers first / Winners first: fewest (most) wins, then kills, starts; ties are broken at random, and the rest
+///   of the cycle is shuffled every round, so nobody always fires right after the same opponent.
+/// - Random: all shuffled.
+/// - Round robin: player order, the starter moving one place each round.
+pub fn turn_order(kind: TurnOrder, players: &[Player], round: u32) -> Vec<usize> {
+    let n = players.len();
+    let mut order: Vec<usize> = (0..n).collect();
+    if kind == TurnOrder::RoundRobin {
+        order.rotate_left((round.saturating_sub(1) as usize) % n.max(1));
+        return order;
+    }
+    shuffle(&mut order);
+    let score = |i: usize| (players[i].wins, players[i].kills);
+    let best = match kind {
+        TurnOrder::LosersFirst => order.iter().map(|&i| score(i)).min(),
+        TurnOrder::WinnersFirst => order.iter().map(|&i| score(i)).max(),
+        _ => None,
+    };
+    if let Some(best) = best {
+        // The shuffle already put the tied ones in random order: the first of them starts.
+        let start = order.iter().position(|&i| score(i) == best).unwrap_or(0);
+        let first = order.remove(start);
+        order.insert(0, first);
+    }
+    order
+}
+
+/// Whether player `i` is sure to start the next round (shown in the shop): only with Losers first, and only when
+/// they're alone in last place.
+pub fn sure_to_start(kind: TurnOrder, players: &[Player], i: usize) -> bool {
+    let score = |j: usize| (players[j].wins, players[j].kills);
+    kind == TurnOrder::LosersFirst && (0..players.len()).all(|j| j == i || score(j) > score(i))
+}
+
+fn shuffle(v: &mut [usize]) {
+    for i in (1..v.len()).rev() {
+        v.swap(i, gen_range(0, i + 1));
+    }
+}
 
 impl SuddenDeath {
     /// Shots each tank fires before sudden death starts.
@@ -63,6 +113,7 @@ pub struct Setup {
     pub power_limit: bool,
     #[serde(deserialize_with = "lenient_sudden_death")]
     pub sudden_death: SuddenDeath,
+    pub turn_order: TurnOrder,
     pub world: World,
 }
 
@@ -76,6 +127,7 @@ impl Default for Setup {
             rounds: 5,
             power_limit: true,
             sudden_death: SuddenDeath::After12,
+            turn_order: TurnOrder::LosersFirst,
             world: World::default(),
         }
     }
@@ -160,6 +212,7 @@ impl Setup {
         lines.extend([
             ("setup-power-limit", on(self.power_limit)),
             ("setup-sudden-death", self.sudden_death.text()),
+            ("setup-turn-order", self.turn_order.text()),
             ("setup-terrain", w.terrain.text()),
             ("setup-wind", wind),
             ("setup-gravity", w.gravity.text()),
@@ -193,6 +246,7 @@ impl Setup {
         self.rounds = ROUND_CHOICES[gen_range(0, ROUND_CHOICES.len())];
         self.power_limit = gen_range(0, 2) == 1;
         self.sudden_death = pick();
+        self.turn_order = pick();
         self.world = World {
             terrain: pick(),
             wind: pick(),
@@ -211,8 +265,9 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
     let left = Rect::new(50.0, 90.0, 570.0, 520.0);
     ui::panel(left);
     ui::text_at(t!("setup-match"), left.x + 24.0, left.y + 36.0, 26.0, GOLD);
+    const STEP: f32 = 47.0;
     let row = |area: Rect, i: f32| {
-        Rect::new(area.x + 20.0, area.y + 52.0 + i * 52.0, area.w - 40.0, 44.0)
+        Rect::new(area.x + 20.0, area.y + 52.0 + i * STEP, area.w - 40.0, 41.0)
     };
 
     let mut humans = setup.humans - 1;
@@ -247,7 +302,7 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
     ui::text_wrapped(
         &ai::describe(setup.difficulty, custom),
         left.x + 30.0,
-        left.y + 52.0 + 3.0 * 52.0 + 14.0,
+        left.y + 52.0 + 3.0 * STEP + 12.0,
         left.w - 60.0,
         16.0,
         GRAY,
@@ -277,6 +332,11 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
         &t!("setup-sudden-death"),
         &mut setup.sudden_death,
     );
+    ui::choice(
+        row(left, 9.0),
+        &t!("setup-turn-order"),
+        &mut setup.turn_order,
+    );
 
     // Right: the battlefield.
     let right = Rect::new(660.0, 90.0, 570.0, 520.0);
@@ -304,7 +364,7 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
         world,
         Rect::new(
             right.x + 20.0,
-            right.y + 52.0 + 6.0 * 52.0 + 8.0,
+            right.y + 52.0 + 6.0 * STEP + 8.0,
             right.w - 40.0,
             140.0,
         ),
@@ -367,4 +427,72 @@ fn draw_preview(preview: &mut Preview, world: &World, r: Rect) {
         16.0,
         WHITE,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use macroquad::prelude::WHITE;
+
+    fn players(scores: &[(u32, u32)]) -> Vec<Player> {
+        scores
+            .iter()
+            .enumerate()
+            .map(|(i, &(wins, kills))| {
+                let mut p = Player::new(&format!("P{i}"), WHITE, None);
+                p.wins = wins;
+                p.kills = kills;
+                p
+            })
+            .collect()
+    }
+
+    fn is_permutation(order: &[usize], n: usize) -> bool {
+        let mut sorted = order.to_vec();
+        sorted.sort_unstable();
+        sorted == (0..n).collect::<Vec<_>>()
+    }
+
+    #[test]
+    fn last_place_starts_with_losers_first() {
+        let ps = players(&[(2, 0), (1, 0), (1, 3)]);
+        for _ in 0..20 {
+            let order = turn_order(TurnOrder::LosersFirst, &ps, 3);
+            assert!(is_permutation(&order, 3));
+            assert_eq!(order[0], 1, "fewest wins, then fewest kills");
+        }
+        assert!(sure_to_start(TurnOrder::LosersFirst, &ps, 1));
+        assert!(!sure_to_start(TurnOrder::WinnersFirst, &ps, 1));
+    }
+
+    #[test]
+    fn the_leader_starts_with_winners_first() {
+        let ps = players(&[(2, 1), (1, 0), (2, 0)]);
+        assert_eq!(turn_order(TurnOrder::WinnersFirst, &ps, 3)[0], 0);
+    }
+
+    #[test]
+    fn ties_are_broken_at_random() {
+        let ps = players(&[(0, 0), (0, 0), (0, 0)]);
+        let starters: std::collections::BTreeSet<usize> = (0..200)
+            .map(|_| turn_order(TurnOrder::LosersFirst, &ps, 1)[0])
+            .collect();
+        assert_eq!(
+            starters.len(),
+            3,
+            "every tied player gets to start sometimes"
+        );
+        assert!(
+            !sure_to_start(TurnOrder::LosersFirst, &ps, 0),
+            "a tie isn't sure"
+        );
+    }
+
+    #[test]
+    fn round_robin_rotates_the_starter() {
+        let ps = players(&[(0, 0), (0, 0), (0, 0)]);
+        assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 1), [0, 1, 2]);
+        assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 2), [1, 2, 0]);
+        assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 4), [0, 1, 2]);
+    }
 }

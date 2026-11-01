@@ -8,7 +8,6 @@
 //! How to play is in `docs/GUIDE.md`; exact numbers and internals in `docs/DEVELOPMENT.md`.
 
 use macroquad::prelude::*;
-use macroquad::rand::gen_range;
 
 mod ai;
 mod battle;
@@ -146,15 +145,10 @@ impl Game {
             p.income = Income::default();
             p.round_stats = RoundStats::default();
         }
-        // First round: random starter. Later: last place shoots first.
-        let first = if self.round == 1 {
-            gen_range(0, self.players.len())
-        } else {
-            economy::underdog(&self.players)
-        };
+        let order = setup::turn_order(self.setup.turn_order, &self.players, self.round);
         let mut battle = Battle::new(
             &self.players,
-            first,
+            order,
             self.round,
             self.setup.rounds,
             self.setup.rules(),
@@ -448,7 +442,8 @@ impl Game {
             }
 
             Screen::Shop { shopper } => {
-                let shoots_first = economy::underdog(&self.players) == shopper;
+                let shoots_first =
+                    setup::sure_to_start(self.setup.turn_order, &self.players, shopper);
                 match shop::frame(&mut self.players[shopper], shoots_first) {
                     ShopAction::Stay => Screen::Shop { shopper },
                     ShopAction::SaveAndExit => {
@@ -1089,6 +1084,7 @@ mod guide_tests {
         names.extend(texts::<GravityLevel>());
         names.extend(texts::<Walls>());
         names.extend(texts::<Sky>());
+        names.extend(texts::<crate::setup::TurnOrder>());
         i18n::set_language(Language::English);
         names
     }

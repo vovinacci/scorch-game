@@ -122,6 +122,13 @@ The player's guide explains the rules; these are the exact values.
 - Parachute: opens once a fall passes the free 15 px (if owned and switched on), uses one, slows the fall to 90 px/s and
   cancels the fall damage.
 
+### Turn order
+
+`setup::turn_order` builds each round's firing order, which the battle stores. Losers first / Winners first: shuffle,
+then move the first player with the lowest (highest) (wins, kills) to the front, so ties are random and the rest of the
+cycle changes every round. Random: shuffle. Round robin: player order rotated by `round - 1`. The shop's "you shoot
+first" note only shows when it's certain (`setup::sure_to_start`). Battles saved without an order use player order.
+
 ### Bots
 
 - Aim: about 2000 simulated shots through the shared physics (`world::step_shell`), closest landing to the target wins.
