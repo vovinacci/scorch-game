@@ -540,15 +540,7 @@ impl Battle {
                 continue;
             }
 
-            // Mag Deflectors push enemy shells away; a tank's own shells pass.
-            for (i, tank) in self.tanks.iter().enumerate() {
-                let deflects = tank.shield.is_some_and(|s| s.deflects());
-                let away = p.pos - tank.center();
-                let d = away.length();
-                if deflects && tank.alive && i != p.owner && d < DEFLECT_RADIUS && d > 0.0 {
-                    p.vel += away / d * DEFLECT_FORCE * (1.0 - d / DEFLECT_RADIUS) * STEP;
-                }
-            }
+            deflect(p.pos, &mut p.vel, &self.deflectors(p.owner));
 
             let hit_tank = self
                 .tanks
@@ -570,6 +562,16 @@ impl Battle {
                 self.tanks[p.owner].last_trail = p.trail;
             }
         }
+    }
+
+    /// Centres of the Mag Deflectors that push `owner`'s shells (everyone's but its own).
+    fn deflectors(&self, owner: usize) -> Vec<Vec2> {
+        self.tanks
+            .iter()
+            .enumerate()
+            .filter(|(i, t)| *i != owner && t.alive && t.shield.is_some_and(|s| s.deflects()))
+            .map(|(_, t)| t.center())
+            .collect()
     }
 
     fn detonate(&mut self, pos: Vec2, weapon: usize, owner: usize, players: &mut [Player]) {
@@ -625,10 +627,12 @@ impl Battle {
                 if o != i {
                     tank.last_hit_by = Some(o);
                     tank.revenge = Some(o);
-                    players[o].income.damage += (dmg * economy::DAMAGE_PAY) as i32;
+                    // A hit on a shield pays like a hit on health, so shields don't shut down the catch-up money.
+                    let hit = dmg + absorbed;
+                    players[o].income.damage += (hit * economy::DAMAGE_PAY) as i32;
                     let stats = &mut players[o].round_stats;
-                    stats.damage += dmg;
-                    stats.best_hit = stats.best_hit.max(dmg);
+                    stats.damage += hit;
+                    stats.best_hit = stats.best_hit.max(hit);
                 }
             }
         }
@@ -1010,6 +1014,8 @@ impl Battle {
             weapon,
         };
         let mut best_distance = f32::MAX;
+        // Bots see deflectors like walls and wind, and aim around them.
+        let deflectors = self.deflectors(me);
         for angle in (4..=176).step_by(3) {
             for power in (50..=max_power as i32).step_by(25) {
                 let (angle, power) = (angle as f32, power as f32);
@@ -1020,6 +1026,7 @@ impl Battle {
                     self.wind,
                     self.world(),
                     &self.terrain,
+                    &deflectors,
                 ) else {
                     continue;
                 };
@@ -1342,9 +1349,12 @@ fn simulate(
     wind: f32,
     world: &World,
     terrain: &Terrain,
+    deflectors: &[Vec2],
 ) -> Option<Vec2> {
     for _ in 0..2400 {
-        match step_shell(&mut pos, &mut vel, wind, world, STEP) {
+        let flight = step_shell(&mut pos, &mut vel, wind, world, STEP);
+        deflect(pos, &mut vel, deflectors);
+        match flight {
             Flight::Wall => return Some(pos),
             Flight::Lost => return None,
             Flight::Flying if terrain.is_solid(pos) => return Some(pos),
@@ -1352,6 +1362,17 @@ fn simulate(
         }
     }
     None
+}
+
+/// Mag Deflector push for one physics step: away from each deflector within `DEFLECT_RADIUS`, strongest close by.
+fn deflect(pos: Vec2, vel: &mut Vec2, deflectors: &[Vec2]) {
+    for &centre in deflectors {
+        let away = pos - centre;
+        let d = away.length();
+        if d < DEFLECT_RADIUS && d > 0.0 {
+            *vel += away / d * DEFLECT_FORCE * (1.0 - d / DEFLECT_RADIUS) * STEP;
+        }
+    }
 }
 
 fn approach(value: f32, target: f32, max_step: f32) -> f32 {
@@ -1608,6 +1629,28 @@ mod tests {
         b.blast(at, 20.0, 40.0, Some(0), &mut players);
         assert!(b.tanks[1].shield.is_none(), "shield is down");
         assert_eq!(b.tanks[1].health, 80.0, "the rest goes to health");
+    }
+
+    #[test]
+    fn hitting_a_shield_pays_like_hitting_health() {
+        let mut players = bots(2);
+        players[1].items[2] = 1; // Heavy Shield (100)
+        let mut b = battle(&players, Setup::default().rules());
+        b.raise_shields(&mut players);
+        let at = b.tanks[1].center();
+        b.blast(at, 20.0, 30.0, Some(0), &mut players);
+        assert_eq!(b.tanks[1].health, 100.0, "all absorbed");
+        assert_eq!(players[0].income.damage, 30, "but the shooter is paid");
+    }
+
+    #[test]
+    fn bots_see_deflectors_in_their_aim() {
+        let world = Setup::default().rules().world;
+        let terrain = Terrain::generate(crate::world::TerrainKind::Flat);
+        let (pos, vel) = (vec2(200.0, 300.0), vec2(300.0, -200.0));
+        let plain = simulate(pos, vel, 0.0, &world, &terrain, &[]);
+        let bent = simulate(pos, vel, 0.0, &world, &terrain, &[vec2(330.0, 230.0)]);
+        assert_ne!(plain, bent, "the deflector changes where the shell lands");
     }
 
     #[test]

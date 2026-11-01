@@ -113,9 +113,11 @@ The player's guide explains the rules; these are the exact values.
 
 - Items live in `src/items.rs`: Parachute $40 x2, Shield 50 energy $120, Heavy Shield 100 $200, Mag Deflector 40 $150.
 - Round start: the switched-on shield with the most energy is raised and used up (`items::shield_to_raise`).
-- A blast's damage to a tank goes to its shield first; the rest to health. Damage pay counts only health damage.
+- A blast's damage to a tank goes to its shield first; the rest to health. Damage pay and stats count shield damage too,
+  so shields don't shut down the catch-up money.
 - Mag Deflector: enemy shells within 80 px of the tank's centre get an acceleration of 3000 px/s^2 away from it, fading
-  linearly to 0 at 80 px. The tank's own shells aren't affected; bots' aim simulation ignores deflectors.
+  linearly to 0 at 80 px. The tank's own shells aren't affected. Bots' aim simulation includes deflectors (`deflect` is
+  shared), so they aim around them.
 - Parachute: opens once a fall passes the free 15 px (if owned and switched on), uses one, slows the fall to 90 px/s and
   cancels the fall damage.
 

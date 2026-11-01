@@ -120,8 +120,8 @@ Besides weapons, the shop sells items that protect your tank:
 - At the start of every round, your strongest shield goes up by itself (Heavy Shield, then Shield, then Mag Deflector)
   and lasts until its energy is used up or the round ends. It's used up either way, so a new round needs a new shield. A
   glowing ring around the tank shows it, fading as it weakens.
-- The Mag Deflector bends shells away from your tank, sometimes enough to miss. It doesn't touch your own shells. Blasts
-  that still land near you hit its smaller store of energy first.
+- The Mag Deflector bends shells away from your tank, sometimes enough to miss. Bots know this and aim around it, as you
+  can. It doesn't touch your own shells. Blasts that still land near you hit its smaller store of energy first.
 - Each item has an on/off switch in the inventory. Switched off, it stays in your inventory unused, for example to save
   your only Heavy Shield for later rounds.
 - Shields stop every kind of damage from blasts, including death blasts and self-destructs, but not falls (that's what
@@ -133,7 +133,7 @@ You earn money every round:
 
 | For | Amount |
 |---|---|
-| Damage to other tanks | $1 per point of damage |
+| Damage to other tanks | $1 per point of damage, shields included |
 | Each kill | $50 |
 | Bounty | $50 extra per round the destroyed tank has won |
 | Winning the round | $100 |
