@@ -363,3 +363,21 @@ final-play-again = Грати знову
 final-main-menu = Головне меню
 ladder-up = Драбина: складність зросла до «{ $level }»
 ladder-down = Драбина: складність знизилась до «{ $level }»
+
+## Оновлення
+
+update-ask = Автоматично перевіряти нові версії Scorch під час запуску?
+update-yes = Так
+update-no = Ні
+update-available = Доступна версія { $version }.
+update-install = Оновити
+update-later = Пізніше
+update-downloading = Завантаження версії { $version }...
+update-installed = Версію { $version } встановлено.
+update-restart = Перезапустити
+update-failed = Не вдалося оновити: { $error }
+update-checking = Перевірка оновлень...
+update-up-to-date = У вас найновіша версія.
+update-check-failed = Не вдалося перевірити оновлення. Чи є інтернет?
+about-check-updates = Перевірити оновлення
+settings-updates = Перевіряти оновлення

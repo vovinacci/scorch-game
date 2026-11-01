@@ -6,14 +6,24 @@ license = "MIT"
 description = "Turn-based artillery game, a tribute to Scorched Earth (1991)"
 authors = ["Volodymyr Shcherbinin (vovin)"]
 
+[features]
+# Self-update from GitHub Releases. Packagers with their own updates (Nix, distributions) build without it:
+# --no-default-features.
+default = ["self-update"]
+self-update = ["dep:minisign-verify", "dep:self-replace", "dep:sha2", "dep:ureq"]
+
 [dependencies]
 dirs = "7.0.0"
 fluent-bundle = "0.16.0"
 macroquad = "0.4.16"
+minisign-verify = { version = "0.3.0", optional = true }
+self-replace = { version = "1.5.1", optional = true }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+sha2 = { version = "0.11.1", optional = true }
 sys-locale = "0.3.2"
 unic-langid = "0.9.6"
+ureq = { version = "3.5.0", optional = true }
 
 # Light optimization for our code (AI aiming simulates thousands of shots),
 # full optimization for dependencies. Still fast to compile.

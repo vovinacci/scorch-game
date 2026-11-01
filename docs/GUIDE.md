@@ -246,10 +246,23 @@ All text over the battlefield has a thin dark outline, so it's readable over any
 - **Settings:**
   - Display: **Language** (English, Українська), tank health (Bar, Bar + number, Number), last shot path, battle log,
     fullscreen.
-  - Gameplay: game speed (Normal, Fast 1.5x, Faster 2x) and bots-only speed (2x, 4x, 8x, on top of the game speed).
+  - Gameplay: game speed (Normal, Fast 1.5x, Faster 2x) and bots-only speed (2x, 4x, 8x, on top of the game speed), and
+    **Check for updates** (see below).
   - A list of all controls.
-- **About:** the dedication, the author, the original game and the credits, and the game's version.
+- **About:** the dedication, the author, the original game and the credits, the game's version and a
+  **Check for updates** button.
 - **Final standings:** after the last round, with Play again (same options) and Main menu.
+
+## Updates
+
+Scorch can update itself. On the first start the main menu asks once whether to check for new versions automatically;
+your answer is the **Check for updates** setting. When a new version is out, the main menu says so: **Update** downloads
+and installs it, then **Restart** starts the new version; **Later** hides the notice until the next start. You can also
+check by hand on the About screen.
+
+Checking sends one request to GitHub, where Scorch is published, and nothing about you. Every update is signed by the
+author: if a download doesn't match the signature, it isn't installed. Versions installed with a package manager (such
+as the Nix package) are updated by that package manager instead and don't show these options.
 
 ## Languages
 

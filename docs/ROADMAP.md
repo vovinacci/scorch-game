@@ -16,7 +16,6 @@ the guide as they ship.
 
 ## Platforms and releases
 
-- **Self-update:** designed in [RELEASING.md](RELEASING.md) (signed downloads, Update / Later in the main menu).
 - **Browser build:** saves and stats in browser storage instead of files, crash reports to the browser console, replace
   `SystemTime` (panics in the browser), hide Quit, `make web`.
 

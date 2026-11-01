@@ -69,7 +69,8 @@ Release files:
 | Linux x86_64, ARM64 | `scorch-vX.Y.Z-linux-<arch>.tar.gz` and `Scorch-vX.Y.Z-<arch>.AppImage` |
 | Windows x86_64, ARM64 | `scorch-vX.Y.Z-windows-<arch>.zip` (no console window) |
 | macOS (Intel + Apple Silicon) | `scorch-vX.Y.Z-macos.zip` with a universal `Scorch.app` and icon |
-| All | `SHA256SUMS` |
+| Linux, Windows (for self-update) | `scorch-vX.Y.Z-linux-<arch>`, `scorch-vX.Y.Z-windows-<arch>.exe` |
+| All | `SHA256SUMS` and its minisign signature `SHA256SUMS.minisig` |
 
 - Linux builds run on an older Ubuntu for wider glibc compatibility; ARM64 on GitHub's ARM runners.
 - No code signing with a paid certificate. Windows shows SmartScreen ("More info" > "Run anyway"). The macOS app has an
@@ -88,22 +89,28 @@ Release files:
 - Workflows are checked with [actionlint](https://github.com/rhysd/actionlint) and [zizmor](https://docs.zizmor.sh)
   (both in nixpkgs).
 
-## Self-update (not built)
+## Self-update
 
-- **Consent:** the first start asks once "Check for updates automatically?" (Yes / No). Saved as Settings > "Check for
-  updates"; Settings also has "Check now".
-- **Check:** in the background on start (if allowed), one request to the GitHub releases API. Nothing about the player
-  is sent.
-- **Offer:** the main menu shows "Version X is available" with **Update** and **Later**, and a link to the release
-  notes.
-- **Update:** download this platform's file, verify its signature, replace the program, restart into the new version.
-  - Signatures: ed25519 (`zipsign`); the private key is a GitHub secret used by the release workflow, the public key is
-    built into the game. A file that fails verification is never installed.
-  - Replacement: the `self_update` crate (uses `self-replace`, which handles running executables on Windows). On macOS
-    the binary inside `Scorch.app` is replaced; for an AppImage, the AppImage file itself (`$APPIMAGE`).
-- **Off** for development builds (versions with `+g...`, `.dirty`, `+nogit`) and for builds made by package managers (a
-  `self-update` Cargo feature, on by default, that packagers turn off).
-- Cost: HTTPS (rustls) adds about 1-2 MB to the binary. Downloads run on a background thread so the game never stalls.
+The game updates itself from GitHub Releases (`src/update.rs`).
+
+- **Consent:** the main menu asks once "Check for new versions … automatically?"; the answer is Settings > "Check for
+  updates". About has a "Check for updates" button.
+- **Check:** in the background at start (if allowed), one request to the GitHub releases API. A newer version shows
+  **Update** / **Later** on the main menu; a failed check stays silent there (About shows it).
+- **Update:** downloads `SHA256SUMS` and `SHA256SUMS.minisig`, verifies the minisign signature with the public key built
+  into the game (`assets/release-key.pub`), downloads this platform's file and checks its SHA-256. Only then it replaces
+  the game and offers **Restart**.
+  - Linux and Windows: the plain program (`scorch-vX.Y.Z-linux-<arch>`, `scorch-vX.Y.Z-windows-<arch>.exe`), swapped in
+    with `self-replace` (handles the running executable on Windows).
+  - AppImage: the new AppImage replaces the file in `$APPIMAGE`.
+  - macOS: the zip is unpacked next to `Scorch.app` with `ditto`, then the bundles are swapped. A bundle the game
+    downloaded itself carries no quarantine mark.
+- **Signing:** the release workflow signs `SHA256SUMS` with the minisign secret key in the secret `RELEASE_SIGNING_KEY`
+  (unencrypted); a release without it fails. Losing the key means players update by hand once to a release with a new
+  public key.
+- **Off** for development builds (versions with `+`) and without the `self-update` Cargo feature (on by default; the Nix
+  flake builds without it). HTTPS is rustls with Mozilla's root certificates built in: no OpenSSL, no system certificate
+  store.
 
 ## Commit messages from tools
 

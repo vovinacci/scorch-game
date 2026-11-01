@@ -334,3 +334,21 @@ final-play-again = Play again
 final-main-menu = Main menu
 ladder-up = Ladder: difficulty up to { $level }
 ladder-down = Ladder: difficulty down to { $level }
+
+## Updates
+
+update-ask = Check for new versions of Scorch automatically when it starts?
+update-yes = Yes
+update-no = No
+update-available = Version { $version } is available.
+update-install = Update
+update-later = Later
+update-downloading = Downloading version { $version }...
+update-installed = Version { $version } is installed.
+update-restart = Restart
+update-failed = Update failed: { $error }
+update-checking = Checking for updates...
+update-up-to-date = You have the latest version.
+update-check-failed = Couldn't check for updates. Are you online?
+about-check-updates = Check for updates
+settings-updates = Check for updates

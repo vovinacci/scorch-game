@@ -126,6 +126,7 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/*.AppImage
+            dist/scorch-*-linux-${{ matrix.arch }}
           if-no-files-found: error
 
   windows:
@@ -160,7 +161,9 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-${{ matrix.arch }}
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*.exe
           if-no-files-found: error
 
   macos:
@@ -202,13 +205,21 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Checksums and upload
+      - name: Checksums, signature and upload
         working-directory: dist
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.plan.outputs.tag }}
+          # minisign secret key (unencrypted); the game verifies SHA256SUMS.minisig with assets/release-key.pub.
+          SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
         run: |
+          [ -n "$SIGNING_KEY" ] || { echo "RELEASE_SIGNING_KEY is not set: self-update needs signed releases" >&2; exit 1; }
+          sudo apt-get update && sudo apt-get install -y minisign
           sha256sum -- * > SHA256SUMS
+          key="$RUNNER_TEMP/release.key"
+          printf '%s\n' "$SIGNING_KEY" > "$key"
+          minisign -S -s "$key" -m SHA256SUMS -t "Scorch $TAG"
+          rm -f "$key"
           gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "Scorch ${TAG#v}" --notes ""
           gh release upload --clobber "$TAG" -- *
