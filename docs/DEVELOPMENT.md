@@ -51,6 +51,10 @@ Command line options:
 | `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, stats, crash, battle, pause, over (a round just won), log, shop, abandon, final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit |
 
+Self-update is off in development builds (`make run`, versions with `+`), so its question, setting and About button are
+hidden there. To see them, build with a release-style version: `SCORCH_BUILD_VERSION=0.1.0 make run`. Don't press Update
+in that build: it would replace the binary in `target/` with the release.
+
 Example, checking a layout in Ukrainian without touching your own profile:
 
 ```text
