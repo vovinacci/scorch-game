@@ -6,6 +6,9 @@ git_tag_name = "v{{ version }}"
 git_release_enable = true
 release_always = false
 semver_check = false
+# Before 1.0 a new feature still bumps the minor version (0.2.0), so the number shows when something new arrived.
+# Nothing depends on Scorch as a crate, so Cargo's 0.x library convention doesn't apply.
+features_always_increment_minor = true
 pr_labels = ["release"]
 
 [changelog]

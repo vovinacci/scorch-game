@@ -52,7 +52,9 @@ Tool: [release-plz](https://release-plz.dev) (changelog by git-cliff), publishin
 
 1. Every merge to `main` updates a **release PR**: version bump in `Cargo.toml` / `Cargo.lock` (`fix` = patch, `feat` =
    minor, breaking = minor while below 1.0) and the new `CHANGELOG.md` section.
-2. Review the PR, polish the wording if needed, merge it.
+2. Review the PR, polish the wording if needed, merge it. Merge it last: it releases what is on `main` at that moment,
+   and each feature or fix merged before it updates its version and changelog. Merging it early ships the pending
+   changes with the version they had so far.
 3. release-plz tags `vX.Y.Z` and creates the GitHub Release with that changelog section as notes.
 4. The same workflow then builds the binaries on native runners, packs them with `tools/package.sh` and attaches them
    with `SHA256SUMS`. It must be the same workflow: tags pushed with `GITHUB_TOKEN` don't trigger other workflows.
