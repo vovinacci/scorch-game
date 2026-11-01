@@ -16,6 +16,9 @@ the guide as they ship.
 
 ## Platforms and releases
 
+- **Windows installer:** Start menu entry, uninstaller, installed as `Scorch.exe` (a self-updated download keeps its
+  versioned file name, e.g. `scorch-v0.1.3-windows-x86_64.exe` running 0.1.4). Also an app icon and version details
+  embedded in the `.exe`, so Explorer shows them.
 - **Browser build:** saves and stats in browser storage instead of files, crash reports to the browser console, replace
   `SystemTime` (panics in the browser), hide Quit, `make web`.
 
