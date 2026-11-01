@@ -106,6 +106,7 @@ SuddenDeath-Off = Off
 SuddenDeath-After8 = 8 shots each
 SuddenDeath-After12 = 12 shots each
 SuddenDeath-After16 = 16 shots each
+SuddenDeath-After24 = 24 shots each
 TerrainKind-Rolling = Rolling hills
 TerrainKind-Mountains = Mountains
 TerrainKind-Flat = Flatlands

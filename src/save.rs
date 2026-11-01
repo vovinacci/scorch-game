@@ -228,6 +228,7 @@ mod tests {
         assert_eq!(load("After40"), SuddenDeath::After16);
         assert_eq!(load("Off"), SuddenDeath::Off);
         assert_eq!(load("After16"), SuddenDeath::After16);
+        assert_eq!(load("After24"), SuddenDeath::After24);
     }
 
     #[test]

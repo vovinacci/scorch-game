@@ -17,6 +17,7 @@ choice!(SuddenDeath {
     After8,
     After12,
     After16,
+    After24,
 });
 
 impl SuddenDeath {
@@ -27,6 +28,7 @@ impl SuddenDeath {
             SuddenDeath::After8 => Some(8),
             SuddenDeath::After12 => Some(12),
             SuddenDeath::After16 => Some(16),
+            SuddenDeath::After24 => Some(24),
         }
     }
 }
@@ -38,6 +40,7 @@ fn lenient_sudden_death<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Sudden
         "Off" => SuddenDeath::Off,
         "After8" | "After15" => SuddenDeath::After8,
         "After16" | "After40" => SuddenDeath::After16,
+        "After24" => SuddenDeath::After24,
         _ => SuddenDeath::After12,
     })
 }

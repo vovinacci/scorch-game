@@ -194,7 +194,7 @@ random except the number of human players; you can still check and change it all
 | Ladder | Off, On | Off |
 | Rounds | 3, 5, 7, 10 | 5 |
 | Health limits power | Off, On | On |
-| Sudden death | Off, 8/12/16 shots each | 12 shots each |
+| Sudden death | Off, 8/12/16/24 shots each | 12 shots each |
 
 ### World
 
@@ -220,9 +220,9 @@ A small preview under the World options shows the terrain and sky.
 
 - **Only bots left:** once no human tank is in the round, it plays at the bots-only speed (4x by default) and shows
   **Skip to end [Enter]**, which finishes the round instantly.
-- **Sudden death** (option): once every tank has had the chosen number of shots (8, 12 or 16 each, so the fight lasts as
-  long with 2 tanks as with 4), every tank loses 5 health at the start of each turn until the round ends. Shields don't
-  stop it. The top right of the screen shows the turn it starts.
+- **Sudden death** (option): once every tank has had the chosen number of shots (8, 12, 16 or 24 each, so the fight
+  lasts as long with 2 tanks as with 4), every tank loses 5 health at the start of each turn until the round ends.
+  Shields don't stop it. The top right of the screen shows the turn it starts.
 - **Flee this round** (pause menu, while you're aiming): your tank leaves the round. You lose the round, but nobody gets
   a kill. If no human is left, the round ends at once and the healthiest tank wins it.
 - **Self-destruct** (pause menu, while you're aiming): your tank explodes with a big blast (radius 75, damage 80),

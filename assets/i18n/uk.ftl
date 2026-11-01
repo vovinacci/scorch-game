@@ -111,6 +111,7 @@ SuddenDeath-Off = Вимк.
 SuddenDeath-After8 = По 8 пострілів
 SuddenDeath-After12 = По 12 пострілів
 SuddenDeath-After16 = По 16 пострілів
+SuddenDeath-After24 = По 24 постріли
 TerrainKind-Rolling = Пагорби
 TerrainKind-Mountains = Гори
 TerrainKind-Flat = Рівнина
