@@ -106,7 +106,8 @@ The player's guide explains the rules; these are the exact values.
 - Death blast: radius 35, damage 40, plus 15% of the radius and 10% of the damage of every carried shell (not Baby
   Missiles or Dirt Bombs), capped at radius 110 and damage 120. One Nuke aboard: radius 48, damage 50.
 - Self-destruct: radius 75, damage 80, then the death blast.
-- Sudden death: 5 health per turn.
+- Sudden death: 5 health per turn, past shields. The setting is shots per tank (8/12/16); `Battle::new` multiplies it by
+  the number of tanks into the turn it starts, which saved battles store.
 - Kills from a death blast go to whoever caused the death, or to the dead tank itself if nobody did.
 
 ### Bots
