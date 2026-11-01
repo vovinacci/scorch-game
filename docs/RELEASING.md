@@ -50,8 +50,9 @@ Enforced twice:
 
 Tool: [release-plz](https://release-plz.dev) (changelog by git-cliff), publishing to crates.io turned off.
 
-1. Every merge to `main` updates a **release PR**: version bump in `Cargo.toml` / `Cargo.lock` (`fix` = patch, `feat` =
-   minor, breaking = minor while below 1.0) and the new `CHANGELOG.md` section.
+1. Every merge of a `feat`, `fix` or `perf` change to `main` opens or updates a **release PR** (other types wait and
+   ride along with the next release): version bump in `Cargo.toml` / `Cargo.lock` (`fix` = patch, `feat` = minor,
+   breaking = minor while below 1.0) and the new `CHANGELOG.md` section.
 2. Review the PR, polish the wording if needed, merge it. Merge it last: it releases what is on `main` at that moment,
    and each feature or fix merged before it updates its version and changelog. Merging it early ships the pending
    changes with the version they had so far.
