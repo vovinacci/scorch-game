@@ -72,9 +72,10 @@ Release files:
 | All | `SHA256SUMS` |
 
 - Linux builds run on an older Ubuntu for wider glibc compatibility; ARM64 on GitHub's ARM runners.
-- No code signing with a paid certificate: Windows shows SmartScreen, and the macOS app has an ad-hoc signature, so
-  Gatekeeper asks once (Privacy & Security > Open Anyway). The README explains both. Real signing needs an Apple
-  Developer ID and a Windows certificate.
+- No code signing with a paid certificate. Windows shows SmartScreen ("More info" > "Run anyway"). The macOS app has an
+  ad-hoc signature (Apple Silicon refuses unsigned apps as "damaged"), but Gatekeeper still rejects it, so players
+  remove the quarantine mark with `xattr` (README). Opening with a double-click would need an Apple Developer ID and
+  notarization ($99/year); not used.
 
 ## Supply chain
 
