@@ -18,6 +18,8 @@
           inherit (cargo.package) version;
           src = self;
           cargoLock.lockFile = ./Cargo.lock;
+          # Nix updates the game itself.
+          buildNoDefaultFeatures = true;
 
           nativeBuildInputs = [ pkgs.makeWrapper ];
           env.SCORCH_BUILD_VERSION = "${cargo.package.version}+g${pkgs.lib.removeSuffix "-dirty" rev}"

@@ -47,6 +47,7 @@ Command line options:
 |---|---|
 | `--version`, `-V` | Print the version and exit |
 | `--crash-test` | Crash on purpose, to check crash reports |
+| `--update` | Check for a new version and install it from the command line (same checks as the menu) |
 | `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, stats, crash, battle, pause, over (a round just won), log, shop, abandon, final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit |
 
@@ -150,7 +151,8 @@ comes from and how to rebuild it (`tools/patch_font.py`).
 
 JSON in the platform data folder (`~/.local/share/scorch/` on Linux):
 
-- `profile.json`: settings (including language), last setup, custom bot, stats, whether the intro was shown.
+- `profile.json`: settings (including language and update checks), last setup, custom bot, stats, whether the intro was
+  shown.
 - `run.json`: the game in progress; written at the start of every turn and when the shop opens, deleted when the game
   ends or is abandoned.
 - `crash-<time>.log`: crash reports. All unseen ones are offered in one notice (and copied together, newest first); then
@@ -196,6 +198,7 @@ dirty.
 | `stats.rs` | All-time stats |
 | `crash.rs` | Version string, crash reports |
 | `save.rs` | Save files |
+| `update.rs` | Self-update: check, signed download, replace, restart (see RELEASING.md) |
 | `i18n.rs` | Languages, `t!` translation lookup, language detection |
 | `ui.rs` | Widgets, keyboard focus, scaling to the window, font |
 | `logo.rs` | Main menu logo |

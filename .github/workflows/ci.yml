@@ -33,6 +33,8 @@ jobs:
         run: make hooks
       - name: Tests
         run: cargo test --locked
+      - name: Clippy without self-update (the build packagers use)
+        run: cargo clippy --locked --no-default-features -- -D warnings
 
   build:
     name: Build (${{ matrix.name }})

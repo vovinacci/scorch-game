@@ -25,6 +25,7 @@ mod shop;
 mod stats;
 mod terrain;
 mod ui;
+mod update;
 mod weapons;
 mod world;
 
@@ -104,6 +105,7 @@ struct Game {
     crash_note: Option<String>,
     /// Full battle log opened from the pause menu.
     log_open: bool,
+    updater: update::Updater,
     screen: Screen,
 }
 
@@ -288,7 +290,7 @@ impl Game {
             }
             Screen::Menu => self.main_menu(),
             Screen::About => {
-                if about() {
+                if about(&self.updater) {
                     Screen::Menu
                 } else {
                     Screen::About
@@ -506,6 +508,8 @@ impl Game {
         };
 
         self.crash_notice(cx);
+        let y = if self.crash.is_some() { 96.0 } else { 10.0 };
+        self.update_notice(cx, y);
 
         ui::text_centered(&t!("tribute"), cx, ui::HEIGHT - 14.0, 18.0, GRAY);
         let version = format!("v{}", crash::VERSION);
@@ -563,6 +567,67 @@ impl Game {
         if copy || dismiss {
             crash::mark_seen(pending);
             self.crash = None;
+        }
+    }
+
+    /// The update question (first time), an available update, its progress, or a failed install.
+    fn update_notice(&mut self, cx: f32, y: f32) {
+        if !update::enabled() {
+            return;
+        }
+        let ask = self.profile.settings.check_updates.is_none();
+        let (text, buttons): (String, Vec<String>) = if ask {
+            (t!("update-ask"), vec![t!("update-yes"), t!("update-no")])
+        } else {
+            match self.updater.status() {
+                update::Status::Available { version } => (
+                    t!("update-available", version = version),
+                    vec![t!("update-install"), t!("update-later")],
+                ),
+                update::Status::Downloading { version } => {
+                    (t!("update-downloading", version = version), vec![])
+                }
+                update::Status::Installed { version } => (
+                    t!("update-installed", version = version),
+                    vec![t!("update-restart")],
+                ),
+                update::Status::InstallFailed(error) => (
+                    t!("update-failed", error = error),
+                    vec![t!("crash-dismiss")],
+                ),
+                _ => return,
+            }
+        };
+        let area = Rect::new(cx - 420.0, y, 840.0, 76.0);
+        ui::panel(area);
+        let text_w = area.w - 32.0 - 154.0 * buttons.len() as f32;
+        // One line sits in the middle of the panel; two lines start higher.
+        let one_line = ui::measure(&text, 18.0).width <= text_w;
+        let text_y = area.y + if one_line { 44.0 } else { 30.0 };
+        ui::text_wrapped(&text, area.x + 16.0, text_y, text_w, 18.0, SKYBLUE);
+        let mut pressed = None;
+        for (i, label) in buttons.iter().enumerate().rev() {
+            let x = area.x + area.w - 16.0 - 146.0 * (buttons.len() - i) as f32 + 8.0;
+            if ui::button(Rect::new(x, area.y + 19.0, 138.0, 38.0), label, true) {
+                pressed = Some(i);
+            }
+        }
+        let Some(pressed) = pressed else {
+            return;
+        };
+        if ask {
+            let yes = pressed == 0;
+            self.profile.settings.check_updates = Some(yes);
+            save::store_profile(&self.profile);
+            if yes {
+                self.updater.check();
+            }
+            return;
+        }
+        match self.updater.status() {
+            update::Status::Available { .. } if pressed == 0 => self.updater.install(),
+            update::Status::Installed { .. } => update::restart(),
+            _ => self.updater.dismiss(),
         }
     }
 
@@ -782,8 +847,8 @@ fn dedication(y: f32, alpha: f32) {
     ui::text_centered(&t!("dedication-2"), cx, y + 42.0, 24.0, color(LIGHTGRAY));
 }
 
-/// About: dedication, the original game, credits, version. Returns true on Back.
-fn about() -> bool {
+/// About: dedication, the original game, credits, version and a manual update check. Returns true on Back.
+fn about(updater: &update::Updater) -> bool {
     let cx = ui::WIDTH / 2.0;
     let area = Rect::new(190.0, 50.0, 900.0, 560.0);
     ui::panel(area);
@@ -801,6 +866,20 @@ fn about() -> bool {
         18.0,
         GRAY,
     );
+    if update::enabled() {
+        let check = Rect::new(cx - 160.0, area.y + area.h - 116.0, 320.0, 44.0);
+        if ui::button(check, &t!("about-check-updates"), true) {
+            updater.check();
+        }
+        let status = match updater.status() {
+            update::Status::Checking => t!("update-checking"),
+            update::Status::UpToDate => t!("update-up-to-date"),
+            update::Status::CheckFailed(_) => t!("update-check-failed"),
+            update::Status::Available { version } => t!("update-available", version = version),
+            _ => String::new(),
+        };
+        ui::text_centered(&status, cx, area.y + area.h - 52.0, 18.0, SKYBLUE);
+    }
     ui::button(Rect::new(cx - 120.0, 630.0, 240.0, 52.0), &t!("back"), true)
         || is_key_pressed(KeyCode::Escape)
 }
@@ -867,6 +946,9 @@ fn main() {
     }
     println!("{}", crash::version_line());
     crash::install();
+    if std::env::args().any(|a| a == "--update") {
+        std::process::exit(update::command_line());
+    }
     if std::env::args().any(|a| a == "--crash-test") {
         panic!("crash test requested with --crash-test");
     }
@@ -896,6 +978,7 @@ async fn run() {
         profile,
         has_saved_run: save::run_exists(),
         log_open: false,
+        updater: update::Updater::new(),
         crash: crash::pending(),
         crash_note: None,
         ladder_note: None,
@@ -908,6 +991,9 @@ async fn run() {
     }
     // With `--shot <file.png>`, save a screenshot after a moment and quit.
     let shot = arg_after("--shot");
+    if game.profile.settings.check_updates == Some(true) {
+        game.updater.check();
+    }
     let mut frame: u32 = 0;
     let mut fullscreen = false;
     loop {

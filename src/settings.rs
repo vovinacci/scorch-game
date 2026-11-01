@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::choice::choice;
 use crate::i18n::{Language, t};
 use crate::ui;
+use crate::update;
 
 choice!(HealthDisplay {
     Bar,
@@ -57,6 +58,8 @@ pub struct Settings {
     pub game_speed: GameSpeed,
     /// Extra speed-up when only bots are left in a round.
     pub bot_speed: BotSpeed,
+    /// Look for a new version at start. `None` until the player answers the question on the main menu.
+    pub check_updates: Option<bool>,
 }
 
 impl Default for Settings {
@@ -69,6 +72,7 @@ impl Default for Settings {
             language: None,
             game_speed: GameSpeed::Normal,
             bot_speed: BotSpeed::X4,
+            check_updates: None,
         }
     }
 }
@@ -101,7 +105,7 @@ pub fn screen(settings: &mut Settings) -> bool {
         28.0,
         GOLD,
     );
-    let row = |i: f32| Rect::new(left.x + 24.0, left.y + 60.0 + i * 50.0, left.w - 48.0, 42.0);
+    let row = |i: f32| Rect::new(left.x + 24.0, left.y + 60.0 + i * 46.0, left.w - 48.0, 40.0);
     // A globe and the label in both languages, so the row is easy to find
     // even after switching to a language you can't read.
     let mut language = settings.language.unwrap_or(Language::English);
@@ -133,7 +137,7 @@ pub fn screen(settings: &mut Settings) -> bool {
     ui::text_at(
         t!("settings-gameplay"),
         left.x + 24.0,
-        left.y + 60.0 + 5.0 * 50.0 + 30.0,
+        left.y + 60.0 + 5.0 * 46.0 + 30.0,
         28.0,
         GOLD,
     );
@@ -143,6 +147,12 @@ pub fn screen(settings: &mut Settings) -> bool {
         &mut settings.game_speed,
     );
     ui::choice(row(7.0), &t!("settings-bot-speed"), &mut settings.bot_speed);
+    if update::enabled() {
+        let mut on = settings.check_updates == Some(true);
+        if ui::toggle(row(8.0), &t!("settings-updates"), &mut on) {
+            settings.check_updates = Some(on);
+        }
+    }
 
     let right = Rect::new(680.0, 110.0, 520.0, 490.0);
     ui::panel(right);

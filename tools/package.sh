@@ -27,6 +27,9 @@ linux)
     stage "$name"
     cp target/release/scorch "dist/$name/"
     tar -C dist -czf "dist/$name.tar.gz" "$name"
+    # The plain program, for self-update (same name as the folder, so the folder goes first).
+    rm -rf "dist/$name"
+    cp target/release/scorch "dist/$name"
 
     app=dist/Scorch.AppDir
     rm -rf "$app"
@@ -44,6 +47,8 @@ windows)
     stage "$name"
     cp target/release/scorch.exe "dist/$name/"
     (cd dist && 7z a -tzip -bso0 "$name.zip" "$name")
+    # The plain program, for self-update.
+    cp target/release/scorch.exe "dist/$name.exe"
     ;;
 macos)
     version=$2

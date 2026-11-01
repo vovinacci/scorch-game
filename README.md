@@ -28,6 +28,7 @@ Mother of All Games".
 - **Hotseat:** two players at one keyboard.
 - **Battle log** of every shot, hit and kill, and why each bot picked its target.
 - **Saves automatically:** close the window any time and continue later.
+- **Updates itself** if you allow it: signed updates from this page, installed with one click.
 - **Languages:** English and Ukrainian.
 - Plays well with the keyboard alone; the mouse works too. Fits any window size and works fullscreen.
 

@@ -4,7 +4,7 @@ Scorched Earth style artillery game in Rust + macroquad.
 
 - `docs/GUIDE.md` (and `docs/GUIDE.uk.md`): the player's guide. Plain player-facing language only: no code, build steps
   or internals.
-- `docs/RELEASING.md`: GitHub, CI, releases and self-update plan; commits follow Conventional Commits.
+- `docs/RELEASING.md`: GitHub, CI, releases and self-update; commits follow Conventional Commits.
 - `docs/DEVELOPMENT.md`: building, dev flags, exact numbers behind the rules, translations, save files, versioning, code
   map.
 
