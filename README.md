@@ -59,14 +59,16 @@ Get the latest version from [Releases](https://github.com/vovinacci/scorch-game/
 
 ### First start (unsigned builds)
 
-The builds aren't code-signed yet, so the system asks once whether to trust them.
+The builds aren't code-signed, so Windows and macOS need one extra step the first time.
 
 - **Windows:** SmartScreen says it protected your PC. Click "More info", then "Run anyway".
-- **macOS 15 or newer:** open `Scorch.app`; macOS says it can't verify it, click "Done". Then open System Settings >
-  Privacy & Security, scroll down to "Scorch was blocked", click "Open Anyway" and confirm. From then on it opens
-  normally. (macOS 14 and older: right-click `Scorch.app` > Open.)
-- **macOS, if it says the app is damaged:** in Terminal, run `xattr -dr com.apple.quarantine /Applications/Scorch.app`,
-  then open it.
+- **macOS:** macOS only opens downloaded apps from developers registered with Apple, and Scorch isn't. Move `Scorch.app`
+  to Applications, then run this once in Terminal; it removes the "downloaded from the internet" mark, and from then on
+  the game opens normally:
+
+  ```sh
+  xattr -dr com.apple.quarantine /Applications/Scorch.app
+  ```
 
 ### NixOS
 

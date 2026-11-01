@@ -61,8 +61,8 @@ macos)
         cp "assets/icon/scorch-$((size * 2)).png" "$iconset/icon_${size}x${size}@2x.png"
     done
     iconutil -c icns "$iconset" -o "$app/Contents/Resources/Scorch.icns"
-    # Ad-hoc signature: Apple Silicon refuses unsigned apps outright ("damaged"); with it, Gatekeeper only asks the
-    # player to allow an app from an unidentified developer (README). Real signing needs an Apple Developer ID.
+    # Ad-hoc signature: Apple Silicon refuses unsigned apps outright ("damaged"). Gatekeeper still rejects ad-hoc apps;
+    # players clear the quarantine mark with xattr (README). Opening normally would need a Developer ID + notarization.
     codesign --force --deep --sign - "$app"
     codesign --verify --deep --strict --verbose=2 "$app"
     (cd dist && ditto -c -k --keepParent "$name" "$name.zip")
