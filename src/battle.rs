@@ -254,12 +254,16 @@ pub struct Battle {
     /// Index of this turn's "fires" line in `history`, to mark a miss.
     #[serde(skip)]
     shot_line: Option<usize>,
+    /// Firing order this round (tank indices). Empty in battles saved before it existed: player order.
+    #[serde(default)]
+    order: Vec<usize>,
 }
 
 impl Battle {
+    /// `order`: who fires when this round (`setup::turn_order`); its first entry starts.
     pub fn new(
         players: &[Player],
-        first: usize,
+        order: Vec<usize>,
         round: u32,
         rounds: u32,
         mut rules: Rules,
@@ -301,7 +305,8 @@ impl Battle {
         Self {
             terrain,
             tanks,
-            current: first % n,
+            current: order.first().copied().unwrap_or(0) % n,
+            order,
             wind: rules.world.first_wind(),
             phase: Phase::default(),
             projectiles: Vec::new(),
@@ -826,8 +831,14 @@ impl Battle {
             self.history[k].text += &t!("log-miss");
         }
         let n = self.tanks.len();
+        let order: Vec<usize> = if self.order.len() == n {
+            self.order.clone()
+        } else {
+            (0..n).collect()
+        };
+        let at = order.iter().position(|&i| i == self.current).unwrap_or(0);
         if let Some(next) = (1..=n)
-            .map(|k| (self.current + k) % n)
+            .map(|k| order[(at + k) % n])
             .find(|&i| self.tanks[i].alive)
         {
             self.current = next;
@@ -1498,7 +1509,7 @@ mod tests {
     }
 
     fn battle(players: &[Player], rules: Rules) -> Battle {
-        Battle::new(players, 0, 1, 5, rules)
+        Battle::new(players, (0..players.len()).collect(), 1, 5, rules)
     }
 
     #[test]

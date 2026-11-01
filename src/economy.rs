@@ -68,13 +68,6 @@ pub fn end_round(players: &mut [Player], winner: Option<usize>) {
     }
 }
 
-/// Last place shoots first: fewest wins, then fewest kills.
-pub fn underdog(players: &[Player]) -> usize {
-    (0..players.len())
-        .min_by_key(|&i| (players[i].wins, players[i].kills))
-        .unwrap_or(0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,15 +93,5 @@ mod tests {
         end_round(&mut ps, Some(1));
         assert_eq!(ps[1].loss_streak, 0);
         assert_eq!(ps[1].income.win, WIN_PAY);
-    }
-
-    #[test]
-    fn last_place_shoots_first() {
-        let mut ps = players(3);
-        ps[0].wins = 2;
-        ps[1].wins = 1;
-        ps[2].wins = 1;
-        ps[2].kills = 3;
-        assert_eq!(underdog(&ps), 1);
     }
 }

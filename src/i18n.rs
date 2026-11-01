@@ -216,6 +216,7 @@ mod tests {
         needed.extend(choices::<crate::settings::GameSpeed>());
         needed.extend(choices::<crate::settings::BotSpeed>());
         needed.extend(choices::<crate::setup::SuddenDeath>());
+        needed.extend(choices::<crate::setup::TurnOrder>());
         for bot in ["alpha", "bravo", "charlie"] {
             needed.push(format!("bot-{bot}"));
         }
