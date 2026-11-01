@@ -352,3 +352,24 @@ update-up-to-date = You have the latest version.
 update-check-failed = Couldn't check for updates. Are you online?
 about-check-updates = Check for updates
 settings-updates = Check for updates
+
+## Items
+
+shop-items = Items
+item-parachute = Parachute
+item-shield = Shield
+item-heavy-shield = Heavy Shield
+item-mag-deflector = Mag Deflector
+log-shield-up = { $you ->
+    [yes] You raise a { $item }
+   *[no] { $name } raises a { $item }
+}
+log-shield-absorbed = {"  "}(shield -{ $absorbed })
+log-shield-down = { $you ->
+    [yes] Your shield is down
+   *[no] { $name }'s shield is down
+}
+log-parachute = { $you ->
+    [yes] Your parachute opens
+   *[no] { $name }'s parachute opens
+}

@@ -106,6 +106,27 @@ the kill is yours. A tank that no enemy ever hit dies without anyone getting a k
 Everyone starts the game with $100 and 2 Missiles. Weapons and money carry over from round to round. The Dirt Bomb is
 for burying an enemy or building a wall in front of yourself.
 
+## Parachutes and shields
+
+Besides weapons, the shop sells items that protect your tank:
+
+| Item | What it does | Price | You get |
+|---|---|---|---|
+| Parachute | Opens by itself when a fall would hurt; you drift down without damage. One per fall | $40 | 2 |
+| Shield | Takes up to 50 damage before your health does | $120 | 1 |
+| Heavy Shield | Takes up to 100 damage before your health does | $200 | 1 |
+| Mag Deflector | Pushes enemy shells away as they come close, and takes up to 40 damage | $150 | 1 |
+
+- At the start of every round, your strongest shield goes up by itself (Heavy Shield, then Shield, then Mag Deflector)
+  and lasts until its energy is used up or the round ends. It's used up either way, so a new round needs a new shield. A
+  glowing ring around the tank shows it, fading as it weakens.
+- The Mag Deflector bends shells away from your tank, sometimes enough to miss. It doesn't touch your own shells. Blasts
+  that still land near you hit its smaller store of energy first.
+- Each item has an on/off switch in the inventory. Switched off, it stays in your inventory unused, for example to save
+  your only Heavy Shield for later rounds.
+- Shields stop every kind of damage from blasts, including death blasts and self-destructs, but not falls (that's what
+  parachutes are for) or sudden death.
+
 ## Money and the shop
 
 You earn money every round:
@@ -127,8 +148,9 @@ The game helps whoever is behind, so one bad start doesn't decide the whole game
 - the player in last place shoots first next round.
 
 Between rounds each human player gets a screen with three panels: what you earned last round and why (left), the
-**Shop** (middle) and your **Inventory** (right). In a two-player game the shop title shows whose turn it is to buy.
-Bots shop too: they buy random weapons they can afford.
+**Shop** (middle: weapons and items) and your **Inventory** (right: what you own, a switch for each item, and your death
+blast). In a two-player game the shop title shows whose turn it is to buy. Bots shop too: they buy random weapons and
+items they can afford, and use them like you do.
 
 ## Opponents
 

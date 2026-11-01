@@ -48,7 +48,7 @@ Command line options:
 | `--version`, `-V` | Print the version and exit |
 | `--crash-test` | Crash on purpose, to check crash reports |
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
-| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, stats, crash, battle, pause, over (a round just won), log, shop, abandon, final. Saving is off. |
+| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, stats, crash, battle, pause, over (a round just won), defence (every tank with a shield), log, shop, abandon, final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit |
 
 Self-update is off in development builds (`make run`, versions with `+`), so its question, setting and About button are
@@ -108,6 +108,16 @@ The player's guide explains the rules; these are the exact values.
 - Self-destruct: radius 75, damage 80, then the death blast.
 - Sudden death: 5 health per turn.
 - Kills from a death blast go to whoever caused the death, or to the dead tank itself if nobody did.
+
+### Parachutes and shields
+
+- Items live in `src/items.rs`: Parachute $40 x2, Shield 50 energy $120, Heavy Shield 100 $200, Mag Deflector 40 $150.
+- Round start: the switched-on shield with the most energy is raised and used up (`items::shield_to_raise`).
+- A blast's damage to a tank goes to its shield first; the rest to health. Damage pay counts only health damage.
+- Mag Deflector: enemy shells within 80 px of the tank's centre get an acceleration of 3000 px/s^2 away from it, fading
+  linearly to 0 at 80 px. The tank's own shells aren't affected; bots' aim simulation ignores deflectors.
+- Parachute: opens once a fall passes the free 15 px (if owned and switched on), uses one, slows the fall to 90 px/s and
+  cancels the fall damage.
 
 ### Bots
 
@@ -198,6 +208,7 @@ dirty.
 | `ai.rs` | Bot profiles, aim math, difficulty budget, ladder, custom editor |
 | `economy.rs` | Money rules |
 | `weapons.rs` | Weapon table |
+| `items.rs` | Parachutes and shields: item table, which shield goes up |
 | `shop.rs` | Shop screen, bot shopping |
 | `stats.rs` | All-time stats |
 | `crash.rs` | Version string, crash reports |

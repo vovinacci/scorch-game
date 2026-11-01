@@ -6,9 +6,14 @@ use serde::{Deserialize, Serialize};
 use crate::ai::{self, AiProfile};
 use crate::economy::Income;
 use crate::i18n::t;
+use crate::items::ITEM_COUNT;
 use crate::save::ColorDef;
 use crate::stats::RoundStats;
 use crate::weapons::WEAPON_COUNT;
+
+fn all_on() -> [bool; ITEM_COUNT] {
+    [true; ITEM_COUNT]
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Player {
@@ -19,6 +24,12 @@ pub struct Player {
     pub bot: Option<AiProfile>,
     pub money: i32,
     pub ammo: [u32; WEAPON_COUNT],
+    /// Parachutes and shields owned (see `items::ITEMS`).
+    #[serde(default)]
+    pub items: [u32; ITEM_COUNT],
+    /// Per item: may it be used? Switched in the inventory.
+    #[serde(default = "all_on")]
+    pub items_on: [bool; ITEM_COUNT],
     pub wins: u32,
     pub kills: u32,
     pub loss_streak: u32,
@@ -39,6 +50,8 @@ impl Player {
             bot,
             money: 100,
             ammo,
+            items: [0; ITEM_COUNT],
+            items_on: all_on(),
             wins: 0,
             kills: 0,
             loss_streak: 0,
