@@ -133,8 +133,8 @@ The feed keeps the last 6 events for 8 seconds; the full log shows the last 18 l
 - Adding a language: copy `en-GB.ftl` to `<code>.ftl` and translate it; add a variant to `Language` in `i18n.rs`, a
   bundle for it, a `Language-<Variant>` key in every file (the name in its own language), a detection rule in
   `i18n::detect`, and a `docs/GUIDE.<code>.md` with a guide test; check that the font has the script's letters.
-- The language is detected from the OS on the first run (`i18n::detect`) and then saved; an unknown saved value (such as
-  the old "System") is detected again.
+- The language is detected from the OS on the first run (`i18n::detect`) and then saved; an unknown saved value is
+  detected again.
 
 ## Screenshots
 
