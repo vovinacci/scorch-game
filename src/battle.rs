@@ -44,6 +44,8 @@ const PARACHUTE_SPEED: f32 = 90.0;
 pub const DEFLECT_RADIUS: f32 = 80.0;
 /// ...with this acceleration (px/s^2) at the tank, fading to nothing at the edge.
 pub const DEFLECT_FORCE: f32 = 3000.0;
+/// Energy a Mag Deflector spends on each enemy shell that enters its field, so it can't push shells away for ever.
+pub const DEFLECT_COST: f32 = 10.0;
 /// A dying tank explodes with this blast.
 pub const DEATH_RADIUS: f32 = 35.0;
 pub const DEATH_DAMAGE: f32 = 40.0;
@@ -178,6 +180,8 @@ struct Projectile {
     trail: Vec<Vec2>,
     /// A MIRV warhead that already split off.
     child: bool,
+    /// Bit per tank: that tank's Mag Deflector already paid for pushing this shell.
+    charged: u8,
 }
 
 struct LogLine {
@@ -531,6 +535,7 @@ impl Battle {
             owner: i,
             trail: vec![pos],
             child: false,
+            charged: 0,
         });
         self.phase = Phase::Flight;
     }
@@ -561,12 +566,15 @@ impl Battle {
                         owner: p.owner,
                         trail: vec![p.pos],
                         child: true,
+                        // Every warhead is a new shell for the deflectors.
+                        charged: 0,
                     });
                 }
                 self.tanks[p.owner].last_trail = p.trail;
                 continue;
             }
 
+            self.charge_deflectors(&mut p, players);
             deflect(p.pos, &mut p.vel, &self.deflectors(p.owner));
 
             let hit_tank = self
@@ -588,6 +596,38 @@ impl Battle {
             if !p.child {
                 self.tanks[p.owner].last_trail = p.trail;
             }
+        }
+    }
+
+    /// Each Mag Deflector pays `DEFLECT_COST` once for a shell entering its field; one that runs out goes down.
+    fn charge_deflectors(&mut self, p: &mut Projectile, players: &[Player]) {
+        let mut down = Vec::new();
+        for (i, tank) in self.tanks.iter_mut().enumerate() {
+            let bit = 1u8 << i;
+            if i == p.owner
+                || !tank.alive
+                || p.charged & bit != 0
+                || tank.center().distance(p.pos) >= DEFLECT_RADIUS
+            {
+                continue;
+            }
+            let Some(shield) = tank.shield.as_mut().filter(|s| s.deflects()) else {
+                continue;
+            };
+            p.charged |= bit;
+            shield.energy -= DEFLECT_COST;
+            if shield.energy <= 0.0 {
+                tank.shield = None;
+                down.push(i);
+            }
+        }
+        for i in down {
+            let text = t!(
+                "log-shield-down",
+                name = players[i].label(),
+                you = you(&players[i])
+            );
+            self.log(text, GRAY);
         }
     }
 
@@ -1783,10 +1823,49 @@ mod tests {
             owner: 0,
             trail: Vec::new(),
             child: false,
+            charged: 0,
         });
         b.step_projectiles(&mut players);
         let p = &b.projectiles[0];
         assert!(p.vel.x < 200.0, "slowed down on its way in: {}", p.vel.x);
+        let full = ITEMS[3].shield_energy().unwrap();
+        assert_eq!(
+            b.tanks[1].shield.map(|s| s.energy),
+            Some(full - DEFLECT_COST),
+            "pays once"
+        );
+        b.step_projectiles(&mut players);
+        assert_eq!(
+            b.tanks[1].shield.map(|s| s.energy),
+            Some(full - DEFLECT_COST),
+            "not again for the same shell"
+        );
+    }
+
+    #[test]
+    fn a_mag_deflector_runs_out_after_enough_shells() {
+        let mut players = bots(2);
+        players[1].items[3] = 1;
+        let mut rules = Setup::default().rules();
+        rules.world.terrain = crate::world::TerrainKind::Flat;
+        let mut b = battle(&players, rules);
+        b.raise_shields(&mut players);
+        let target = b.tanks[1].center();
+        let shells = (ITEMS[3].shield_energy().unwrap() / DEFLECT_COST) as usize;
+        for _ in 0..shells {
+            b.projectiles.push(Projectile {
+                pos: target + vec2(-60.0, -30.0),
+                vel: vec2(200.0, 0.0),
+                weapon: 0,
+                owner: 0,
+                trail: Vec::new(),
+                child: false,
+                charged: 0,
+            });
+        }
+        b.step_projectiles(&mut players);
+        assert!(b.tanks[1].shield.is_none(), "the deflector is spent");
+        assert!(b.deflectors(0).is_empty(), "and pushes nothing more");
     }
 
     #[test]
