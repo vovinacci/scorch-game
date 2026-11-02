@@ -1,6 +1,6 @@
 [package]
 name = "scorch"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 description = "Turn-based artillery game, a tribute to Scorched Earth (1991)"
