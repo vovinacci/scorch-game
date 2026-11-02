@@ -239,6 +239,7 @@ stats-money = Зароблено грошей
 ## Бій
 
 hud-info = Кут { $angle }   Сила { $power }   { $weapon } ({ $ammo })   ${ $money } (+{ $income })
+hud-shield = { $name }: { $energy }/{ $full }
 hud-wind = ВІТЕР
 hud-wind-off = немає
 hud-round = Раунд { $round }/{ $rounds }
