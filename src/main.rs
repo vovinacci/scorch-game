@@ -130,7 +130,7 @@ impl Game {
             };
             self.players.push(Player::new(&name, color, None));
         }
-        let lineup = ai::lineup(self.setup.difficulty, bots, self.profile.custom);
+        let lineup = ai::lineup(self.setup.level(), bots, self.profile.custom);
         for (i, (name, profile)) in BOT_NAMES.iter().zip(lineup).enumerate() {
             let name = format!("{name} [{}]", profile.name);
             self.players
@@ -259,10 +259,12 @@ impl Game {
         self.ladder_note = None;
         if self.setup.ladder {
             let won = self.players.iter().any(|p| !p.is_bot() && p.wins == best);
-            let before = self.profile.setup.difficulty;
-            self.profile.setup.difficulty = ai::ladder_step(before, won);
-            if self.profile.setup.difficulty != before {
-                let level = ai::difficulty_text(self.profile.setup.difficulty);
+            // The step starts from the level this game was played at; the chosen difficulty stays as it is.
+            let before = self.setup.level();
+            let after = ai::ladder_step(before, won);
+            self.profile.setup.ladder_level = Some(after);
+            if after != before {
+                let level = ai::difficulty_text(after);
                 self.ladder_note = Some(if won {
                     t!("ladder-up", level = level)
                 } else {
@@ -320,6 +322,7 @@ impl Game {
             Screen::CustomBot => {
                 if ai::editor(&mut self.profile.custom) {
                     self.profile.setup.difficulty = CUSTOM;
+                    self.profile.setup.ladder_level = None;
                     save::store_profile(&self.profile);
                     Screen::Setup
                 } else {

@@ -83,6 +83,7 @@ setup-bots = Боти
 setup-difficulty = Складність
 setup-edit-custom = Налаштувати власного бота
 setup-ladder = Драбина
+setup-ladder-at = Драбина (зараз «{ $level }»)
 setup-rounds = Раунди
 setup-power-limit = Здоров'я обмежує силу
 setup-sudden-death = Раптова смерть
@@ -368,8 +369,8 @@ weapon-dirt-bomb = Земляна бомба
 final-title = ПІДСУМКИ
 final-play-again = Грати знову
 final-main-menu = Головне меню
-ladder-up = Драбина: складність зросла до «{ $level }»
-ladder-down = Драбина: складність знизилась до «{ $level }»
+ladder-up = Драбина: наступна гра складніша - «{ $level }»
+ladder-down = Драбина: наступна гра легша - «{ $level }»
 
 ## Оновлення
 
