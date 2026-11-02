@@ -108,6 +108,9 @@ pub struct Setup {
     pub difficulty: usize,
     /// Difficulty steps up after a won game, down after a lost one.
     pub ladder: bool,
+    /// Where the ladder has got to, starting from `difficulty`. Cleared whenever the player picks a difficulty or
+    /// switches the ladder, so their own choice is never overwritten.
+    pub ladder_level: Option<usize>,
     pub rounds: u32,
     /// Max shot power = health x 10, like the original game.
     pub power_limit: bool,
@@ -124,6 +127,7 @@ impl Default for Setup {
             bots: 2,
             difficulty: 1,
             ladder: false,
+            ladder_level: None,
             rounds: 5,
             power_limit: true,
             sudden_death: SuddenDeath::After12,
@@ -153,11 +157,20 @@ impl Setup {
         }
     }
 
+    /// The difficulty the next game is played at: the ladder's level when it is on, otherwise the chosen one.
+    pub fn level(&self) -> usize {
+        match self.ladder_level {
+            Some(level) if self.ladder => level,
+            _ => self.difficulty,
+        }
+    }
+
     /// Keeps values valid after loading an old or edited profile.
     pub fn sanitize(&mut self) {
         self.humans = self.humans.clamp(1, 2);
         self.bots = self.bots.clamp(1, MAX_PLAYERS - self.humans);
         self.difficulty = self.difficulty.min(CUSTOM);
+        self.ladder_level = self.ladder_level.map(|l| l.min(CUSTOM));
         if !ROUND_CHOICES.contains(&self.rounds) {
             self.rounds = 5;
         }
@@ -196,7 +209,7 @@ impl Setup {
                 "setup-players",
                 t!("summary-players", humans = self.humans, bots = self.bots),
             ),
-            ("setup-difficulty", ai::difficulty_text(self.difficulty)),
+            ("setup-difficulty", ai::difficulty_text(self.level())),
             ("setup-ladder", on(self.ladder)),
         ];
         match progress {
@@ -243,6 +256,7 @@ impl Setup {
     pub fn randomize(&mut self) {
         self.bots = gen_range(1, MAX_PLAYERS - self.humans + 1);
         self.difficulty = gen_range(0, CUSTOM);
+        self.ladder_level = None;
         self.rounds = ROUND_CHOICES[gen_range(0, ROUND_CHOICES.len())];
         self.power_limit = gen_range(0, 2) == 1;
         self.sudden_death = pick();
@@ -291,14 +305,16 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
     ) {
         setup.bots = bots + 1;
     }
-    ui::selector(
+    if ui::selector(
         row(left, 2.0),
         &t!("setup-difficulty"),
         &(0..DIFFICULTIES.len())
             .map(ai::difficulty_text)
             .collect::<Vec<_>>(),
         &mut setup.difficulty,
-    );
+    ) {
+        setup.ladder_level = None;
+    }
     ui::text_wrapped(
         &ai::describe(setup.difficulty, custom),
         left.x + 30.0,
@@ -308,7 +324,18 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
         GRAY,
     );
     let edit = ui::button(row(left, 4.0), &t!("setup-edit-custom"), true);
-    ui::toggle(row(left, 5.0), &t!("setup-ladder"), &mut setup.ladder);
+    // With the ladder on, the label says where it has got to when that differs from the chosen difficulty.
+    let ladder_label = if setup.level() == setup.difficulty {
+        t!("setup-ladder")
+    } else {
+        t!(
+            "setup-ladder-at",
+            level = ai::difficulty_text(setup.level())
+        )
+    };
+    if ui::toggle(row(left, 5.0), &ladder_label, &mut setup.ladder) {
+        setup.ladder_level = None;
+    }
     let round_labels: Vec<String> = ROUND_CHOICES.iter().map(u32::to_string).collect();
     let mut rounds = ROUND_CHOICES
         .iter()
@@ -494,5 +521,28 @@ mod tests {
         assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 1), [0, 1, 2]);
         assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 2), [1, 2, 0]);
         assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 4), [0, 1, 2]);
+    }
+
+    #[test]
+    fn the_ladder_plays_its_own_level_and_keeps_the_choice() {
+        let mut setup = Setup {
+            difficulty: 1,
+            ladder: true,
+            ladder_level: Some(2),
+            ..Setup::default()
+        };
+        assert_eq!(setup.level(), 2, "ladder on: its level");
+        assert_eq!(setup.difficulty, 1, "the choice is untouched");
+        setup.ladder = false;
+        assert_eq!(setup.level(), 1, "ladder off: the choice");
+        let fresh = Setup {
+            ladder: true,
+            ..Setup::default()
+        };
+        assert_eq!(
+            fresh.level(),
+            fresh.difficulty,
+            "a new ladder starts at the choice"
+        );
     }
 }

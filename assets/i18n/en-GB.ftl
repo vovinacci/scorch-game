@@ -78,6 +78,7 @@ setup-bots = Bots
 setup-difficulty = Difficulty
 setup-edit-custom = Edit custom bot
 setup-ladder = Ladder
+setup-ladder-at = Ladder (now { $level })
 setup-rounds = Rounds
 setup-power-limit = Health limits power
 setup-sudden-death = Sudden death
@@ -339,8 +340,8 @@ weapon-dirt-bomb = Dirt Bomb
 final-title = FINAL STANDINGS
 final-play-again = Play again
 final-main-menu = Main menu
-ladder-up = Ladder: difficulty up to { $level }
-ladder-down = Ladder: difficulty down to { $level }
+ladder-up = Ladder: up to { $level } next game
+ladder-down = Ladder: down to { $level } next game
 
 ## Updates
 

@@ -210,7 +210,9 @@ More bots get a little extra each, so more opponents is harder, but not overwhel
 the screen shows how close its shots will typically be, shot by shot.
 
 **Ladder:** when on, the difficulty goes up one step after you win a game and down one step after you lose, between Easy
-and Brutal (Custom never changes). The final screen tells you when it changed.
+and Brutal (Custom never changes). The final screen tells you when it changed, and the Ladder row shows the level it has
+reached, e.g. "Ladder (now Hard)". Your chosen difficulty stays as you set it: picking a difficulty, or switching the
+ladder off and on, starts the ladder again from your choice.
 
 ## Game options
 
