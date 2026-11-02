@@ -234,6 +234,7 @@ stats-money = Money earned
 ## Battle
 
 hud-info = Angle { $angle }   Power { $power }   { $weapon } ({ $ammo })   ${ $money } (+{ $income })
+hud-shield = { $name }: { $energy }/{ $full }
 hud-wind = WIND
 hud-wind-off = off
 hud-round = Round { $round }/{ $rounds }

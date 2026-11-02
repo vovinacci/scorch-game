@@ -131,6 +131,20 @@ impl ActiveShield {
         let full = ITEMS[self.item].shield_energy().unwrap_or(1.0);
         (self.energy / full).clamp(0.0, 1.0)
     }
+
+    /// Ring, bar and number colour: one per kind of shield.
+    fn color(&self) -> Color {
+        match ITEMS[self.item].kind {
+            Use::Deflector { .. } => Color::new(0.85, 0.4, 1.0, 1.0),
+            _ if self.item == 2 => Color::new(0.35, 0.55, 1.0, 1.0),
+            _ => SKYBLUE,
+        }
+    }
+
+    /// Energy left, rounded up so a shield never shows 0 while it still holds.
+    fn shown(&self) -> f32 {
+        self.energy.max(0.0).ceil()
+    }
 }
 
 impl Tank {
@@ -1227,6 +1241,18 @@ impl Battle {
         let w = ui::measure(&turn, 18.0).width;
         ui::text_at(&turn, ui::WIDTH - 16.0 - w, 66.0, 18.0, LIGHTGRAY);
 
+        // The current tank's shield, under the turn counter.
+        if let Some(shield) = tank.shield {
+            let text = t!(
+                "hud-shield",
+                name = ITEMS[shield.item].text(),
+                energy = shield.shown(),
+                full = ITEMS[shield.item].shield_energy().unwrap_or(0.0)
+            );
+            let w = ui::measure(&text, 18.0).width;
+            ui::text_at(&text, ui::WIDTH - 16.0 - w, 88.0, 18.0, shield.color());
+        }
+
         // Sudden death warning or banner.
         if let Some(start) = self.rules.sudden_death {
             if self.turns >= start {
@@ -1411,11 +1437,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
     draw_rectangle(x - 12.0, y - 8.0, 24.0, 8.0, player.color);
 
     if let Some(shield) = tank.shield {
-        let color = match ITEMS[shield.item].kind {
-            Use::Deflector { .. } => Color::new(0.85, 0.4, 1.0, 1.0),
-            _ if shield.item == 2 => Color::new(0.35, 0.55, 1.0, 1.0),
-            _ => SKYBLUE,
-        };
+        let color = shield.color();
         let a = 0.25 + 0.55 * shield.strength();
         draw_circle(
             x,
@@ -1455,7 +1477,11 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
     } else {
         RED
     };
-    let mut label_y = y - 38.0;
+    let mut label_y = if tank.shield.is_some() {
+        y - 42.0
+    } else {
+        y - 38.0
+    };
     if health != HealthDisplay::Number {
         draw_rectangle(
             x - 16.0,
@@ -1465,20 +1491,47 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
             Color::from_rgba(40, 40, 40, 255),
         );
         draw_rectangle(x - 16.0, y - 32.0, 32.0 * hp, 4.0, hp_color);
+        // Shield energy: a second bar just above, in the shield's colour.
+        if let Some(shield) = tank.shield {
+            draw_rectangle(
+                x - 16.0,
+                y - 36.0,
+                32.0,
+                3.0,
+                Color::from_rgba(40, 40, 40, 255),
+            );
+            draw_rectangle(
+                x - 16.0,
+                y - 36.0,
+                32.0 * shield.strength(),
+                3.0,
+                shield.color(),
+            );
+        }
     }
     if health != HealthDisplay::Bar {
         let number_y = if health == HealthDisplay::Number {
-            y - 26.0
+            // Clear of the shield ring when one is up.
+            if tank.shield.is_some() {
+                y - 32.0
+            } else {
+                y - 26.0
+            }
         } else {
-            y - 38.0
+            label_y
         };
-        ui::text_centered(
-            &format!("{:.0}", tank.health.max(0.0).ceil()),
-            x,
-            number_y,
-            16.0,
-            hp_color,
-        );
+        let health_text = format!("{:.0}", tank.health.max(0.0).ceil());
+        ui::text_centered(&health_text, x, number_y, 16.0, hp_color);
+        // Shield energy follows the health number: "75 +40".
+        if let Some(shield) = tank.shield {
+            ui::text_at(
+                format!("+{:.0}", shield.shown()),
+                x + ui::measure(&health_text, 16.0).width / 2.0 + 4.0,
+                number_y,
+                16.0,
+                shield.color(),
+            );
+        }
         label_y = number_y - 16.0;
     }
     ui::text_centered(&player.label(), x, label_y, 16.0, WHITE);

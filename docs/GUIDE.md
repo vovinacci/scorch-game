@@ -125,7 +125,10 @@ Besides weapons, the shop sells items that protect your tank:
 
 - At the start of every round, your strongest shield goes up by itself (Heavy Shield, then Shield, then Mag Deflector)
   and lasts until its energy is used up or the round ends. It's used up either way, so a new round needs a new shield. A
-  glowing ring around the tank shows it, fading as it weakens.
+  glowing ring around the tank shows it, fading as it weakens. Above the tank, a second bar in the shield's colour sits
+  over the health bar and shrinks as the shield loses energy (with the health number on, "+40" next to it shows the
+  energy left). During your turn, the top right of the screen shows your shield and its energy, for example "Heavy
+  Shield: 60/100". Light blue is the Shield, dark blue the Heavy Shield, purple the Mag Deflector.
 - The Mag Deflector bends shells away from your tank, sometimes enough to miss. Bots know this and aim around it, as you
   can. It doesn't touch your own shells. Blasts that still land near you hit its smaller store of energy first.
 - Each item has an on/off switch in the inventory. Switched off, it stays in your inventory unused, for example to save
