@@ -1509,7 +1509,8 @@ impl Battle {
         draw_rectangle(0.0, 0.0, ui::WIDTH, 44.0, ui::PANEL);
         let player = &players[self.current];
         let tank = &self.tanks[self.current];
-        if matches!(self.phase, Phase::Aim { .. }) {
+        // Your turn only: on bot turns the bottom of the screen has the skip button.
+        if matches!(self.phase, Phase::Aim { .. }) && !player.is_bot() {
             draw_weapon_strip(player, tank.weapon);
         }
         let name = player.label();

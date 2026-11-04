@@ -48,8 +48,8 @@ on.
 
 Each tank has its name and a health bar above it. In Settings you can show health as a bar, a number, or both.
 
-Above the bottom line, the **weapon strip** lists every weapon the tank whose turn it is has ammo for, with how many are
-left. The selected one has a gold frame. On your turn, click a weapon or press the key in front of it.
+Above the bottom line, the **weapon strip** lists every weapon you have ammo for, with how many are left. The selected
+one has a gold frame. On your turn, click a weapon or press the key in front of it.
 
 While a bot aims, the bottom line tells you which tank it's aiming at and why. On your turn, the bottom line lists the
 controls.
