@@ -46,6 +46,27 @@ pub const DEFLECT_RADIUS: f32 = 80.0;
 pub const DEFLECT_FORCE: f32 = 3000.0;
 /// Energy a Mag Deflector spends on each enemy shell that enters its field, so it can't push shells away for ever.
 pub const DEFLECT_COST: f32 = 10.0;
+/// Roller: rolling speed (px/s), the steepest rise it still rolls over (px per px; bumps, not hills), and the
+/// longest roll (s).
+const ROLL_SPEED: f32 = 150.0;
+const ROLL_CLIMB: f32 = 0.05;
+const ROLL_TIME: f32 = 5.0;
+/// Leapfrog: each hop keeps this share of the sideways speed and bounces up this fast (px/s).
+const HOP_KEEP: f32 = 0.75;
+const HOP_UP: f32 = 330.0;
+/// Funky Bomb: bomblets fly off this fast (px/s, random within).
+const BOMBLET_SPEED: (f32, f32) = (160.0, 320.0);
+/// Napalm: drops of fire, how long they burn (s), how fast they run downhill (px/s), and how close (px) a tank must be
+/// to burn. Damage is collected and dealt every `FIRE_TICK` seconds.
+const FIRE_DROPS: usize = 18;
+const FIRE_TIME: f32 = 3.0;
+const FIRE_FLOW: f32 = 70.0;
+const FIRE_REACH: f32 = 16.0;
+const FIRE_TICK: f32 = 0.5;
+/// Digger: how far it burrows sideways (px), how fast (px/s), and how far the ground above it sinks (px).
+const DIG_LENGTH: f32 = 160.0;
+const DIG_SPEED: f32 = 200.0;
+const DIG_DEPTH: f32 = 40.0;
 /// A dying tank explodes with this blast.
 pub const DEATH_RADIUS: f32 = 35.0;
 pub const DEATH_DAMAGE: f32 = 40.0;
@@ -182,6 +203,46 @@ struct Projectile {
     child: bool,
     /// Bit per tank: that tank's Mag Deflector already paid for pushing this shell.
     charged: u8,
+    motion: Motion,
+    /// Leapfrog: hops made so far.
+    hops: u8,
+}
+
+impl Projectile {
+    fn new(pos: Vec2, vel: Vec2, weapon: usize, owner: usize, child: bool) -> Self {
+        Self {
+            pos,
+            vel,
+            weapon,
+            owner,
+            trail: vec![pos],
+            child,
+            charged: 0,
+            motion: Motion::Flying,
+            hops: 0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Motion {
+    Flying,
+    /// Roller on the ground: direction (-1 or 1) and seconds rolled.
+    Rolling {
+        dir: f32,
+        time: f32,
+    },
+    /// Digger under the ground: direction (-1 or 1) and distance left.
+    Digging {
+        dir: f32,
+        left: f32,
+    },
+}
+
+/// A drop of burning napalm on the ground.
+struct Fire {
+    x: f32,
+    age: f32,
 }
 
 struct LogLine {
@@ -248,6 +309,15 @@ pub struct Battle {
     projectiles: Vec<Projectile>,
     #[serde(skip)]
     explosions: Vec<Explosion>,
+    #[serde(skip)]
+    fires: Vec<Fire>,
+    /// Napalm: who lit the fires, burn damage per tank not dealt yet, and time to the next dealing.
+    #[serde(skip)]
+    fire_owner: usize,
+    #[serde(skip)]
+    burns: Vec<f32>,
+    #[serde(skip)]
+    burn_clock: f32,
     #[serde(skip)]
     accumulator: f32,
     round: u32,
@@ -329,6 +399,10 @@ impl Battle {
             phase: Phase::default(),
             projectiles: Vec::new(),
             explosions: Vec::new(),
+            fires: Vec::new(),
+            fire_owner: 0,
+            burns: Vec::new(),
+            burn_clock: 0.0,
             accumulator: 0.0,
             round,
             rounds,
@@ -410,6 +484,7 @@ impl Battle {
         }
         self.projectiles.clear();
         self.explosions.clear();
+        self.fires.clear();
     }
 
     fn update(&mut self, dt: f32, players: &mut [Player]) -> Option<RoundEnd> {
@@ -528,15 +603,8 @@ impl Battle {
         );
         self.shot_line = Some(self.history.len());
         self.note(text, players[i].color);
-        self.projectiles.push(Projectile {
-            pos,
-            vel,
-            weapon,
-            owner: i,
-            trail: vec![pos],
-            child: false,
-            charged: 0,
-        });
+        self.projectiles
+            .push(Projectile::new(pos, vel, weapon, i, false));
         self.phase = Phase::Flight;
     }
 
@@ -545,8 +613,9 @@ impl Battle {
         while self.accumulator >= STEP {
             self.accumulator -= STEP;
             self.step_projectiles(players);
+            self.step_fires(players);
         }
-        if self.projectiles.is_empty() && self.explosions.is_empty() {
+        if self.projectiles.is_empty() && self.explosions.is_empty() && self.fires.is_empty() {
             self.phase = Phase::Settle;
         }
     }
@@ -554,48 +623,211 @@ impl Battle {
     fn step_projectiles(&mut self, players: &mut [Player]) {
         let world = *self.world();
         for mut p in std::mem::take(&mut self.projectiles) {
-            let flight = step_shell(&mut p.pos, &mut p.vel, self.wind, &world, STEP);
-            p.trail.push(p.pos);
+            let next = match p.motion {
+                Motion::Rolling { dir, time } => self.roll(p, dir, time, players),
+                Motion::Digging { dir, left } => self.dig(p, dir, left),
+                Motion::Flying => {
+                    let flight = step_shell(&mut p.pos, &mut p.vel, self.wind, &world, STEP);
+                    p.trail.push(p.pos);
 
-            if WEAPONS[p.weapon].kind == Kind::Mirv && !p.child && p.vel.y > 0.0 {
-                for k in -2..=2 {
-                    self.projectiles.push(Projectile {
-                        pos: p.pos,
-                        vel: p.vel + vec2(k as f32 * 45.0, 0.0),
-                        weapon: p.weapon,
-                        owner: p.owner,
-                        trail: vec![p.pos],
-                        child: true,
-                        // Every warhead is a new shell for the deflectors.
-                        charged: 0,
-                    });
-                }
-                self.tanks[p.owner].last_trail = p.trail;
-                continue;
-            }
+                    if WEAPONS[p.weapon].kind == Kind::Mirv && !p.child && p.vel.y > 0.0 {
+                        for k in -2..=2 {
+                            // Every warhead is a new shell for the deflectors.
+                            let vel = p.vel + vec2(k as f32 * 45.0, 0.0);
+                            self.projectiles
+                                .push(Projectile::new(p.pos, vel, p.weapon, p.owner, true));
+                        }
+                        self.tanks[p.owner].last_trail = p.trail;
+                        continue;
+                    }
 
-            self.charge_deflectors(&mut p, players);
-            deflect(p.pos, &mut p.vel, &self.deflectors(p.owner));
+                    self.charge_deflectors(&mut p, players);
+                    deflect(p.pos, &mut p.vel, &self.deflectors(p.owner));
 
-            let hit_tank = self
-                .tanks
-                .iter()
-                .any(|t| t.alive && t.center().distance(p.pos) < TANK_RADIUS);
-            match flight {
-                Flight::Wall => self.detonate(p.pos, p.weapon, p.owner, players),
-                Flight::Flying if hit_tank || self.terrain.is_solid(p.pos) => {
-                    self.detonate(p.pos, p.weapon, p.owner, players)
+                    let hit_tank = self
+                        .tanks
+                        .iter()
+                        .any(|t| t.alive && t.center().distance(p.pos) < TANK_RADIUS);
+                    match flight {
+                        Flight::Wall => self.impact(p, false, players),
+                        Flight::Flying if hit_tank => self.impact(p, false, players),
+                        Flight::Flying if self.terrain.is_solid(p.pos) => {
+                            self.impact(p, true, players)
+                        }
+                        // Still flying (even far above the screen).
+                        Flight::Flying => Some(p),
+                        Flight::Lost => {
+                            self.landed(p);
+                            None
+                        }
+                    }
                 }
-                Flight::Flying => {
-                    // Still flying (even far above the screen).
-                    self.projectiles.push(p);
-                    continue;
+            };
+            if let Some(p) = next {
+                self.projectiles.push(p);
+            }
+        }
+    }
+
+    /// A shell is done: its path is kept to help aim the next shot (warheads and bomblets don't count).
+    fn landed(&mut self, p: Projectile) {
+        if !p.child {
+            self.tanks[p.owner].last_trail = p.trail;
+        }
+    }
+
+    /// A flying shell hits a tank, a wall or (`ground`) the ground. Returns it if it carries on: rolling, digging
+    /// or hopping.
+    fn impact(
+        &mut self,
+        mut p: Projectile,
+        ground: bool,
+        players: &mut [Player],
+    ) -> Option<Projectile> {
+        match WEAPONS[p.weapon].kind {
+            Kind::Roller if ground => {
+                p.pos.y = self.terrain.height_at(p.pos.x) - 3.0;
+                let dir = downhill(&self.terrain, p.pos.x).unwrap_or(sign(p.vel.x));
+                p.motion = Motion::Rolling { dir, time: 0.0 };
+                return Some(p);
+            }
+            Kind::Digger if ground => {
+                p.motion = Motion::Digging {
+                    dir: sign(p.vel.x),
+                    left: DIG_LENGTH,
+                };
+                return Some(p);
+            }
+            Kind::Leapfrog { hops } if ground => {
+                self.detonate(p.pos, p.weapon, p.owner, players);
+                if p.hops < hops {
+                    p.hops += 1;
+                    p.charged = 0;
+                    p.vel = vec2(p.vel.x * HOP_KEEP, -HOP_UP);
+                    p.pos.y = self.terrain.height_at(p.pos.x) - 4.0;
+                    return Some(p);
                 }
-                Flight::Lost => {}
             }
-            if !p.child {
-                self.tanks[p.owner].last_trail = p.trail;
+            Kind::Funky { bomblets } if !p.child => {
+                self.detonate(p.pos, p.weapon, p.owner, players);
+                let from = vec2(p.pos.x, p.pos.y.min(self.terrain.height_at(p.pos.x)) - 4.0);
+                for _ in 0..bomblets {
+                    let angle = gen_range(200.0_f32, 340.0).to_radians();
+                    let speed = gen_range(BOMBLET_SPEED.0, BOMBLET_SPEED.1);
+                    let vel = vec2(angle.cos(), angle.sin()) * speed;
+                    self.projectiles
+                        .push(Projectile::new(from, vel, p.weapon, p.owner, true));
+                }
             }
+            Kind::Napalm => self.ignite(p.pos.x, p.owner),
+            _ => self.detonate(p.pos, p.weapon, p.owner, players),
+        }
+        self.landed(p);
+        None
+    }
+
+    /// One step of a Roller on the ground. It explodes against a tank, a wall, a slope too steep, or after a while.
+    fn roll(
+        &mut self,
+        mut p: Projectile,
+        dir: f32,
+        time: f32,
+        players: &mut [Player],
+    ) -> Option<Projectile> {
+        let x = p.pos.x + dir * ROLL_SPEED * STEP;
+        let here = self.terrain.height_at(p.pos.x);
+        let ahead = self.terrain.height_at(x);
+        let next = vec2(x, ahead - 3.0);
+        let off = !(0.0..WIDTH as f32).contains(&x);
+        let climb = here - ahead > ROLL_CLIMB * ROLL_SPEED * STEP;
+        let hit_tank = self
+            .tanks
+            .iter()
+            .any(|t| t.alive && t.center().distance(next) < TANK_RADIUS + 3.0);
+        if off || climb || hit_tank || time >= ROLL_TIME {
+            self.detonate(p.pos, p.weapon, p.owner, players);
+            self.landed(p);
+            return None;
+        }
+        p.pos = next;
+        p.trail.push(next);
+        p.motion = Motion::Rolling {
+            dir,
+            time: time + STEP,
+        };
+        Some(p)
+    }
+
+    /// One step of a Digger burrowing sideways: the ground above sinks as it passes.
+    fn dig(&mut self, mut p: Projectile, dir: f32, left: f32) -> Option<Projectile> {
+        let step = DIG_SPEED * STEP;
+        let x = p.pos.x + dir * step;
+        self.terrain.sink(p.pos.x, x, DIG_DEPTH);
+        p.pos = vec2(x, self.terrain.height_at(x) + 4.0);
+        let left = left - step;
+        if left <= 0.0 || !(0.0..WIDTH as f32).contains(&x) {
+            self.explosions.push(Explosion {
+                pos: p.pos,
+                radius: 14.0,
+                age: 0.0,
+                dirt: true,
+            });
+            self.landed(p);
+            return None;
+        }
+        p.motion = Motion::Digging { dir, left };
+        Some(p)
+    }
+
+    /// Napalm lands: drops of fire spread from `x` and run downhill.
+    fn ignite(&mut self, x: f32, owner: usize) {
+        self.fire_owner = owner;
+        self.burns = vec![0.0; self.tanks.len()];
+        self.burn_clock = FIRE_TICK;
+        for _ in 0..FIRE_DROPS {
+            self.fires.push(Fire {
+                x: (x + gen_range(-14.0, 14.0)).clamp(0.0, WIDTH as f32 - 1.0),
+                age: gen_range(0.0, 0.6),
+            });
+        }
+    }
+
+    /// One step of burning napalm: drops run downhill, tanks near any drop burn.
+    fn step_fires(&mut self, players: &mut [Player]) {
+        if self.fires.is_empty() {
+            return;
+        }
+        for f in &mut self.fires {
+            f.age += STEP;
+            if let Some(dir) = downhill(&self.terrain, f.x) {
+                f.x = (f.x + dir * FIRE_FLOW * STEP).clamp(0.0, WIDTH as f32 - 1.0);
+            }
+        }
+        self.fires.retain(|f| f.age < FIRE_TIME);
+        let dps = WEAPONS
+            .iter()
+            .find(|w| w.kind == Kind::Napalm)
+            .map_or(0.0, |w| w.damage);
+        for (i, tank) in self.tanks.iter().enumerate() {
+            let burning = tank.alive
+                && self.fires.iter().any(|f| {
+                    (f.x - tank.pos.x).abs() < FIRE_REACH
+                        && (self.terrain.height_at(f.x) - tank.pos.y).abs() < FIRE_REACH * 1.5
+                });
+            if burning {
+                self.burns[i] += dps * STEP;
+            }
+        }
+        self.burn_clock -= STEP;
+        if self.burn_clock <= 0.0 || self.fires.is_empty() {
+            self.burn_clock = FIRE_TICK;
+            let hits: Vec<(usize, f32)> = std::mem::take(&mut self.burns)
+                .into_iter()
+                .enumerate()
+                .filter(|&(_, dmg)| dmg > 0.0)
+                .collect();
+            self.burns = vec![0.0; self.tanks.len()];
+            self.hurt(&hits, Some(self.fire_owner), players);
         }
     }
 
@@ -666,13 +898,31 @@ impl Battle {
         players: &mut [Player],
     ) {
         let reach = radius + TANK_RADIUS;
+        let hits: Vec<(usize, f32)> = self
+            .tanks
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| t.alive)
+            .map(|(i, t)| (i, t.center().distance(pos)))
+            .filter(|&(_, d)| d < reach)
+            .map(|(i, d)| (i, damage * (1.0 - 0.7 * d / reach)))
+            .collect();
+        self.hurt(&hits, owner, players);
+        self.terrain.carve(pos, radius);
+        self.explosions.push(Explosion {
+            pos,
+            radius,
+            age: 0.0,
+            dirt: false,
+        });
+    }
+
+    /// Deals damage to tanks: shields take it first, the shooter (`owner`) is paid and credited, and the log says so.
+    fn hurt(&mut self, damage: &[(usize, f32)], owner: Option<usize>, players: &mut [Player]) {
         let mut hits = Vec::new();
-        for (i, tank) in self.tanks.iter_mut().enumerate() {
-            let d = tank.center().distance(pos);
-            if !tank.alive || d >= reach {
-                continue;
-            }
-            let mut dmg = damage * (1.0 - 0.7 * d / reach);
+        for &(i, raw) in damage {
+            let tank = &mut self.tanks[i];
+            let mut dmg = raw;
             // A shield takes the hit first.
             let mut absorbed = 0.0;
             let mut shield_down = false;
@@ -737,13 +987,6 @@ impl Battle {
                 }
             }
         }
-        self.terrain.carve(pos, radius);
-        self.explosions.push(Explosion {
-            pos,
-            radius,
-            age: 0.0,
-            dirt: false,
-        });
     }
 
     /// Adds an event to the feed and the full log.
@@ -1075,8 +1318,8 @@ impl Battle {
         let mut weapon = 0;
         if ui::chance(0.6) {
             weapon = (1..WEAPONS.len())
-                .rev()
-                .find(|&w| players[me].has(w) && WEAPONS[w].kind != Kind::Dirt)
+                .filter(|&w| players[me].has(w) && !WEAPONS[w].kind.is_utility())
+                .max_by_key(|&w| WEAPONS[w].price)
                 .unwrap_or(0);
         }
         let safe_distance = WEAPONS[weapon].radius + 25.0;
@@ -1198,6 +1441,24 @@ impl Battle {
                     Color::new(1.0, 0.95, 0.6, 1.0 - k),
                 );
             }
+        }
+
+        for f in &self.fires {
+            let ground = self.terrain.height_at(f.x);
+            let life = 1.0 - f.age / FIRE_TIME;
+            let flicker = gen_range(0.7, 1.0);
+            draw_circle(
+                f.x,
+                ground - 3.0,
+                4.0 + 3.0 * life * flicker,
+                Color::new(1.0, 0.45, 0.05, 0.8 * life),
+            );
+            draw_circle(
+                f.x,
+                ground - 4.0,
+                2.0 + 1.5 * life,
+                Color::new(1.0, 0.9, 0.4, life),
+            );
         }
 
         if settings.battle_log {
@@ -1417,7 +1678,7 @@ fn you(player: &Player) -> &'static str {
 pub fn death_blast(player: &Player) -> (f32, f32) {
     let (mut radius, mut damage) = (DEATH_RADIUS, DEATH_DAMAGE);
     for (weapon, &count) in WEAPONS.iter().zip(&player.ammo).skip(1) {
-        if weapon.kind == Kind::Dirt {
+        if weapon.kind.is_utility() {
             continue;
         }
         radius += count as f32 * weapon.radius * AMMO_RADIUS_SHARE;
@@ -1447,6 +1708,24 @@ fn simulate(
         }
     }
     None
+}
+
+/// Which way the ground at `x` slopes down (-1 left, 1 right), or `None` where it is level.
+fn downhill(terrain: &Terrain, x: f32) -> Option<f32> {
+    let left = terrain.height_at((x - 3.0).max(0.0));
+    let right = terrain.height_at((x + 3.0).min(WIDTH as f32 - 1.0));
+    // Bigger y is lower ground.
+    if right > left + 0.5 {
+        Some(1.0)
+    } else if left > right + 0.5 {
+        Some(-1.0)
+    } else {
+        None
+    }
+}
+
+fn sign(v: f32) -> f32 {
+    if v < 0.0 { -1.0 } else { 1.0 }
 }
 
 /// Mag Deflector push for one physics step: away from each deflector within `DEFLECT_RADIUS`, strongest close by.
@@ -1816,15 +2095,8 @@ mod tests {
         let target = b.tanks[1].center();
         // An enemy shell inside the field and above the (flat) ground, flying at the tank.
         let start = target + vec2(-60.0, -30.0);
-        b.projectiles.push(Projectile {
-            pos: start,
-            vel: vec2(200.0, 0.0),
-            weapon: 0,
-            owner: 0,
-            trail: Vec::new(),
-            child: false,
-            charged: 0,
-        });
+        b.projectiles
+            .push(Projectile::new(start, vec2(200.0, 0.0), 0, 0, false));
         b.step_projectiles(&mut players);
         let p = &b.projectiles[0];
         assert!(p.vel.x < 200.0, "slowed down on its way in: {}", p.vel.x);
@@ -1853,15 +2125,13 @@ mod tests {
         let target = b.tanks[1].center();
         let shells = (ITEMS[3].shield_energy().unwrap() / DEFLECT_COST) as usize;
         for _ in 0..shells {
-            b.projectiles.push(Projectile {
-                pos: target + vec2(-60.0, -30.0),
-                vel: vec2(200.0, 0.0),
-                weapon: 0,
-                owner: 0,
-                trail: Vec::new(),
-                child: false,
-                charged: 0,
-            });
+            b.projectiles.push(Projectile::new(
+                target + vec2(-60.0, -30.0),
+                vec2(200.0, 0.0),
+                0,
+                0,
+                false,
+            ));
         }
         b.step_projectiles(&mut players);
         assert!(b.tanks[1].shield.is_none(), "the deflector is spent");
@@ -1875,5 +2145,153 @@ mod tests {
         assert!(b.only_bots_left(&players));
         b.skip_to_end(&mut players);
         assert!(matches!(b.phase, Phase::Over { .. }));
+    }
+
+    fn weapon(name: &str) -> usize {
+        WEAPONS.iter().position(|w| w.name == name).unwrap()
+    }
+
+    /// Two bots, tanks parked at the far edges, on ground shaped by `height`.
+    fn range(height: impl Fn(f32) -> f32) -> (Vec<Player>, Battle) {
+        let players = bots(2);
+        let mut b = battle(&players, Setup::default().rules());
+        b.terrain = Terrain::from_fn(height);
+        b.wind = 0.0;
+        for (tank, x) in b.tanks.iter_mut().zip([30.0, 1250.0]) {
+            tank.pos = vec2(x, b.terrain.height_at(x));
+        }
+        (players, b)
+    }
+
+    /// Drops `weapon` straight down onto the ground at `x`, fired by tank 0.
+    fn drop(b: &mut Battle, weapon: usize, x: f32, vel_x: f32) {
+        let y = b.terrain.height_at(x) - 1.0;
+        b.projectiles.push(Projectile::new(
+            vec2(x, y),
+            vec2(vel_x, 200.0),
+            weapon,
+            0,
+            false,
+        ));
+    }
+
+    /// Runs shells and fires until they are all done; returns every explosion.
+    fn run(b: &mut Battle, players: &mut [Player]) -> Vec<Vec2> {
+        for _ in 0..20_000 {
+            if b.projectiles.is_empty() && b.fires.is_empty() {
+                break;
+            }
+            b.step_projectiles(players);
+            b.step_fires(players);
+        }
+        assert!(
+            b.projectiles.is_empty() && b.fires.is_empty(),
+            "everything settles"
+        );
+        b.explosions
+            .iter()
+            .filter(|e| !e.dirt)
+            .map(|e| e.pos)
+            .collect()
+    }
+
+    /// A valley with its lowest point at x = 640.
+    fn valley(x: f32) -> f32 {
+        600.0 - (x - 640.0).abs() * 0.2
+    }
+
+    #[test]
+    fn a_roller_rolls_down_into_the_dip() {
+        let (mut players, mut b) = range(valley);
+        drop(&mut b, weapon("Roller"), 500.0, 0.0);
+        let blasts = run(&mut b, &mut players);
+        assert_eq!(blasts.len(), 1);
+        assert!(
+            (blasts[0].x - 640.0).abs() < 6.0,
+            "explodes in the dip: {}",
+            blasts[0].x
+        );
+    }
+
+    #[test]
+    fn a_roller_stops_at_a_tank() {
+        let (mut players, mut b) = range(valley);
+        b.tanks[1].pos = vec2(560.0, valley(560.0));
+        drop(&mut b, weapon("Roller"), 500.0, 0.0);
+        let blasts = run(&mut b, &mut players);
+        assert!(
+            blasts[0].x < 560.0,
+            "explodes against the tank: {}",
+            blasts[0].x
+        );
+        assert!(b.tanks[1].health < 100.0);
+    }
+
+    #[test]
+    fn a_leapfrog_explodes_three_times_moving_on() {
+        let (mut players, mut b) = range(|_| 600.0);
+        drop(&mut b, weapon("Leapfrog"), 300.0, 150.0);
+        let blasts = run(&mut b, &mut players);
+        assert_eq!(blasts.len(), 3);
+        assert!(
+            blasts[0].x < blasts[1].x && blasts[1].x < blasts[2].x,
+            "hops on: {blasts:?}"
+        );
+    }
+
+    #[test]
+    fn a_funky_bomb_throws_bomblets() {
+        let (mut players, mut b) = range(|_| 600.0);
+        drop(&mut b, weapon("Funky Bomb"), 640.0, 0.0);
+        b.step_projectiles(&mut players);
+        assert_eq!(b.projectiles.len(), 6);
+        assert!(b.projectiles.iter().all(|p| p.child));
+        let blasts = run(&mut b, &mut players);
+        assert!(blasts.len() > 1, "the bomblets explode too");
+    }
+
+    #[test]
+    fn napalm_runs_downhill_and_burns_the_tank_there() {
+        let (mut players, mut b) = range(valley);
+        b.tanks[1].pos = vec2(640.0, valley(640.0));
+        drop(&mut b, weapon("Napalm"), 600.0, 0.0);
+        let blasts = run(&mut b, &mut players);
+        assert!(blasts.is_empty(), "no explosion, only fire");
+        let lost = 100.0 - b.tanks[1].health;
+        assert!(lost > 10.0, "burned: {lost}");
+        assert!(
+            lost <= WEAPONS[weapon("Napalm")].damage * FIRE_TIME + 0.1,
+            "at most the full burn: {lost}"
+        );
+        assert!(players[0].income.damage > 0, "the shooter is paid");
+    }
+
+    #[test]
+    fn a_digger_sinks_the_ground_under_a_tank() {
+        let (mut players, mut b) = range(|_| 600.0);
+        b.tanks[1].pos = vec2(700.0, 600.0);
+        drop(&mut b, weapon("Digger"), 640.0, 100.0);
+        let blasts = run(&mut b, &mut players);
+        assert!(blasts.is_empty());
+        assert_eq!(b.terrain.height_at(700.0), 600.0 + DIG_DEPTH);
+        assert_eq!(
+            b.terrain.height_at(640.0 + DIG_LENGTH + 20.0),
+            600.0,
+            "only as far as it digs"
+        );
+        assert_eq!(b.tanks[1].health, 100.0, "no damage by itself");
+    }
+
+    #[test]
+    fn bots_never_fire_utility_weapons_at_enemies() {
+        let mut players = bots(2);
+        players[0].ammo[weapon("Digger")] = 5;
+        players[0].ammo[weapon("Dirt Bomb")] = 5;
+        players[0].ammo[weapon("Roller")] = 1;
+        let mut b = battle(&players, Setup::default().rules());
+        for _ in 0..10 {
+            let shot = b.plan_shot(0, &players);
+            assert!(!WEAPONS[shot.weapon].kind.is_utility());
+        }
     }
 }

@@ -5,14 +5,12 @@ the guide as they ship.
 
 ## Next
 
-1. **Parachutes and shields**, with the inventory screen growing an on/off switch per item (the reason the inventory is
-   its own panel).
-2. **Weapon strip** along the bottom of the battle screen: your weapons and ammo, the selected one highlighted.
-3. **More weapons:** Roller, Napalm, Digger, Leapfrog, Funky Bomb, Tracer, Riot Bomb, Baby Nuke, Death's Head.
-4. **Batteries** (restore health; matters with "Health limits power") and guidance items.
-5. **Sound.**
-6. **Tank movement** using fuel.
-7. **More bot types** from the original: Poolshark (bounces shots off walls), Tosser, Chooser, Spoiler, Cyborg.
+1. **Weapon strip** along the bottom of the battle screen: your weapons and ammo, the selected one highlighted.
+2. **More weapons:** Tracer, Riot Bomb, Death's Head; bots that aim Rollers and Napalm at the low ground.
+3. **Batteries** (restore health; matters with "Health limits power") and guidance items.
+4. **Sound.**
+5. **Tank movement** using fuel.
+6. **More bot types** from the original: Poolshark (bounces shots off walls), Tosser, Chooser, Spoiler, Cyborg.
 
 ## Platforms and releases
 

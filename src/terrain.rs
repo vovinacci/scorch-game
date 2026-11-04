@@ -61,6 +61,14 @@ impl Terrain {
         Self { ground }
     }
 
+    /// Terrain from a height function, for tests.
+    #[cfg(test)]
+    pub fn from_fn(height: impl Fn(f32) -> f32) -> Self {
+        Self {
+            ground: (0..WIDTH).map(|x| height(x as f32)).collect(),
+        }
+    }
+
     pub fn height_at(&self, x: f32) -> f32 {
         match self.column(x) {
             Some(c) => self.ground[c],
@@ -98,6 +106,20 @@ impl Terrain {
             let removed = (bottom.min(HEIGHT) - top.max(*ground)).max(0.0);
             *ground = (*ground + removed).min(HEIGHT);
         });
+    }
+
+    /// Lowers the ground by `depth` in every column from `x0` to `x1` (either order), like dirt sinking into a
+    /// tunnel dug underneath.
+    pub fn sink(&mut self, x0: f32, x1: f32, depth: f32) {
+        let (a, b) = (x0.min(x1), x0.max(x1));
+        let from = a.round().max(0.0) as usize;
+        let to = (b.round() as usize).min(WIDTH - 1);
+        if from > to {
+            return;
+        }
+        for g in &mut self.ground[from..to] {
+            *g = (*g + depth).min(HEIGHT);
+        }
     }
 
     /// Drops a circle's worth of dirt onto each column.

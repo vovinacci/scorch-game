@@ -56,20 +56,33 @@ fn shop_panel(player: &mut Player) -> ShopAction {
         GOLD,
     );
 
-    let row = |y: f32| Rect::new(area.x + 40.0, y, area.w - 80.0, 38.0);
-    let mut y = area.y + 104.0;
-    for (w, weapon) in WEAPONS.iter().enumerate().skip(1) {
+    // Two columns of buttons, filled row by row.
+    let col_w = (area.w - 90.0) / 2.0;
+    let cell = |top: f32, k: usize| {
+        Rect::new(
+            area.x + 40.0 + (k % 2) as f32 * (col_w + 10.0),
+            top + (k / 2) as f32 * 44.0,
+            col_w,
+            38.0,
+        )
+    };
+    let top = area.y + 104.0;
+    // Cheapest first.
+    let mut weapons: Vec<usize> = (1..WEAPONS.len()).collect();
+    weapons.sort_by_key(|&w| WEAPONS[w].price);
+    for (k, &w) in weapons.iter().enumerate() {
+        let weapon = &WEAPONS[w];
         let label = t!(
             "shop-buy",
             weapon = weapon.text(),
             bundle = weapon.bundle,
             price = weapon.price
         );
-        if ui::button(row(y), &label, player.money >= weapon.price) {
+        if ui::button(cell(top, k), &label, player.money >= weapon.price) {
             buy(player, w);
         }
-        y += 44.0;
     }
+    let mut y = top + weapons.len().div_ceil(2) as f32 * 44.0;
     ui::text_at(t!("shop-items"), area.x + 40.0, y + 22.0, 22.0, GOLD);
     y += 32.0;
     for (i, item) in ITEMS.iter().enumerate() {
@@ -79,11 +92,11 @@ fn shop_panel(player: &mut Player) -> ShopAction {
             bundle = item.bundle,
             price = item.price
         );
-        if ui::button(row(y), &label, player.money >= item.price) {
+        if ui::button(cell(y, i), &label, player.money >= item.price) {
             buy_item(player, i);
         }
-        y += 44.0;
     }
+    y += ITEMS.len().div_ceil(2) as f32 * 44.0;
 
     let half = (area.w - 90.0) / 2.0;
     if ui::button(
@@ -134,12 +147,12 @@ fn draw_inventory(player: &mut Player) {
             area.x + 20.0,
             y,
             area.w - 100.0,
-            22.0,
+            20.0,
             color,
         );
-        let cw = ui::measure(&count, 22.0).width;
-        ui::text_at(&count, area.x + area.w - 20.0 - cw, y, 22.0, color);
-        y += 28.0;
+        let cw = ui::measure(&count, 20.0).width;
+        ui::text_at(&count, area.x + area.w - 20.0 - cw, y, 20.0, color);
+        y += 24.0;
     }
     // Items: one on/off switch each (off = keep them, don't use them).
     ui::text_at(t!("shop-items"), area.x + 20.0, y + 8.0, 22.0, GOLD);
@@ -238,14 +251,15 @@ fn draw_income(player: &Player, shoots_first: bool) {
     }
 }
 
-/// Bots buy at random what they can afford: weapons, and now and then a parachute or a shield.
+/// Bots buy at random what they can afford: weapons they fire, and now and then a parachute or a shield.
 pub fn ai_shop(player: &mut Player) {
     let weapons = WEAPONS.len() - 1;
     for _ in 0..8 {
         let pick = gen_range(0, weapons + ITEMS.len());
         if pick < weapons {
             let w = pick + 1;
-            if player.money >= WEAPONS[w].price {
+            // Bots never fire Dirt Bombs or Diggers, so they don't buy them either.
+            if player.money >= WEAPONS[w].price && !WEAPONS[w].kind.is_utility() {
                 buy(player, w);
             }
         } else {
