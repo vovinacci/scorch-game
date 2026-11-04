@@ -207,6 +207,19 @@ mod tests {
     }
 
     #[test]
+    fn ammo_saved_before_new_weapons_still_loads() {
+        let mut json = serde_json::to_value(Player::new("You", RED, None)).unwrap();
+        json["ammo"] = serde_json::json!([0, 4, 1, 0, 2]);
+        let player: Player = serde_json::from_value(json).unwrap();
+        assert_eq!(player.ammo[1], 4);
+        assert_eq!(player.ammo[4], 2);
+        assert!(
+            player.ammo[5..].iter().all(|&n| n == 0),
+            "new weapons start empty"
+        );
+    }
+
+    #[test]
     fn old_or_partial_profile_still_loads() {
         let profile: Profile = serde_json::from_str(r#"{"stats":{"kills":7}}"#).unwrap();
         assert_eq!(profile.stats.kills, 7);

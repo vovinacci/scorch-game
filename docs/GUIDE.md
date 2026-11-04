@@ -89,9 +89,9 @@ reach. The power never drops below 50, so even a badly damaged tank can lob a sh
 
 A tank at 0 health **explodes**. That blast can destroy its neighbours, which explode in turn: chain reactions are part
 of the game. The ammo a tank carries cooks off and makes its blast bigger: a tank with an empty hold explodes with
-radius 35 and damage 40; each shell aboard adds to that, up to radius 110 and damage 120 (Baby Missiles and Dirt Bombs
-don't count). The inventory in the shop shows how big your own blast would be. Carrying a stack of Nukes into battle is
-a risk to everyone around you, you included.
+radius 35 and damage 40; each shell aboard adds to that, up to radius 110 and damage 120 (Baby Missiles, Dirt Bombs and
+Diggers don't count). The inventory in the shop shows how big your own blast would be. Carrying a stack of Nukes into
+battle is a risk to everyone around you, you included.
 
 ### Who gets the kill
 
@@ -108,9 +108,17 @@ the kill is yours. A tank that no enemy ever hit dies without anyone getting a k
 | MIRV | Splits into 5 warheads at the top of its arc | 25 each | 35 each | $120 | 1 |
 | Nuke | A huge explosion | 85 | 100 | $200 | 1 |
 | Dirt Bomb | Throws up a mound of earth, no damage | 45 | 0 | $40 | 2 |
+| Digger | Burrows 160 pixels sideways under the ground, which sinks 40 pixels above it; no damage | - | 0 | $40 | 2 |
+| Roller | Lands, rolls downhill and explodes in the next dip, at a tank or at a slope it can't climb | 30 | 50 | $80 | 2 |
+| Leapfrog | Explodes, then hops on and explodes again, three blasts in all | 25 each | 35 each | $100 | 1 |
+| Napalm | Spills burning fuel that runs downhill and burns for 3 seconds | - | 20 per second | $110 | 1 |
+| Baby Nuke | A big explosion | 55 | 75 | $130 | 1 |
+| Funky Bomb | Explodes and throws 6 bomblets around at random | 22 each | 28 each | $150 | 1 |
 
 Everyone starts the game with $100 and 2 Missiles. Weapons and money carry over from round to round. The Dirt Bomb is
-for burying an enemy or building a wall in front of yourself.
+for burying an enemy or building a wall in front of yourself; the Digger digs a buried tank out, or drops an enemy into
+a trench (the fall hurts). Rollers and Napalm find the low ground, so they're best against a tank in a valley. Napalm
+burns any tank close to the fire, yours too, and shields soak up the burn like any other damage.
 
 ## Parachutes and shields
 
@@ -160,8 +168,8 @@ The game helps whoever is behind, so one bad start doesn't decide the whole game
 
 Between rounds each human player gets a screen with three panels: what you earned last round and why (left), the
 **Shop** (middle: weapons and items) and your **Inventory** (right: what you own, a switch for each item, and your death
-blast). In a two-player game the shop title shows whose turn it is to buy. Bots shop too: they buy random weapons and
-items they can afford, and use them like you do.
+blast). In a two-player game the shop title shows whose turn it is to buy. Bots shop too: they buy random weapons (never
+Dirt Bombs or Diggers) and items they can afford, and use them like you do.
 
 ## Opponents
 
@@ -181,7 +189,8 @@ at a new target misses by 40-100% of its "first miss" in a random direction. Aft
 kept share, plus a little random wobble that never quite goes away. A bot that switches to a new target starts with a
 rough shot again.
 
-Bots follow "Health limits power" too. They usually fire their biggest weapon, otherwise a Baby Missile.
+Bots follow "Health limits power" too. They usually fire their most expensive weapon, otherwise a Baby Missile. They
+never fire Dirt Bombs or Diggers.
 
 ### Whom a bot shoots at
 

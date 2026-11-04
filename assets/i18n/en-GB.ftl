@@ -334,6 +334,12 @@ weapon-missile = Missile
 weapon-mirv = MIRV
 weapon-nuke = Nuke
 weapon-dirt-bomb = Dirt Bomb
+weapon-baby-nuke = Baby Nuke
+weapon-roller = Roller
+weapon-leapfrog = Leapfrog
+weapon-funky-bomb = Funky Bomb
+weapon-napalm = Napalm
+weapon-digger = Digger
 
 ## Final standings
 

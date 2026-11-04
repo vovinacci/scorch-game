@@ -15,6 +15,18 @@ fn all_on() -> [bool; ITEM_COUNT] {
     [true; ITEM_COUNT]
 }
 
+/// Saves from before a weapon was added hold fewer ammo counts: the new weapons start at 0.
+fn ammo_from_any_length<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<[u32; WEAPON_COUNT], D::Error> {
+    let counts = Vec::<u32>::deserialize(d)?;
+    let mut ammo = [0; WEAPON_COUNT];
+    for (slot, n) in ammo.iter_mut().zip(counts) {
+        *slot = n;
+    }
+    Ok(ammo)
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Player {
     pub name: String,
@@ -23,6 +35,7 @@ pub struct Player {
     /// `Some` for bots: how well they aim.
     pub bot: Option<AiProfile>,
     pub money: i32,
+    #[serde(deserialize_with = "ammo_from_any_length")]
     pub ammo: [u32; WEAPON_COUNT],
     /// Parachutes and shields owned (see `items::ITEMS`).
     #[serde(default)]

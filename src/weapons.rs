@@ -10,6 +10,23 @@ pub enum Kind {
     Mirv,
     /// Adds a mound of dirt instead of exploding. Great for burying enemies.
     Dirt,
+    /// Lands, rolls downhill and explodes in the next dip, against a tank or a slope it can't climb.
+    Roller,
+    /// Explodes, then hops on and explodes again, `hops` more times.
+    Leapfrog { hops: u8 },
+    /// Explodes and throws `bomblets` small bombs around at random.
+    Funky { bomblets: u8 },
+    /// Spills burning fuel that runs downhill; `damage` is per second of burning.
+    Napalm,
+    /// Burrows sideways under the ground, so the dirt above it sinks. No damage.
+    Digger,
+}
+
+impl Kind {
+    /// Changes the ground but does no damage; bots don't fire these at enemies.
+    pub fn is_utility(self) -> bool {
+        matches!(self, Kind::Dirt | Kind::Digger)
+    }
 }
 
 pub struct Weapon {
@@ -33,7 +50,8 @@ impl Weapon {
 }
 
 /// Index 0 is the default weapon with infinite ammo.
-pub const WEAPONS: [Weapon; 5] = [
+/// New weapons go at the end: saves store ammo by index.
+pub const WEAPONS: [Weapon; 11] = [
     Weapon {
         name: "Baby Missile",
         kind: Kind::Blast,
@@ -70,6 +88,54 @@ pub const WEAPONS: [Weapon; 5] = [
         name: "Dirt Bomb",
         kind: Kind::Dirt,
         radius: 45.0,
+        damage: 0.0,
+        price: 40,
+        bundle: 2,
+    },
+    Weapon {
+        name: "Baby Nuke",
+        kind: Kind::Blast,
+        radius: 55.0,
+        damage: 75.0,
+        price: 130,
+        bundle: 1,
+    },
+    Weapon {
+        name: "Roller",
+        kind: Kind::Roller,
+        radius: 30.0,
+        damage: 50.0,
+        price: 80,
+        bundle: 2,
+    },
+    Weapon {
+        name: "Leapfrog",
+        kind: Kind::Leapfrog { hops: 2 },
+        radius: 25.0,
+        damage: 35.0,
+        price: 100,
+        bundle: 1,
+    },
+    Weapon {
+        name: "Funky Bomb",
+        kind: Kind::Funky { bomblets: 6 },
+        radius: 22.0,
+        damage: 28.0,
+        price: 150,
+        bundle: 1,
+    },
+    Weapon {
+        name: "Napalm",
+        kind: Kind::Napalm,
+        radius: 20.0,
+        damage: 20.0,
+        price: 110,
+        bundle: 1,
+    },
+    Weapon {
+        name: "Digger",
+        kind: Kind::Digger,
+        radius: 12.0,
         damage: 0.0,
         price: 40,
         bundle: 2,

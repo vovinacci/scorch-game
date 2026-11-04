@@ -363,6 +363,12 @@ weapon-missile = Ракета
 weapon-mirv = Касетна ракета
 weapon-nuke = Ядерна бомба
 weapon-dirt-bomb = Земляна бомба
+weapon-baby-nuke = Мала ядерна бомба
+weapon-roller = Котилка
+weapon-leapfrog = Жабка
+weapon-funky-bomb = Шалена бомба
+weapon-napalm = Напалм
+weapon-digger = Копач
 
 ## Підсумки
 
