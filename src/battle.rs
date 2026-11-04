@@ -734,21 +734,17 @@ impl Battle {
         time: f32,
         players: &mut [Player],
     ) -> Option<Projectile> {
-        let x = p.pos.x + dir * ROLL_SPEED * STEP;
-        let here = self.terrain.height_at(p.pos.x);
-        let ahead = self.terrain.height_at(x);
-        let next = vec2(x, ahead - 3.0);
-        let off = !(0.0..WIDTH as f32).contains(&x);
-        let climb = here - ahead > ROLL_CLIMB * ROLL_SPEED * STEP;
-        let hit_tank = self
-            .tanks
-            .iter()
-            .any(|t| t.alive && t.center().distance(next) < TANK_RADIUS + 3.0);
-        if off || climb || hit_tank || time >= ROLL_TIME {
+        let next = roll_step(&self.terrain, p.pos.x, dir);
+        let hit_tank = next.is_some_and(|next| {
+            self.tanks
+                .iter()
+                .any(|t| t.alive && t.center().distance(next) < TANK_RADIUS + 3.0)
+        });
+        let Some(next) = next.filter(|_| !hit_tank && time < ROLL_TIME) else {
             self.detonate(p.pos, p.weapon, p.owner, players);
             self.landed(p);
             return None;
-        }
+        };
         p.pos = next;
         p.trail.push(next);
         p.motion = Motion::Rolling {
@@ -799,9 +795,7 @@ impl Battle {
         }
         for f in &mut self.fires {
             f.age += STEP;
-            if let Some(dir) = downhill(&self.terrain, f.x) {
-                f.x = (f.x + dir * FIRE_FLOW * STEP).clamp(0.0, WIDTH as f32 - 1.0);
-            }
+            f.x = flow_step(&self.terrain, f.x);
         }
         self.fires.retain(|f| f.age < FIRE_TIME);
         let dps = WEAPONS
@@ -1336,7 +1330,7 @@ impl Battle {
             for power in (50..=max_power as i32).step_by(25) {
                 let (angle, power) = (angle as f32, power as f32);
                 let origin = shooter.barrel_base() + direction(angle) * BARREL;
-                let Some(hit) = simulate(
+                let Some(landing) = simulate(
                     origin,
                     launch_velocity(angle, power),
                     self.wind,
@@ -1346,6 +1340,8 @@ impl Battle {
                 ) else {
                     continue;
                 };
+                // Rollers and Napalm are aimed at where they end up, not where they land.
+                let hit = damage_point(WEAPONS[weapon].kind, landing, &self.terrain);
                 if hit.distance(shooter.center()) < safe_distance {
                     continue;
                 }
@@ -1688,7 +1684,8 @@ pub fn death_blast(player: &Player) -> (f32, f32) {
 }
 
 /// Flies a shot ignoring tanks, with the same physics as a real shot.
-/// Returns where it explodes, or `None` if it leaves the world.
+/// Returns where it lands and how fast it's going then (`ground` false: it hit a wall), or `None` if it leaves the
+/// world.
 fn simulate(
     mut pos: Vec2,
     mut vel: Vec2,
@@ -1696,18 +1693,79 @@ fn simulate(
     world: &World,
     terrain: &Terrain,
     deflectors: &[Vec2],
-) -> Option<Vec2> {
+) -> Option<Landing> {
     for _ in 0..2400 {
         let flight = step_shell(&mut pos, &mut vel, wind, world, STEP);
         deflect(pos, &mut vel, deflectors);
         match flight {
-            Flight::Wall => return Some(pos),
+            Flight::Wall => {
+                return Some(Landing {
+                    pos,
+                    vel,
+                    ground: false,
+                });
+            }
             Flight::Lost => return None,
-            Flight::Flying if terrain.is_solid(pos) => return Some(pos),
+            Flight::Flying if terrain.is_solid(pos) => {
+                return Some(Landing {
+                    pos,
+                    vel,
+                    ground: true,
+                });
+            }
             Flight::Flying => {}
         }
     }
     None
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Landing {
+    pos: Vec2,
+    vel: Vec2,
+    ground: bool,
+}
+
+/// Where a shell of `kind` does its damage after `landing`: a Roller where it stops rolling, Napalm where its fire
+/// runs to, anything else where it lands. Ignores tanks in the way, like the rest of a bot's aiming.
+fn damage_point(kind: Kind, landing: Landing, terrain: &Terrain) -> Vec2 {
+    match kind {
+        Kind::Roller if landing.ground => {
+            let mut x = landing.pos.x;
+            let dir = downhill(terrain, x).unwrap_or(sign(landing.vel.x));
+            let mut time = 0.0;
+            while let Some(next) = roll_step(terrain, x, dir).filter(|_| time < ROLL_TIME) {
+                x = next.x;
+                time += STEP;
+            }
+            vec2(x, terrain.height_at(x))
+        }
+        Kind::Napalm => {
+            let mut x = landing.pos.x;
+            for _ in 0..(FIRE_TIME / STEP) as usize {
+                x = flow_step(terrain, x);
+            }
+            vec2(x, terrain.height_at(x))
+        }
+        _ => landing.pos,
+    }
+}
+
+/// A Roller's next position from `x` rolling in `dir`, or `None` where it stops: at the edge or a rise too steep.
+fn roll_step(terrain: &Terrain, x: f32, dir: f32) -> Option<Vec2> {
+    let next = x + dir * ROLL_SPEED * STEP;
+    let rise = terrain.height_at(x) - terrain.height_at(next);
+    let on_screen = (0.0..WIDTH as f32).contains(&next);
+    (on_screen && rise <= ROLL_CLIMB * ROLL_SPEED * STEP)
+        .then(|| vec2(next, terrain.height_at(next) - 3.0))
+}
+
+/// A drop of napalm's next position from `x`: a little way downhill, or where it is on level ground.
+fn flow_step(terrain: &Terrain, x: f32) -> f32 {
+    match downhill(terrain, x) {
+        Some(dir) => (x + dir * FIRE_FLOW * STEP).clamp(0.0, WIDTH as f32 - 1.0),
+        None => x,
+    }
 }
 
 /// Which way the ground at `x` slopes down (-1 left, 1 right), or `None` where it is level.
@@ -2293,5 +2351,47 @@ mod tests {
             let shot = b.plan_shot(0, &players);
             assert!(!WEAPONS[shot.weapon].kind.is_utility());
         }
+    }
+
+    #[test]
+    fn bots_aim_rollers_and_napalm_at_where_they_end_up() {
+        let terrain = Terrain::from_fn(valley);
+        let landing = Landing {
+            pos: vec2(500.0, valley(500.0)),
+            vel: vec2(0.0, 200.0),
+            ground: true,
+        };
+        let roll = damage_point(Kind::Roller, landing, &terrain);
+        assert!(
+            (roll.x - 640.0).abs() < 6.0,
+            "the Roller ends in the dip: {}",
+            roll.x
+        );
+        let fire = damage_point(Kind::Napalm, landing, &terrain);
+        assert!(
+            fire.x > 600.0,
+            "the fire runs down towards the dip: {}",
+            fire.x
+        );
+        assert_eq!(damage_point(Kind::Blast, landing, &terrain), landing.pos);
+    }
+
+    #[test]
+    fn the_predicted_roll_matches_the_real_one() {
+        let (mut players, mut b) = range(valley);
+        drop(&mut b, weapon("Roller"), 500.0, 0.0);
+        let blast = run(&mut b, &mut players)[0];
+        let landing = Landing {
+            pos: vec2(500.0, valley(500.0)),
+            vel: vec2(0.0, 200.0),
+            ground: true,
+        };
+        let predicted = damage_point(Kind::Roller, landing, &Terrain::from_fn(valley));
+        assert!(
+            (predicted.x - blast.x).abs() < 3.0,
+            "{} vs {}",
+            predicted.x,
+            blast.x
+        );
     }
 }

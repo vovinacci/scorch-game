@@ -6,7 +6,7 @@ the guide as they ship.
 ## Next
 
 1. **Weapon strip** along the bottom of the battle screen: your weapons and ammo, the selected one highlighted.
-2. **More weapons:** Tracer, Riot Bomb, Death's Head; bots that aim Rollers and Napalm at the low ground.
+2. **More weapons:** Tracer, Riot Bomb, Death's Head.
 3. **Batteries** (restore health; matters with "Health limits power") and guidance items.
 4. **Sound.**
 5. **Tank movement** using fuel.

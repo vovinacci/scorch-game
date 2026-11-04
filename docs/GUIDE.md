@@ -190,7 +190,7 @@ kept share, plus a little random wobble that never quite goes away. A bot that s
 rough shot again.
 
 Bots follow "Health limits power" too. They usually fire their most expensive weapon, otherwise a Baby Missile. They
-never fire Dirt Bombs or Diggers.
+never fire Dirt Bombs or Diggers, and aim Rollers and Napalm at the spot where they roll or run to.
 
 ### Whom a bot shoots at
 
