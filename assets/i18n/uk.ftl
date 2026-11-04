@@ -256,7 +256,7 @@ hud-aiming-at = { $name } цілиться { $target_you ->
     [yes] у ваш танк
    *[no] в танк { $target }
 }
-hud-controls = Вліво/Вправо: кут   Вгору/Вниз: сила   Shift: точно   Tab: зброя   Пробіл: ВОГОНЬ   L: журнал   Esc: меню
+hud-controls = Вліво/Вправо: кут   Вгору/Вниз: сила   Shift: точно   Tab/1-0: зброя   Пробіл: ВОГОНЬ   L: журнал   Esc: меню
 bots-only-speed = Лише боти: швидкість { $speed }
 skip-to-end = До кінця раунду [Enter]
 round-won = { $you ->
