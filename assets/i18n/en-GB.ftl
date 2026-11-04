@@ -247,7 +247,7 @@ hud-sudden-death-in = Sudden death in { $n } { $n ->
    *[other] turns
 }
 hud-aiming-at = { $name } is aiming at { $target }
-hud-controls = Left/Right: angle   Up/Down: power   Shift: fine   Tab: weapon   Space: FIRE   L: log   Esc: menu
+hud-controls = Left/Right: angle   Up/Down: power   Shift: fine   Tab/1-0: weapon   Space: FIRE   L: log   Esc: menu
 bots-only-speed = Bots only: { $speed } speed
 skip-to-end = Skip to end [Enter]
 round-won = { $you ->

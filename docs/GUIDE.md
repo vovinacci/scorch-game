@@ -23,6 +23,7 @@ The game is dedicated to the memory of Joseph Rivkind (1952–2026), who taught 
 | Up / Down | Shot power | Move between options |
 | Shift (hold) | Fine adjustment (5 times slower) | |
 | Tab | Next weapon you have ammo for | |
+| 1-9, 0, - | Pick a weapon from the weapon strip (or click it) | |
 | Space | Fire | Choose |
 | Enter | Skip to the end of the round (only bots left) | Choose |
 | L (hold) | Full battle log of this round | |
@@ -46,6 +47,9 @@ Under the bar, on the right, is the turn number (each tank's shot is one turn), 
 on.
 
 Each tank has its name and a health bar above it. In Settings you can show health as a bar, a number, or both.
+
+Above the bottom line, the **weapon strip** lists every weapon the tank whose turn it is has ammo for, with how many are
+left. The selected one has a gold frame. On your turn, click a weapon or press the key in front of it.
 
 While a bot aims, the bottom line tells you which tank it's aiming at and why. On your turn, the bottom line lists the
 controls.

@@ -561,6 +561,29 @@ impl Battle {
         }
         tank.angle = tank.angle.clamp(0.0, 180.0);
         tank.power = tank.power.clamp(0.0, max_power);
+        // Weapon strip: click a weapon, or press its key (1-9, then 0 and - for the tenth and eleventh).
+        let strip = weapon_strip(player);
+        let keys = [
+            KeyCode::Key1,
+            KeyCode::Key2,
+            KeyCode::Key3,
+            KeyCode::Key4,
+            KeyCode::Key5,
+            KeyCode::Key6,
+            KeyCode::Key7,
+            KeyCode::Key8,
+            KeyCode::Key9,
+            KeyCode::Key0,
+            KeyCode::Minus,
+        ];
+        let clicked = is_mouse_button_pressed(MouseButton::Left).then(ui::mouse);
+        for (k, &(w, r)) in strip.iter().enumerate() {
+            if keys.get(k).is_some_and(|&key| is_key_pressed(key))
+                || clicked.is_some_and(|m| r.contains(m))
+            {
+                tank.weapon = w;
+            }
+        }
         if is_key_pressed(KeyCode::Tab) {
             // Cycle to the next weapon we have ammo for.
             for step in 1..=WEAPONS.len() {
@@ -1486,6 +1509,9 @@ impl Battle {
         draw_rectangle(0.0, 0.0, ui::WIDTH, 44.0, ui::PANEL);
         let player = &players[self.current];
         let tank = &self.tanks[self.current];
+        if matches!(self.phase, Phase::Aim { .. }) {
+            draw_weapon_strip(player, tank.weapon);
+        }
         let name = player.label();
         ui::text_fit(&name, 16.0, 29.0, 260.0, 24.0, player.color);
         // The info starts after the name, however long it is.
@@ -1665,6 +1691,45 @@ pub fn draw_history(battle: &Battle) {
             20.0,
             line.color.into(),
         );
+    }
+}
+
+/// Weapon strip along the bottom: the weapons `player` has ammo for, in Tab order, with where each one is drawn.
+fn weapon_strip(player: &Player) -> Vec<(usize, Rect)> {
+    const GAP: f32 = 6.0;
+    let owned: Vec<usize> = (0..WEAPONS.len()).filter(|&w| player.has(w)).collect();
+    let n = owned.len() as f32;
+    let w = ((ui::WIDTH - 32.0 - GAP * (n - 1.0)) / n).min(150.0);
+    let left = (ui::WIDTH - (w * n + GAP * (n - 1.0))) / 2.0;
+    owned
+        .into_iter()
+        .enumerate()
+        .map(|(k, weapon)| {
+            let r = Rect::new(left + k as f32 * (w + GAP), HEIGHT - 58.0, w, 26.0);
+            (weapon, r)
+        })
+        .collect()
+}
+
+fn draw_weapon_strip(player: &Player, selected: usize) {
+    for (k, (w, r)) in weapon_strip(player).into_iter().enumerate() {
+        let on = w == selected;
+        draw_rectangle(r.x, r.y, r.w, r.h, ui::PANEL);
+        let border = if on {
+            GOLD
+        } else {
+            Color::new(1.0, 1.0, 1.0, 0.15)
+        };
+        draw_rectangle_lines(r.x, r.y, r.w, r.h, if on { 2.0 } else { 1.0 }, border);
+        let key = match k {
+            0..9 => format!("{} ", k + 1),
+            9 => "0 ".to_string(),
+            10 => "- ".to_string(),
+            _ => String::new(),
+        };
+        let text = format!("{key}{} {}", WEAPONS[w].text(), player.ammo_label(w));
+        let color = if on { WHITE } else { LIGHTGRAY };
+        ui::text_centered_fit(&text, r.center().x, r.y + 18.0, r.w - 8.0, 16.0, color);
     }
 }
 
@@ -2293,5 +2358,23 @@ mod tests {
             let shot = b.plan_shot(0, &players);
             assert!(!WEAPONS[shot.weapon].kind.is_utility());
         }
+    }
+
+    #[test]
+    fn the_weapon_strip_shows_owned_weapons_on_screen() {
+        let mut players = bots(1);
+        let p = &mut players[0];
+        assert_eq!(
+            weapon_strip(p).len(),
+            2,
+            "Baby Missile and the starting Missiles"
+        );
+        p.ammo = [1; crate::weapons::WEAPON_COUNT];
+        let strip = weapon_strip(p);
+        assert_eq!(strip.len(), WEAPONS.len());
+        for pair in strip.windows(2) {
+            assert!(pair[0].1.right() < pair[1].1.left(), "no overlap");
+        }
+        assert!(strip[0].1.left() >= 0.0 && strip.last().unwrap().1.right() <= ui::WIDTH);
     }
 }
