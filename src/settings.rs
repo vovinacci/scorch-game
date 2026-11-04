@@ -22,6 +22,24 @@ choice!(GameSpeed {
 
 choice!(BotSpeed { X2, X4, X8 });
 
+choice!(SoundVolume {
+    Off,
+    Low,
+    Medium,
+    High,
+});
+
+impl SoundVolume {
+    pub fn level(self) -> f32 {
+        match self {
+            SoundVolume::Off => 0.0,
+            SoundVolume::Low => 0.25,
+            SoundVolume::Medium => 0.5,
+            SoundVolume::High => 0.9,
+        }
+    }
+}
+
 impl GameSpeed {
     pub fn factor(self) -> f32 {
         match self {
@@ -58,6 +76,7 @@ pub struct Settings {
     pub game_speed: GameSpeed,
     /// Extra speed-up when only bots are left in a round.
     pub bot_speed: BotSpeed,
+    pub sound: SoundVolume,
     /// Look for a new version at start. `None` until the player answers the question on the main menu.
     pub check_updates: Option<bool>,
 }
@@ -72,6 +91,7 @@ impl Default for Settings {
             language: None,
             game_speed: GameSpeed::Normal,
             bot_speed: BotSpeed::X4,
+            sound: SoundVolume::Medium,
             check_updates: None,
         }
     }
@@ -96,7 +116,7 @@ pub const CONTROLS: [&str; 11] = [
 pub fn screen(settings: &mut Settings) -> bool {
     ui::text_centered(&t!("settings-title"), ui::WIDTH / 2.0, 70.0, 48.0, ORANGE);
 
-    let left = Rect::new(80.0, 110.0, 520.0, 490.0);
+    let left = Rect::new(80.0, 104.0, 520.0, 540.0);
     ui::panel(left);
     ui::text_at(
         t!("settings-display"),
@@ -147,14 +167,15 @@ pub fn screen(settings: &mut Settings) -> bool {
         &mut settings.game_speed,
     );
     ui::choice(row(7.0), &t!("settings-bot-speed"), &mut settings.bot_speed);
+    ui::choice(row(8.0), &t!("settings-sound"), &mut settings.sound);
     if update::enabled() {
         let mut on = settings.check_updates == Some(true);
-        if ui::toggle(row(8.0), &t!("settings-updates"), &mut on) {
+        if ui::toggle(row(9.0), &t!("settings-updates"), &mut on) {
             settings.check_updates = Some(on);
         }
     }
 
-    let right = Rect::new(680.0, 110.0, 520.0, 490.0);
+    let right = Rect::new(680.0, 104.0, 520.0, 540.0);
     ui::panel(right);
     ui::text_at(
         t!("settings-controls"),
@@ -173,7 +194,7 @@ pub fn screen(settings: &mut Settings) -> bool {
     }
 
     ui::button(
-        Rect::new(ui::WIDTH / 2.0 - 120.0, 620.0, 240.0, 52.0),
+        Rect::new(ui::WIDTH / 2.0 - 120.0, 658.0, 240.0, 48.0),
         &t!("back"),
         true,
     ) || is_key_pressed(KeyCode::Escape)

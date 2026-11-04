@@ -22,6 +22,7 @@ mod save;
 mod settings;
 mod setup;
 mod shop;
+mod sound;
 mod stats;
 mod terrain;
 mod ui;
@@ -106,6 +107,8 @@ struct Game {
     /// Full battle log opened from the pause menu.
     log_open: bool,
     updater: update::Updater,
+    /// Loaded once and never dropped (the audio thread outlives the game loop).
+    sounds: &'static sound::Sounds,
     screen: Screen,
 }
 
@@ -417,6 +420,10 @@ impl Game {
                 paused: false,
             } => {
                 let result = battle.frame(&mut self.players, &self.profile.settings);
+                let volume = self.profile.settings.sound.level();
+                for sfx in battle.take_sounds() {
+                    self.sounds.play(sfx, volume);
+                }
                 if battle.take_checkpoint() {
                     self.save_run(StageOut::Battle(&battle));
                 }
@@ -433,6 +440,8 @@ impl Game {
                     if ui::button(skip, &t!("skip-to-end"), true) || is_key_pressed(KeyCode::Enter)
                     {
                         battle.skip_to_end(&mut self.players);
+                        // Not hundreds of explosions at once.
+                        battle.take_sounds();
                     }
                 }
                 if is_key_down(KeyCode::L) {
@@ -999,6 +1008,7 @@ async fn run() {
         has_saved_run: save::run_exists(),
         log_open: false,
         updater: update::Updater::new(),
+        sounds: Box::leak(Box::new(sound::Sounds::load().await)),
         crash: crash::pending(),
         crash_note: None,
         ladder_note: None,
@@ -1038,6 +1048,10 @@ async fn run() {
         let screen = std::mem::replace(&mut game.screen, Screen::Menu);
         let before = std::mem::discriminant(&screen);
         let screen = game.step(screen);
+        if ui::take_click() {
+            game.sounds
+                .play(sound::Sfx::Click, game.profile.settings.sound.level());
+        }
         if std::mem::discriminant(&screen) != before {
             ui::reset_focus();
         }

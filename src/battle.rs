@@ -19,6 +19,7 @@ use crate::player::Player;
 use crate::save::Vec2Def;
 use crate::settings::{HealthDisplay, Settings};
 use crate::setup::Rules;
+use crate::sound::Sfx;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
 use crate::weapons::{Kind, WEAPONS};
@@ -67,6 +68,8 @@ const FIRE_TICK: f32 = 0.5;
 const DIG_LENGTH: f32 = 160.0;
 const DIG_SPEED: f32 = 200.0;
 const DIG_DEPTH: f32 = 40.0;
+/// Blasts at least this big (radius, px) get the deeper explosion sound.
+const BIG_BLAST: f32 = 50.0;
 /// A dying tank explodes with this blast.
 pub const DEATH_RADIUS: f32 = 35.0;
 pub const DEATH_DAMAGE: f32 = 40.0;
@@ -311,6 +314,9 @@ pub struct Battle {
     explosions: Vec<Explosion>,
     #[serde(skip)]
     fires: Vec<Fire>,
+    /// Sound effects since the main loop last took them.
+    #[serde(skip)]
+    sounds: Vec<Sfx>,
     /// Napalm: who lit the fires, burn damage per tank not dealt yet, and time to the next dealing.
     #[serde(skip)]
     fire_owner: usize,
@@ -400,6 +406,7 @@ impl Battle {
             projectiles: Vec::new(),
             explosions: Vec::new(),
             fires: Vec::new(),
+            sounds: Vec::new(),
             fire_owner: 0,
             burns: Vec::new(),
             burn_clock: 0.0,
@@ -466,6 +473,11 @@ impl Battle {
         let over = self.update(dt, players);
         self.draw(players, settings);
         over
+    }
+
+    /// Sound effects of what happened since the last call, for the main loop to play.
+    pub fn take_sounds(&mut self) -> Vec<Sfx> {
+        std::mem::take(&mut self.sounds)
     }
 
     /// Plays the rest of the round instantly (only bots left), stopping at the result.
@@ -605,6 +617,7 @@ impl Battle {
         self.note(text, players[i].color);
         self.projectiles
             .push(Projectile::new(pos, vel, weapon, i, false));
+        self.sounds.push(Sfx::Fire);
         self.phase = Phase::Flight;
     }
 
@@ -692,6 +705,7 @@ impl Battle {
                 return Some(p);
             }
             Kind::Digger if ground => {
+                self.sounds.push(Sfx::Dig);
                 p.motion = Motion::Digging {
                     dir: sign(p.vel.x),
                     left: DIG_LENGTH,
@@ -781,6 +795,7 @@ impl Battle {
 
     /// Napalm lands: drops of fire spread from `x` and run downhill.
     fn ignite(&mut self, x: f32, owner: usize) {
+        self.sounds.push(Sfx::Burn);
         self.fire_owner = owner;
         self.burns = vec![0.0; self.tanks.len()];
         self.burn_clock = FIRE_TICK;
@@ -848,6 +863,7 @@ impl Battle {
             };
             p.charged |= bit;
             shield.energy -= DEFLECT_COST;
+            self.sounds.push(Sfx::Shield);
             if shield.energy <= 0.0 {
                 tank.shield = None;
                 down.push(i);
@@ -876,6 +892,7 @@ impl Battle {
     fn detonate(&mut self, pos: Vec2, weapon: usize, owner: usize, players: &mut [Player]) {
         let w = &WEAPONS[weapon];
         if w.kind == Kind::Dirt {
+            self.sounds.push(Sfx::Dirt);
             self.terrain.add_dirt(pos, w.radius);
             self.explosions.push(Explosion {
                 pos,
@@ -908,6 +925,11 @@ impl Battle {
             .map(|(i, d)| (i, damage * (1.0 - 0.7 * d / reach)))
             .collect();
         self.hurt(&hits, owner, players);
+        self.sounds.push(if radius >= BIG_BLAST {
+            Sfx::BigBlast
+        } else {
+            Sfx::Blast
+        });
         self.terrain.carve(pos, radius);
         self.explosions.push(Explosion {
             pos,
@@ -936,6 +958,9 @@ impl Battle {
                 }
             }
             tank.health -= dmg;
+            if absorbed > 0.0 {
+                self.sounds.push(Sfx::Shield);
+            }
             hits.push((i, dmg, absorbed, shield_down));
             if let Some(o) = owner {
                 // Credit goes to the last *enemy* who hit this tank. If it later
@@ -1049,6 +1074,7 @@ impl Battle {
             }
         }
         for i in opened {
+            self.sounds.push(Sfx::Parachute);
             let text = t!(
                 "log-parachute",
                 name = players[i].label(),
@@ -1102,6 +1128,7 @@ impl Battle {
         if alive <= 1 {
             let winner = self.tanks.iter().position(|t| t.alive);
             self.phase = Phase::Over { timer: 2.5, winner };
+            self.sounds.push(Sfx::RoundEnd);
         } else if self.sudden_death_active() && !self.drained {
             // Sudden death: everyone loses health, then settle again for any deaths.
             self.drained = true;

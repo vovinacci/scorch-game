@@ -29,6 +29,15 @@ pub fn version_line() -> String {
 pub fn install() {
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
+        // No working sound device: the audio thread gives up and the game carries on silently. Not a crash.
+        if info
+            .location()
+            .is_some_and(|l| l.file().contains("quad-snd"))
+        {
+            crate::sound::AUDIO_OFF.store(true, std::sync::atomic::Ordering::Relaxed);
+            eprintln!("No sound: {}", message(info));
+            return;
+        }
         let backtrace = std::backtrace::Backtrace::force_capture().to_string();
         let text = report(&message(info), &location(info), &backtrace);
         match write(&text) {

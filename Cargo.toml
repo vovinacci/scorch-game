@@ -15,7 +15,7 @@ self-update = ["dep:minisign-verify", "dep:self-replace", "dep:sha2", "dep:ureq"
 [dependencies]
 dirs = "7.0.0"
 fluent-bundle = "0.16.0"
-macroquad = "0.4.16"
+macroquad = { version = "0.4.16", features = ["audio"] }
 minisign-verify = { version = "0.3.0", optional = true }
 self-replace = { version = "1.5.1", optional = true }
 serde = { version = "1.0.229", features = ["derive"] }

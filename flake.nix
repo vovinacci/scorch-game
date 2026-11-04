@@ -22,6 +22,8 @@
           buildNoDefaultFeatures = true;
 
           nativeBuildInputs = [ pkgs.makeWrapper ];
+          # Sound.
+          buildInputs = [ pkgs.alsa-lib ];
           env.SCORCH_BUILD_VERSION = "${cargo.package.version}+g${pkgs.lib.removeSuffix "-dirty" rev}"
             + pkgs.lib.optionalString (pkgs.lib.hasSuffix "-dirty" rev) ".dirty";
 

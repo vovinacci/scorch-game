@@ -54,8 +54,8 @@ Get the latest version from [Releases](https://github.com/vovinacci/scorch-game/
 - **Windows** 10 or newer, x86_64 or ARM64. Nothing else to install.
 - **macOS** 11 (Big Sur) or newer, Intel or Apple Silicon.
 - **Linux** x86_64 or ARM64, from 2022 on (glibc 2.35: Ubuntu 22.04, Debian 12, Fedora 36 or newer). On a normal desktop
-  there's nothing to install: the game uses the graphics and windowing libraries every desktop already has (OpenGL, X11
-  or XWayland).
+  there's nothing to install: the game uses the graphics, windowing and sound libraries every desktop already has
+  (OpenGL, X11 or XWayland, ALSA).
 - **NixOS:** see below; the downloaded Linux files don't run on NixOS.
 
 ### First start (unsigned builds)
