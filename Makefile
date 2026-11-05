@@ -1,4 +1,4 @@
-# On NixOS, cargo runs inside nix-shell so the game finds its GL/X11/Wayland libraries.
+# On NixOS, cargo runs inside nix-shell so the game finds its libraries (GL, X11, ALSA).
 # Elsewhere, cargo runs directly.
 ifneq ($(wildcard /etc/NIXOS),)
   CARGO = nix-shell --run "cargo $(1)"
@@ -22,13 +22,13 @@ build:
 	$(call CARGO,build --release)
 
 check:          ## Type-check, fast
-	cargo check
+	$(call CARGO,check)
 
 test:
-	cargo test
+	$(call CARGO,test)
 
 lint:
-	cargo clippy -- -D warnings
+	$(call CARGO,clippy -- -D warnings)
 
 fmt: docs       ## Format Rust code and Markdown docs
 	cargo fmt

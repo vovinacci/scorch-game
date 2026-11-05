@@ -12,20 +12,21 @@ numbers behind the rules, file formats, versioning and the code map.
 - **Python tools** (prek for git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in
   `requirements.txt`; `make tools` installs them into `.venv`, and the other `make` targets use them from there. CI
   installs the same file, and Dependabot keeps it current.
-- **NixOS:** `shell.nix` provides the graphics libraries the game loads at run time and cocogitto (commit message
+- **NixOS:** `shell.nix` provides ALSA, the graphics libraries the game loads at run time and cocogitto (commit message
   check); the `make` targets use it automatically. Elsewhere install cocogitto with `cargo install cocogitto`.
 
 ## Binaries
 
-- **Linux:** links only glibc (and libgcc). miniquad loads `libX11.so.6`, `libXi.so.6`, `libxkbcommon.so.0` and
-  `libGL.so.1` at run time (default X11 backend; Wayland desktops use XWayland), so the game uses the player's own GPU
-  driver; a fully static (musl) build couldn't load it. Nothing is needed at build time, and there is no audio
-  (macroquad's `audio` feature is off), so no ALSA. Release builds run on Ubuntu 22.04: glibc 2.35 or newer. On
-  distributions these libraries are part of every desktop (Debian/Ubuntu: `libx11-6 libxi6 libxkbcommon0 libgl1`).
-- **NixOS:** `flake.nix` packages the game and wraps it with those four libraries; `nix build` builds it (and runs the
-  tests), `nix run .` plays it, players use `nix run github:vovinacci/scorch-game`. The version comes from the flake's
-  commit (`SCORCH_BUILD_VERSION`, see `build.rs`). CI builds the flake; a weekly workflow updates `flake.lock`
-  (Dependabot doesn't handle Nix).
+- **Linux:** links glibc (and libgcc) and, for sound, ALSA (`libasound.so.2`; building needs its headers, Debian/Ubuntu
+  `libasound2-dev`). miniquad loads `libX11.so.6`, `libXi.so.6`, `libxkbcommon.so.0` and `libGL.so.1` at run time
+  (default X11 backend; Wayland desktops use XWayland), so the game uses the player's own GPU driver; a fully static
+  (musl) build couldn't load it. Release builds run on Ubuntu 22.04: glibc 2.35 or newer. On distributions these
+  libraries are part of every desktop (Debian/Ubuntu: `libx11-6 libxi6 libxkbcommon0 libgl1 libasound2`; PipeWire and
+  PulseAudio need ALSA too). Without a working sound device the game runs silently.
+- **NixOS:** `flake.nix` packages the game with alsa-lib and wraps it with those four libraries; `nix build` builds it
+  (and runs the tests), `nix run .` plays it, players use `nix run github:vovinacci/scorch-game`. The version comes from
+  the flake's commit (`SCORCH_BUILD_VERSION`, see `build.rs`). CI builds the flake; a weekly workflow updates
+  `flake.lock` (Dependabot doesn't handle Nix).
 - **Windows:** the C runtime is linked statically (`.cargo/config.toml`), so no Visual C++ redistributable is needed.
 - **macOS:** links only system frameworks; one universal binary for Intel and Apple Silicon.
 
@@ -226,5 +227,6 @@ dirty.
 | `update.rs` | Self-update: check, signed download, replace, restart (see RELEASING.md) |
 | `i18n.rs` | Languages, `t!` translation lookup, language detection |
 | `ui.rs` | Widgets, keyboard focus, scaling to the window, font |
+| `sound.rs` | Sound effects synthesised at start (no sound files), played from the battle's `take_sounds()` |
 | `logo.rs` | Main menu logo |
 | `choice.rs` | Helper for settings with a fixed list of values |

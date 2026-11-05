@@ -296,8 +296,10 @@ All text over the battlefield has a thin dark outline, so it's readable over any
 - **Settings:**
   - Display: **Language** (English, Українська), tank health (Bar, Bar + number, Number), last shot path, battle log,
     fullscreen.
-  - Gameplay: game speed (Normal, Fast 1.5x, Faster 2x) and bots-only speed (2x, 4x, 8x, on top of the game speed), and
-    **Check for updates** (see below).
+  - Gameplay: game speed (Normal, Fast 1.5x, Faster 2x), bots-only speed (2x, 4x, 8x, on top of the game speed),
+    **Sound** (Off, Low, Medium, High; Medium at first) and **Check for updates** (see below). Sound covers shots,
+    explosions, shield hits, parachutes, fire, digging, menu clicks and the end of a round. If your computer has no
+    working sound device, the game simply stays silent.
   - A list of all controls.
 - **About:** the dedication, the author, the original game and the credits, the game's version and a
   **Check for updates** button.

@@ -115,6 +115,23 @@ struct Nav {
 }
 
 thread_local! {
+    /// A button or selector was used this frame (the main loop plays a click).
+    static CLICKED: Cell<bool> = const { Cell::new(false) };
+}
+
+/// True once after a button or selector was used.
+pub fn take_click() -> bool {
+    CLICKED.with(|c| c.replace(false))
+}
+
+fn note_click(used: bool) -> bool {
+    if used {
+        CLICKED.with(|c| c.set(true));
+    }
+    used
+}
+
+thread_local! {
     static NAV: RefCell<Nav> = RefCell::new(Nav::default());
 }
 
@@ -223,7 +240,9 @@ pub fn button(r: Rect, label: &str, enabled: bool) -> bool {
         size,
         if enabled { WHITE } else { GRAY },
     );
-    enabled && ((hovered && is_mouse_button_pressed(MouseButton::Left)) || focus.activate)
+    note_click(
+        enabled && ((hovered && is_mouse_button_pressed(MouseButton::Left)) || focus.activate),
+    )
 }
 
 /// A row "Label        < value >". Click the left arrow area to go back,
@@ -270,10 +289,10 @@ pub fn selector(r: Rect, label: &str, values: &[impl AsRef<str>], index: &mut us
     let forward = focus.right || focus.activate || (clicked && !back);
     if n > 1 && back {
         *index = (*index + n - 1) % n;
-        true
+        note_click(true)
     } else if n > 1 && forward {
         *index = (*index + 1) % n;
-        true
+        note_click(true)
     } else {
         false
     }
