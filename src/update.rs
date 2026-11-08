@@ -223,8 +223,14 @@ mod net {
             .map_err(|e| format!("{url}: {e}"))
     }
 
-    /// The version of the latest published release, without "v".
+    /// The version of the latest published release, without "v". Asks the GitHub API first; when that
+    /// fails (it is rate-limited and sometimes times out for anonymous callers), reads the tag from where
+    /// the releases page redirects instead.
     pub fn latest() -> Result<String, String> {
+        from_api().or_else(|api| from_redirect().map_err(|page| format!("{api}; {page}")))
+    }
+
+    fn from_api() -> Result<String, String> {
         let url = format!("https://api.github.com/repos/{REPO}/releases/latest");
         let json: serde_json::Value =
             serde_json::from_slice(&get(&url, 20)?).map_err(|e| e.to_string())?;
@@ -232,6 +238,37 @@ mod net {
             .as_str()
             .ok_or("no tag_name in the release")?;
         Ok(tag.trim_start_matches('v').to_string())
+    }
+
+    /// `github.com/<repo>/releases/latest` redirects to `.../releases/tag/v<version>`.
+    fn from_redirect() -> Result<String, String> {
+        let url = format!("https://github.com/{REPO}/releases/latest");
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(20)))
+            .user_agent(format!("scorch/{VERSION}"))
+            .max_redirects(0)
+            .max_redirects_will_error(false)
+            .http_status_as_error(false)
+            .build()
+            .into();
+        let response = agent.get(&url).call().map_err(|e| format!("{url}: {e}"))?;
+        let location = response
+            .headers()
+            .get("location")
+            .and_then(|l| l.to_str().ok())
+            .ok_or_else(|| format!("{url}: no redirect ({})", response.status()))?;
+        version_from_location(location).ok_or_else(|| format!("{url}: redirect to {location}"))
+    }
+
+    /// The version in a release page link, as in `https://github.com/o/r/releases/tag/v1.2.3`.
+    pub(super) fn version_from_location(location: &str) -> Option<String> {
+        let (_, tag) = location.rsplit_once("/releases/tag/")?;
+        let version = tag.strip_prefix('v')?;
+        let valid = version.split('.').count() == 3
+            && version
+                .split('.')
+                .all(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+        valid.then(|| version.to_string())
     }
 
     fn download_url(version: &str, file: &str) -> String {
@@ -396,6 +433,22 @@ mod net {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn version_from_release_redirect() {
+            let base = "https://github.com/vovinacci/scorch-game/releases";
+            let v = |l: &str| version_from_location(l);
+            assert_eq!(v(&format!("{base}/tag/v0.4.0")).as_deref(), Some("0.4.0"));
+            assert_eq!(
+                v(&format!("{base}/tag/v10.20.30")).as_deref(),
+                Some("10.20.30")
+            );
+            // No release yet: GitHub sends you to the releases list.
+            assert_eq!(v(base), None);
+            assert_eq!(v(&format!("{base}/tag/nightly")), None);
+            assert_eq!(v(&format!("{base}/tag/v1.2")), None);
+            assert_eq!(v(&format!("{base}/tag/v1.2.3-rc1")), None);
+        }
 
         #[test]
         fn sha256_is_lowercase_hex() {
