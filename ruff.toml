@@ -1,0 +1,15 @@
+# Python lint and format for tools/*.py (make python, the python hook). Every rule is on; exceptions say why.
+line-length = 120
+target-version = "py315"
+
+[lint]
+select = ["ALL"]
+ignore = [
+    "COM812", # trailing commas: the formatter decides
+    "CPY001", # copyright headers: the licence is in LICENSE
+    "INP001", # tools/ holds scripts, not a package
+    "T201",   # print: the scripts report to the terminal on purpose
+]
+
+[lint.pydocstyle]
+convention = "pep257"
