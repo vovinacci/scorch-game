@@ -9,8 +9,8 @@ numbers behind the rules, file formats, versioning and the code map.
 - **Rust** is pinned with [mise](https://mise.jdx.dev) in `mise.toml` (1.99.1, with rustfmt and clippy). With mise
   installed, entering this folder selects it (`mise trust` once, `mise install` if missing). CI uses the same file.
   Without mise, any Rust 1.88 or newer builds the game.
-- **Python** 3.15 is pinned in `mise.toml` too (3.15.2; `shell.nix` brings 3.15 on NixOS). **Python tools** (prek for
-  git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in `requirements.txt`, and the Linux
+- **Python:** any `python3` works; `shell.nix` brings 3.15 on NixOS, and CI uses the runner's. **Python tools** (prek
+  for git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in `requirements.txt`, and the Linux
   release build tools (zig, cargo-zigbuild) in `requirements-build.txt`; `make tools` installs them into `.venv`, and
   the other `make` targets use them from there. CI installs the same file, and Dependabot keeps it current.
 - **NixOS:** `shell.nix` provides ALSA, the graphics libraries the game loads at run time, Python and cocogitto (commit

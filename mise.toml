@@ -1,5 +1,3 @@
 [tools]
 # Rust for this project; CI uses the same pin (jdx/mise-action).
 rust = { version = "1.99.1", components = "rustfmt,clippy" }
-# Python for the tools in requirements*.txt (git hooks; zig and cargo-zigbuild for Linux release builds).
-python = "3.15.2"
