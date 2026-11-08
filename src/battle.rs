@@ -111,14 +111,6 @@ const PREFER_LEADER: f32 = 0.8;
 /// don't all gang up on the same player.
 const CROWD_PENALTY: f32 = 0.5;
 
-/// The path of a tank's previous shot.
-#[derive(Default)]
-struct Trail {
-    points: Vec<Vec2>,
-    /// It was a Tracer: shown even with "Last shot path" off.
-    tracer: bool,
-}
-
 #[derive(Serialize, Deserialize)]
 struct Tank {
     /// Bottom-center of the tank, resting on the ground.
@@ -136,7 +128,7 @@ struct Tank {
     last_hit_by: Option<usize>,
     /// Path of this tank's previous shot, drawn faintly to help aiming.
     #[serde(skip)]
-    last_trail: Trail,
+    last_trail: Vec<Vec2>,
     /// Bots only.
     aim: Option<AimMemory>,
     /// Who hit this tank since its last shot. Bots shoot back.
@@ -204,6 +196,40 @@ fn direction(angle: f32) -> Vec2 {
 
 /// Height of the HUD bar along the top.
 const HUD_HEIGHT: f32 = 44.0;
+/// A trail point further sideways than this from the previous one is a shell wrapping around the screen.
+const WRAP_JUMP: f32 = 100.0;
+
+/// Whether the step from `a` to `b` is a wrap-around jump (drawn as a gap, not a line across the screen).
+fn wraps(a: Vec2, b: Vec2) -> bool {
+    (b.x - a.x).abs() > WRAP_JUMP
+}
+
+/// Length of a dash (and of the gap after it) in a Tracer's path.
+const TRACER_DASH: f32 = 6.0;
+
+/// A Tracer's path, kept for the rest of the round: points `TRACER_DASH` apart, so the dashes come out even.
+#[derive(Serialize, Deserialize)]
+struct TracerPath {
+    owner: usize,
+    points: Vec<[f32; 2]>,
+}
+
+impl TracerPath {
+    fn new(owner: usize, trail: &[Vec2]) -> Self {
+        let mut points: Vec<Vec2> = Vec::new();
+        for &p in trail {
+            match points.last() {
+                Some(&last) if !wraps(last, p) && last.distance(p) < TRACER_DASH => {}
+                _ => points.push(p),
+            }
+        }
+        Self {
+            owner,
+            points: points.iter().map(|p| [p.x, p.y]).collect(),
+        }
+    }
+}
+
 /// Power per pixel between the tank and the cursor when aiming with the mouse: 500 px is full power.
 const POWER_PER_PIXEL: f32 = 2.0;
 /// Shift slows aiming down this much, with the keys and with the mouse.
@@ -385,6 +411,9 @@ pub struct Battle {
     /// Index of this turn's "fires" line in `history`, to mark a miss.
     #[serde(skip)]
     shot_line: Option<usize>,
+    /// Paths of the Tracers fired this round. They stay drawn until the round ends, also after a save.
+    #[serde(default)]
+    tracers: Vec<TracerPath>,
     /// Mouse aiming in progress (left button held after pressing it on the battlefield).
     #[serde(skip)]
     drag: Option<Drag>,
@@ -427,7 +456,7 @@ impl Battle {
                     fled: false,
                     fall_from: None,
                     last_hit_by: None,
-                    last_trail: Trail::default(),
+                    last_trail: Vec::new(),
                     aim: None,
                     revenge: None,
                     shield: None,
@@ -461,6 +490,7 @@ impl Battle {
             history: Vec::new(),
             shot_line: None,
             drag: None,
+            tracers: Vec::new(),
         }
     }
 
@@ -764,10 +794,7 @@ impl Battle {
                             self.projectiles
                                 .push(Projectile::new(p.pos, vel, p.weapon, p.owner, true));
                         }
-                        self.tanks[p.owner].last_trail = Trail {
-                            points: p.trail,
-                            tracer: false,
-                        };
+                        self.tanks[p.owner].last_trail = p.trail;
                         continue;
                     }
 
@@ -799,13 +826,16 @@ impl Battle {
         }
     }
 
-    /// A shell is done: its path is kept to help aim the next shot (warheads and bomblets don't count).
+    /// A shell is done: its path is kept to help aim the next shot (warheads and bomblets don't count). A Tracer's
+    /// path stays on the field for the rest of the round instead, and the last real shot's path stays as it was.
     fn landed(&mut self, p: Projectile) {
-        if !p.child {
-            self.tanks[p.owner].last_trail = Trail {
-                points: p.trail,
-                tracer: WEAPONS[p.weapon].kind.is_probe(),
-            };
+        if p.child {
+            return;
+        }
+        if WEAPONS[p.weapon].kind.is_probe() {
+            self.tracers.push(TracerPath::new(p.owner, &p.trail));
+        } else {
+            self.tanks[p.owner].last_trail = p.trail;
         }
     }
 
@@ -1597,16 +1627,30 @@ impl Battle {
             }
         }
 
-        let trail = &self.tanks[self.current].last_trail;
-        if (settings.shot_path || trail.tracer) && matches!(self.phase, Phase::Aim { .. }) {
-            // A Tracer's path is brighter and denser: that's what it was bought for.
-            let (step, color) = if trail.tracer {
-                (3, Color::new(0.5, 1.0, 1.0, 0.6))
-            } else {
-                (6, Color::new(1.0, 1.0, 1.0, 0.3))
+        if settings.shot_path && matches!(self.phase, Phase::Aim { .. }) {
+            for p in self.tanks[self.current].last_trail.iter().step_by(6) {
+                draw_circle(p.x, p.y, 1.5, Color::new(1.0, 1.0, 1.0, 0.3));
+            }
+        }
+    }
+
+    /// Every Tracer path fired this round, in its shooter's colour over a dark edge (readable on any sky), for
+    /// everyone to see.
+    fn draw_tracers(&self, players: &[Player]) {
+        let edge = Color::new(0.0, 0.0, 0.0, 0.45);
+        for path in &self.tracers {
+            let color = Color {
+                a: 0.85,
+                ..players[path.owner].color
             };
-            for p in trail.points.iter().step_by(step) {
-                draw_circle(p.x, p.y, 1.5, color);
+            for w in path.points.windows(2).step_by(2) {
+                let (a, b) = (vec2(w[0][0], w[0][1]), vec2(w[1][0], w[1][1]));
+                // Off the top of the screen, or the jump of a shell wrapping around: nothing to draw.
+                if (a.y < 0.0 && b.y < 0.0) || wraps(a, b) {
+                    continue;
+                }
+                draw_line(a.x, a.y, b.x, b.y, 3.5, edge);
+                draw_line(a.x, a.y, b.x, b.y, 1.5, color);
             }
         }
     }
@@ -1615,6 +1659,7 @@ impl Battle {
         self.world().sky.draw();
         self.terrain.draw();
 
+        self.draw_tracers(players);
         self.draw_aim_guides(settings);
 
         for (i, tank) in self.tanks.iter().enumerate() {
@@ -1634,7 +1679,7 @@ impl Battle {
         for p in &self.projectiles {
             for w in p.trail.windows(2).rev().take(60) {
                 // Skip the jump across the screen when a shell wraps around.
-                if (w[1].x - w[0].x).abs() > 100.0 {
+                if wraps(w[0], w[1]) {
                     continue;
                 }
                 draw_line(

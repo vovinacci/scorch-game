@@ -120,7 +120,7 @@ without anyone getting a kill.
 | Weapon | What it does | Radius | Damage | Price | You get |
 |---|---|---|---|---|---|
 | Baby Missile | Explodes | 20 | 30 | free | unlimited |
-| Tracer | Harmless: draws its whole path, brighter than the usual last shot path, to help you aim | - | 0 | $10 | 5 |
+| Tracer | Harmless: its path stays on the battlefield until the round ends, in your colour, for everyone to see | - | 0 | $10 | 5 |
 | Missile | Explodes | 35 | 55 | $60 | 3 |
 | MIRV | Splits into 5 warheads at the top of its arc | 25 each | 35 each | $120 | 1 |
 | Nuke | A huge explosion | 85 | 100 | $200 | 1 |
@@ -137,9 +137,10 @@ without anyone getting a kill.
 Everyone starts the game with $100 and 2 Missiles. Weapons and money carry over from round to round. The Dirt Bomb is
 for burying an enemy or building a wall in front of yourself; the Digger digs a buried tank out, or drops an enemy into
 a trench (the fall hurts); the Riot Bomb clears a mound away, digs out a buried tank or opens a path through a hill. A
-Tracer's path stays on screen for your next turn, even with "Last shot path" off; it doesn't count as a shot in your
-accuracy and doesn't drain a Mag Deflector. Rollers and Napalm find the low ground, so they're best against a tank in a
-valley. Napalm burns any tank close to the fire, yours too, and shields soak up the burn like any other damage.
+few Tracers map out the wind and range: every path stays as a dashed line until the round ends, and your last real
+shot's path (with "Last shot path" on) stays as it was. A Tracer doesn't count as a shot in your accuracy and doesn't
+drain a Mag Deflector. Rollers and Napalm find the low ground, so they're best against a tank in a valley. Napalm burns
+any tank close to the fire, yours too, and shields soak up the burn like any other damage.
 
 ## Parachutes and shields
 
