@@ -1419,6 +1419,14 @@ impl Battle {
     }
 
     pub fn draw(&self, players: &[Player], settings: &Settings) {
+        ui::with_shadow(|| {
+            self.draw_scene(players, settings);
+            self.draw_hud(players);
+        });
+    }
+
+    /// The battlefield without the HUD, behind a full-screen menu that needs the top of the screen.
+    pub fn draw_backdrop(&self, players: &[Player], settings: &Settings) {
         ui::with_shadow(|| self.draw_scene(players, settings));
     }
 
@@ -1525,8 +1533,6 @@ impl Battle {
                 y += 22.0;
             }
         }
-
-        self.draw_hud(players);
     }
 
     #[expect(clippy::too_many_lines, reason = "the HUD, drawn left to right")]

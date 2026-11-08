@@ -346,7 +346,7 @@ impl Game {
             Screen::Settings { back } => {
                 // Over a paused battle, keep the battle in view behind the panels.
                 if let Screen::Battle { battle, .. } = back.as_ref() {
-                    battle.draw(&self.players, &self.profile.settings);
+                    battle.draw_backdrop(&self.players, &self.profile.settings);
                     ui::dim();
                 }
                 if settings::screen(&mut self.profile.settings) {
