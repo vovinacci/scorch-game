@@ -4,6 +4,7 @@ use super::*;
 use crate::ai::PRESETS;
 use crate::items::PARACHUTE;
 use crate::setup::Setup;
+use crate::world::{GravityLevel, Sky, Walls, WindLevel};
 
 fn bots(n: usize) -> Vec<Player> {
     (0..n)
@@ -720,4 +721,21 @@ fn random_world_settings_get_a_real_value_every_round() {
         battle(&players, rules).history.is_empty(),
         "nothing to say without Random"
     );
+}
+
+#[test]
+fn random_picks_only_real_values_and_feeling_lucky_does_too() {
+    use crate::choice::Choice;
+    use crate::world::TerrainKind;
+    for _ in 0..50 {
+        assert!(!Walls::any_real().is_random());
+        assert!(!Walls::Random.roll().is_random());
+        assert_eq!(Walls::Bouncy.roll(), Walls::Bouncy, "a real value stays");
+        let mut setup = Setup::default();
+        setup.randomize();
+        let w = setup.world;
+        assert!(!w.terrain.is_random() && !w.wind.is_random() && !w.gravity.is_random());
+        assert!(!w.walls.is_random() && !w.sky.is_random());
+    }
+    assert!(TerrainKind::Random.is_random() && !TerrainKind::Canyon.is_random());
 }

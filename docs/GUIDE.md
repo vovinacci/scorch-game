@@ -274,9 +274,10 @@ random except the number of human players; you can still check and change it all
 | Walls | Open, Solid, Bouncy, Wrap-around, Random | Open |
 | Sky | Night, Sunset, Day, Random | Night |
 
-**Random** picks a new value at the start of every round. During the round, the line under the turn counter says what
-gravity and walls came out as (wind strength shows in the HUD, and the sky is in view), the pause menu's "This game"
-shows every pick, for example "Bouncy (random)", and the battle log starts the round with the full list.
+**Random** picks a new value at the start of every round. During the round, the lines under the turn counter say what
+gravity and walls came out as (you can see the terrain and sky, and the wind is in the HUD), the pause menu's "This
+game" shows every pick in blue, and the battle log starts the round with the full list. "I'm feeling lucky" sets real
+values, never Random.
 
 Walls decide what happens at the edges of the screen:
 

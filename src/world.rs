@@ -79,32 +79,15 @@ impl Default for World {
     }
 }
 
-/// One of `choices` other than its last entry (which is `Random`).
-fn any_but_random<T: Copy>(choices: &[T]) -> T {
-    choices[gen_range(0, choices.len() - 1)]
-}
-
 impl World {
-    /// This round's world: every `Random` setting replaced by a real value. Terrain keeps `Random`, which
-    /// `Terrain::generate` resolves itself.
+    /// This round's world: every `Random` setting replaced by a real value.
     pub fn for_round(self) -> World {
         World {
-            wind: match self.wind {
-                WindLevel::Random => any_but_random(WindLevel::ALL),
-                wind => wind,
-            },
-            gravity: match self.gravity {
-                GravityLevel::Random => any_but_random(GravityLevel::ALL),
-                gravity => gravity,
-            },
-            walls: match self.walls {
-                Walls::Random => any_but_random(Walls::ALL),
-                walls => walls,
-            },
-            sky: match self.sky {
-                Sky::Random => any_but_random(Sky::ALL),
-                sky => sky,
-            },
+            terrain: self.terrain.roll(),
+            wind: self.wind.roll(),
+            gravity: self.gravity.roll(),
+            walls: self.walls.roll(),
+            sky: self.sky.roll(),
             ..self
         }
     }

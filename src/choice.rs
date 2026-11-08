@@ -9,6 +9,30 @@ pub trait Choice: Copy + PartialEq + 'static {
     fn text(self) -> String {
         crate::i18n::tr(self.key(), &[])
     }
+
+    /// The `Random` value, which stands for "pick one each round" (wherever it is in the list).
+    fn is_random(self) -> bool {
+        self.key().ends_with("-Random")
+    }
+
+    /// A value other than `Random`, at random.
+    fn any_real() -> Self {
+        let real: Vec<Self> = Self::ALL
+            .iter()
+            .copied()
+            .filter(|v| !v.is_random())
+            .collect();
+        real[macroquad::rand::gen_range(0, real.len())]
+    }
+
+    /// `self`, or for `Random` a real value picked at random.
+    fn roll(self) -> Self {
+        if self.is_random() {
+            Self::any_real()
+        } else {
+            self
+        }
+    }
 }
 
 /// Declares an enum that implements `Choice`: `choice!(Walls { Open, Solid });`

@@ -126,11 +126,14 @@ The player's guide explains the rules; these are the exact values.
 
 ### Random world settings
 
-- Wind, Gravity, Walls and Sky can be Random, like Terrain: `World::for_round` picks a real value for each round in
-  `Battle::new` (`rules.world`; the set-up world is kept as `setup_world`, so saved battles show the same picks). Code
-  that meets an unresolved Random (only the setup preview) treats it as Normal, Open walls or Night.
-- The round's picks: the full list as the first battle log line; gravity and walls under the HUD's turn counter (wind
-  strength and the sky are visible); every pick as "X (random)" in the pause menu's "This game".
+- Terrain, Wind, Gravity, Walls and Sky can be Random. `Choice::roll` (a value whose key ends in `-Random` becomes a
+  real value from the rest of the list, wherever Random sits) is applied by `World::for_round` in `Battle::new`. The
+  battle keeps both worlds (`setup_world`, `None` in older saves, and `rules.world`); `Battle::worlds` gives the pair.
+  Code that meets an unresolved Random (only the setup preview) treats it as Normal, Open walls or Night.
+- The round's picks: the full list as the first battle log line; gravity and walls as one line each under the HUD's turn
+  counter (at most 300 px, right-aligned, clear of the centred sudden death banner); in the pause menu's "This game" the
+  picked values are blue, with a note under the list.
+- "I'm feeling lucky" sets world options with `Choice::any_real`, never Random.
 
 ### Damage
 

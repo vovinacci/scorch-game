@@ -253,8 +253,7 @@ stats-money = Зароблено грошей
 ## Бій
 
 hud-info = Кут { $angle }   Сила { $power }   { $weapon } ({ $ammo })   ${ $money } (+{ $income })
-hud-random-world = Випадково: { $picks }
-summary-random = { $value } (випадково)
+summary-random-note = Блакитним: вибрано випадково для цього раунду.
 hud-shield = { $name }: { $energy }/{ $full }
 hud-wind = ВІТЕР
 hud-wind-off = немає

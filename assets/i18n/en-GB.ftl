@@ -248,8 +248,7 @@ stats-money = Money earned
 ## Battle
 
 hud-info = Angle { $angle }   Power { $power }   { $weapon } ({ $ammo })   ${ $money } (+{ $income })
-hud-random-world = Random: { $picks }
-summary-random = { $value } (random)
+summary-random-note = Blue: picked at random for this round.
 hud-shield = { $name }: { $energy }/{ $full }
 hud-wind = WIND
 hud-wind-off = off

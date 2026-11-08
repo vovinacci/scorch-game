@@ -273,7 +273,7 @@ mod tests {
                 .summary(Some((1, 1)), None)
                 .into_iter()
                 .chain(crate::setup::Setup::default().summary(None, None))
-                .map(|(k, _)| k.to_string()),
+                .map(|(k, _, _)| k.to_string()),
         );
         let en = keys(EN);
         let missing: Vec<_> = needed.iter().filter(|k| !en.contains(*k)).collect();

@@ -21,10 +21,7 @@ pub struct Terrain {
 
 impl Terrain {
     pub fn generate(kind: TerrainKind) -> Self {
-        let kind = match kind {
-            TerrainKind::Random => TerrainKind::ALL[gen_range(0, TerrainKind::ALL.len() - 1)],
-            kind => kind,
-        };
+        let kind = kind.roll();
         // (base height, wave amplitude scale, highest allowed ground)
         let (base, amp, top) = match kind {
             TerrainKind::Mountains => (480.0, 2.2, 110.0),

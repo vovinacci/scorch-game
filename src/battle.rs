@@ -24,7 +24,7 @@ use crate::sound::Sfx;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
 use crate::weapons::{Kind, WEAPONS};
-use crate::world::{Flight, GravityLevel, Sky, Walls, WindLevel, World, step_shell};
+use crate::world::{Flight, World, step_shell};
 
 const SPEED_PER_POWER: f32 = 0.75;
 pub const MAX_POWER: f32 = 1000.0;
@@ -413,8 +413,9 @@ pub struct Battle {
     #[serde(skip)]
     shot_line: Option<usize>,
     /// The world as set up, before `Random` settings were picked for this round (`rules.world` has the picks).
+    /// `None` in battles saved before Random existed: nothing was random then.
     #[serde(default)]
-    setup_world: World,
+    setup_world: Option<World>,
     /// Paths of the Tracers fired this round. They stay drawn until the round ends, also after a save.
     #[serde(default)]
     tracers: Vec<TracerPath>,
@@ -496,40 +497,53 @@ impl Battle {
             history: Vec::new(),
             shot_line: None,
             drag: None,
-            setup_world: chosen,
+            setup_world: Some(chosen),
             tracers: Vec::new(),
         };
         let picks = battle.random_picks(true);
         if !picks.is_empty() {
-            battle.note(t!("log-random-world", picks = picks), LIGHTGRAY);
+            battle.note(t!("log-random-world", picks = picks.join(", ")), LIGHTGRAY);
         }
         battle
     }
 
-    /// This round's world, with `Random` settings picked.
-    pub fn round_world(&self) -> World {
-        self.rules.world
+    /// The world as set up and this round's world (with `Random` settings picked).
+    pub fn worlds(&self) -> (World, World) {
+        (
+            self.setup_world.unwrap_or(self.rules.world),
+            self.rules.world,
+        )
     }
 
-    /// What the `Random` world settings came out as this round, as "Gravity: High, Walls: Bouncy" (empty without
-    /// any). Without `all`, only what can't be seen on screen (gravity and walls; the HUD shows the wind and the sky
-    /// is in view).
-    fn random_picks(&self, all: bool) -> String {
-        let (chosen, world) = (self.setup_world, self.rules.world);
-        let mut picks = Vec::new();
-        if all && chosen.wind == WindLevel::Random {
-            picks.push(format!("{}: {}", t!("setup-wind"), world.wind.text()));
-        }
-        if chosen.gravity == GravityLevel::Random {
-            picks.push(format!("{}: {}", t!("setup-gravity"), world.gravity.text()));
-        }
-        if chosen.walls == Walls::Random {
-            picks.push(format!("{}: {}", t!("setup-walls"), world.walls.text()));
-        }
-        if all && chosen.sky == Sky::Random {
-            picks.push(format!("{}: {}", t!("setup-sky"), world.sky.text()));
-        }
-        picks.join(", ")
+    /// What the `Random` world settings came out as this round, as "Label: value" lines. Without `all`, only what
+    /// can't be seen on screen: gravity and walls (the terrain and sky are in view, the HUD shows the wind).
+    fn random_picks(&self, all: bool) -> Vec<String> {
+        let (chosen, world) = self.worlds();
+        let pick = |random: bool, label: &str, value: String| {
+            random.then(|| format!("{}: {}", t!(label), value))
+        };
+        [
+            pick(
+                all && chosen.terrain.is_random(),
+                "setup-terrain",
+                world.terrain.text(),
+            ),
+            pick(
+                all && chosen.wind.is_random(),
+                "setup-wind",
+                world.wind.text(),
+            ),
+            pick(
+                chosen.gravity.is_random(),
+                "setup-gravity",
+                world.gravity.text(),
+            ),
+            pick(chosen.walls.is_random(), "setup-walls", world.walls.text()),
+            pick(all && chosen.sky.is_random(), "setup-sky", world.sky.text()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 
     /// Raises each player's strongest switched-on shield for this round (uses one up).
@@ -1862,12 +1876,11 @@ impl Battle {
 
         // Random world settings picked for this round, under the turn counter.
         let mut y = 88.0;
-        let picks = self.random_picks(false);
-        if !picks.is_empty() {
-            let text = t!("hud-random-world", picks = picks);
-            let max = 520.0;
+        // One short line each, right-aligned, so they stay clear of the centred sudden death banner.
+        for text in self.random_picks(false) {
+            let max = 300.0;
             let w = ui::measure(&text, 18.0).width.min(max);
-            ui::text_fit(&text, ui::WIDTH - 16.0 - w, y, max, 18.0, LIGHTGRAY);
+            ui::text_fit(&text, ui::WIDTH - 16.0 - w, y, max, 18.0, SKYBLUE);
             y += 22.0;
         }
 

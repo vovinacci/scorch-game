@@ -388,7 +388,7 @@ impl Game {
                     battle.can_save(),
                     &self.setup,
                     progress,
-                    battle.round_world(),
+                    battle.worlds(),
                 ) {
                     None => Screen::Battle {
                         battle,
@@ -719,7 +719,7 @@ fn pause_menu(
     can_save: bool,
     setup: &Setup,
     progress: (u32, u32),
-    round: world::World,
+    round: (world::World, world::World),
 ) -> Option<PauseAction> {
     ui::dim();
     let area = Rect::new(220.0, 60.0, 400.0, 600.0);
