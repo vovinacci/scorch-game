@@ -98,7 +98,9 @@ The game updates itself from GitHub Releases (`src/update.rs`).
 
 - **Consent:** the main menu asks once "Check for new versions … automatically?"; the answer is Settings > "Check for
   updates". About has a "Check for updates" button.
-- **Check:** in the background at start (if allowed), one request to the GitHub releases API. A newer version shows
+- **Check:** in the background at start (if allowed), one request to the GitHub releases API. If that fails (the API
+  limits and sometimes times out anonymous callers), the game reads the version from where
+  `github.com/vovinacci/scorch-game/releases/latest` redirects (`.../releases/tag/vX.Y.Z`). A newer version shows
   **Update** / **Later** on the main menu; a failed check stays silent there (About shows it).
 - **Update:** downloads `SHA256SUMS` and `SHA256SUMS.minisig`, verifies the minisign signature with the public key built
   into the game (`assets/release-key.pub`), downloads this platform's file and checks its SHA-256. Only then it replaces
