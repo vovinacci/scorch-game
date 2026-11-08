@@ -161,8 +161,8 @@ Besides weapons, the shop sells items that protect your tank:
   Shield: 60/100". Light blue is the Shield, dark blue the Heavy Shield, purple the Mag Deflector.
 - The Mag Deflector bends shells away from your tank, sometimes enough to miss. Bots know this and aim around it, as you
   can. It doesn't touch your own shells. Each enemy shell that comes into its field costs it 10 energy (every MIRV
-  warhead counts), so it pushes away about four shells, fewer if blasts land near you. Then it goes down like any
-  shield.
+  warhead counts), so it pushes away about four shells, fewer if blasts land near you. The shell that takes its last
+  energy is still pushed; once that turn's shells are done, it goes down like any shield.
 - Each item has an on/off switch in the inventory. Switched off, it stays in your inventory unused, for example to save
   your only Heavy Shield for later rounds.
 - Shields stop every kind of damage from blasts, including death blasts and self-destructs, but not falls (that's what

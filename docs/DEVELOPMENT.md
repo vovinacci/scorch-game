@@ -198,7 +198,10 @@ The player's guide explains the rules; these are the exact values.
   so shields don't shut down the catch-up money.
 - Mag Deflector: enemy shells within 80 px of the tank's centre get an acceleration of 3000 px/s^2 away from it, fading
   linearly to 0 at 80 px. The tank's own shells aren't affected. Bots' aim simulation includes deflectors (`deflect` is
-  shared), so they aim around them.
+  shared), so they aim around them. A shell entering the field pays 10 energy once (a bit per tank in
+  `Projectile::charged`); a deflector at 0 takes no new shells but keeps pushing those that paid (a Leapfrog keeps that
+  across its hops), absorbs no damage, isn't drawn, and goes down when the turn's shells are done or at the next turn
+  (`drop_spent_deflectors`).
 - Parachute: opens once a fall passes the free 15 px (if owned and switched on), uses one, slows the fall to 90 px/s and
   cancels the fall damage.
 
