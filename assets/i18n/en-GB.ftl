@@ -122,16 +122,20 @@ WindLevel-Off = Off
 WindLevel-Calm = Calm
 WindLevel-Normal = Normal
 WindLevel-Strong = Strong
+WindLevel-Random = Random
 GravityLevel-Low = Low
 GravityLevel-Normal = Normal
 GravityLevel-High = High
+GravityLevel-Random = Random
 Walls-Open = Open
 Walls-Solid = Solid
 Walls-Bouncy = Bouncy
 Walls-Wrap = Wrap-around
+Walls-Random = Random
 Sky-Night = Night
 Sky-Sunset = Sunset
 Sky-Day = Day
+Sky-Random = Random
 
 ## Game summary (pause menu)
 
@@ -244,6 +248,7 @@ stats-money = Money earned
 ## Battle
 
 hud-info = Angle { $angle }   Power { $power }   { $weapon } ({ $ammo })   ${ $money } (+{ $income })
+summary-random-note = Blue: picked at random for this round.
 hud-shield = { $name }: { $energy }/{ $full }
 hud-wind = WIND
 hud-wind-off = off
@@ -391,6 +396,7 @@ log-shield-up = { $you ->
    *[no] { $name } raises a { $item }
 }
 log-shield-absorbed = {"  "}(shield -{ $absorbed })
+log-random-world = This round: { $picks }
 log-undermined = { $you ->
     [yes] The ground gives way under your tank
    *[no] The ground gives way under { $name }

@@ -4,6 +4,7 @@ use super::*;
 use crate::ai::PRESETS;
 use crate::items::PARACHUTE;
 use crate::setup::Setup;
+use crate::world::{GravityLevel, Sky, Walls, WindLevel};
 
 fn bots(n: usize) -> Vec<Player> {
     (0..n)
@@ -694,4 +695,47 @@ fn mouse_aiming_below_the_barrel_stays_flat_and_power_is_capped() {
     assert_eq!(point_aim(from, from + vec2(-50.0, 40.0), 1000.0).0, 180.0);
     let (_, power) = point_aim(from, from + vec2(0.0, -600.0), 300.0);
     assert_eq!(power, 300.0, "never above the tank's maximum");
+}
+
+#[test]
+fn random_world_settings_get_a_real_value_every_round() {
+    let players = bots(2);
+    let mut rules = Setup::default().rules();
+    rules.world.wind = WindLevel::Random;
+    rules.world.gravity = GravityLevel::Random;
+    rules.world.walls = Walls::Random;
+    rules.world.sky = Sky::Random;
+    for _ in 0..20 {
+        let b = battle(&players, rules);
+        let w = b.rules.world;
+        assert!(w.wind != WindLevel::Random && w.gravity != GravityLevel::Random);
+        assert!(w.walls != Walls::Random && w.sky != Sky::Random);
+        assert_eq!(b.history.len(), 1, "one line in the log says what came out");
+        assert!(
+            !b.random_picks(false).contains(&t!("setup-sky")),
+            "the HUD leaves out what can be seen"
+        );
+    }
+    rules.world = Setup::default().rules().world;
+    assert!(
+        battle(&players, rules).history.is_empty(),
+        "nothing to say without Random"
+    );
+}
+
+#[test]
+fn random_picks_only_real_values_and_feeling_lucky_does_too() {
+    use crate::choice::Choice;
+    use crate::world::TerrainKind;
+    for _ in 0..50 {
+        assert!(!Walls::any_real().is_random());
+        assert!(!Walls::Random.roll().is_random());
+        assert_eq!(Walls::Bouncy.roll(), Walls::Bouncy, "a real value stays");
+        let mut setup = Setup::default();
+        setup.randomize();
+        let w = setup.world;
+        assert!(!w.terrain.is_random() && !w.wind.is_random() && !w.gravity.is_random());
+        assert!(!w.walls.is_random() && !w.sky.is_random());
+    }
+    assert!(TerrainKind::Random.is_random() && !TerrainKind::Canyon.is_random());
 }

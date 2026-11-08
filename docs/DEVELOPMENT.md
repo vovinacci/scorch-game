@@ -124,6 +124,17 @@ The player's guide explains the rules; these are the exact values.
   capped at the tank's maximum. With Shift held, changes from where Shift went down count x 0.2. Release keeps the aim.
 - Wheel: power +-10 per notch (+-1 with Shift). Right button fires, like Space.
 
+### Random world settings
+
+- Terrain, Wind, Gravity, Walls and Sky can be Random. `Choice::roll` (a value whose key ends in `-Random` becomes a
+  real value from the rest of the list, wherever Random sits) is applied by `World::for_round` in `Battle::new`. The
+  battle keeps both worlds (`setup_world`, `None` in older saves, and `rules.world`); `Battle::worlds` gives the pair.
+  Code that meets an unresolved Random (only the setup preview) treats it as Normal, Open walls or Night.
+- The round's picks: the full list as the first battle log line; gravity and walls as one line each under the HUD's turn
+  counter (at most 300 px, right-aligned, clear of the centred sudden death banner); in the pause menu's "This game" the
+  picked values are blue, with a note under the list.
+- "I'm feeling lucky" sets world options with `Choice::any_real`, never Random.
+
 ### Damage
 
 - A blast hits every tank within `radius + 12` px: full damage at the centre, down to 30% at the edge.

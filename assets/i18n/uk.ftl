@@ -127,16 +127,20 @@ WindLevel-Off = Немає
 WindLevel-Calm = Слабкий
 WindLevel-Normal = Звичайний
 WindLevel-Strong = Сильний
+WindLevel-Random = Випадково
 GravityLevel-Low = Низька
 GravityLevel-Normal = Звичайна
 GravityLevel-High = Висока
+GravityLevel-Random = Випадково
 Walls-Open = Відкриті
 Walls-Solid = Тверді
 Walls-Bouncy = Пружні
 Walls-Wrap = Наскрізні
+Walls-Random = Випадково
 Sky-Night = Ніч
 Sky-Sunset = Захід сонця
 Sky-Day = День
+Sky-Random = Випадково
 
 ## Підсумок гри (меню паузи)
 
@@ -249,6 +253,7 @@ stats-money = Зароблено грошей
 ## Бій
 
 hud-info = Кут { $angle }   Сила { $power }   { $weapon } ({ $ammo })   ${ $money } (+{ $income })
+summary-random-note = Блакитним: вибрано випадково для цього раунду.
 hud-shield = { $name }: { $energy }/{ $full }
 hud-wind = ВІТЕР
 hud-wind-off = немає
@@ -420,6 +425,7 @@ log-shield-up = { $you ->
    *[no] { $name } піднімає захист: { $item }
 }
 log-shield-absorbed = {"  "}(щит -{ $absorbed })
+log-random-world = Цей раунд: { $picks }
 log-undermined = { $you ->
     [yes] Під вашим танком осіла земля
    *[no] Під танком { $name } осіла земля

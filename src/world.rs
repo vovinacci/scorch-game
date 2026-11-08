@@ -6,7 +6,7 @@ use macroquad::prelude::*;
 use macroquad::rand::gen_range;
 use serde::{Deserialize, Serialize};
 
-use crate::choice::choice;
+use crate::choice::{Choice, choice};
 use crate::terrain::{HEIGHT, WIDTH};
 
 choice!(TerrainKind {
@@ -17,23 +17,37 @@ choice!(TerrainKind {
     Random,
 });
 
+// `Random` (here and in the choices below) is picked anew for every round: see `World::for_round`.
+
 choice!(WindLevel {
     Off,
     Calm,
     Normal,
     Strong,
+    Random,
 });
 
-choice!(GravityLevel { Low, Normal, High });
+choice!(GravityLevel {
+    Low,
+    Normal,
+    High,
+    Random,
+});
 
 choice!(Walls {
     Open,
     Solid,
     Bouncy,
     Wrap,
+    Random,
 });
 
-choice!(Sky { Night, Sunset, Day });
+choice!(Sky {
+    Night,
+    Sunset,
+    Day,
+    Random,
+});
 
 /// Fraction of horizontal speed kept when a shell bounces off a Bouncy wall.
 const BOUNCE: f32 = 0.8;
@@ -66,11 +80,24 @@ impl Default for World {
 }
 
 impl World {
+    /// This round's world: every `Random` setting replaced by a real value.
+    pub fn for_round(self) -> World {
+        World {
+            terrain: self.terrain.roll(),
+            wind: self.wind.roll(),
+            gravity: self.gravity.roll(),
+            walls: self.walls.roll(),
+            sky: self.sky.roll(),
+            ..self
+        }
+    }
+
     /// Downward acceleration in pixels per second squared.
     pub fn gravity(self) -> f32 {
         match self.gravity {
             GravityLevel::Low => 180.0,
-            GravityLevel::Normal => 300.0,
+            // Random is resolved before a round starts (`for_round`).
+            GravityLevel::Normal | GravityLevel::Random => 300.0,
             GravityLevel::High => 450.0,
         }
     }
@@ -80,7 +107,7 @@ impl World {
         match self.wind {
             WindLevel::Off => 0.0,
             WindLevel::Calm => 20.0,
-            WindLevel::Normal => 40.0,
+            WindLevel::Normal | WindLevel::Random => 40.0,
             WindLevel::Strong => 70.0,
         }
     }
@@ -122,7 +149,7 @@ pub fn step_shell(pos: &mut Vec2, vel: &mut Vec2, wind: f32, world: World, dt: f
     }
     let w = WIDTH as f32;
     match world.walls {
-        Walls::Open => {
+        Walls::Open | Walls::Random => {
             if pos.x < -OPEN_MARGIN || pos.x > w + OPEN_MARGIN {
                 return Flight::Lost;
             }
@@ -156,7 +183,8 @@ impl Sky {
     /// Fills `r` with the sky gradient.
     pub fn draw_in(self, r: Rect) {
         let (top, bottom) = match self {
-            Sky::Night => (
+            // Random shows as night in the setup preview; a round always has a real sky.
+            Sky::Night | Sky::Random => (
                 Color::new(0.05, 0.05, 0.15, 1.0),
                 Color::new(0.30, 0.15, 0.35, 1.0),
             ),

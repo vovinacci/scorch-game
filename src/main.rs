@@ -383,7 +383,13 @@ impl Game {
                 }
                 let your_turn = battle.is_human_turn(&self.players);
                 let progress = battle.progress();
-                match pause_menu(your_turn, battle.can_save(), &self.setup, progress) {
+                match pause_menu(
+                    your_turn,
+                    battle.can_save(),
+                    &self.setup,
+                    progress,
+                    battle.worlds(),
+                ) {
                     None => Screen::Battle {
                         battle,
                         paused: true,
@@ -713,6 +719,7 @@ fn pause_menu(
     can_save: bool,
     setup: &Setup,
     progress: (u32, u32),
+    round: (world::World, world::World),
 ) -> Option<PauseAction> {
     ui::dim();
     let area = Rect::new(220.0, 60.0, 400.0, 600.0);
@@ -739,6 +746,7 @@ fn pause_menu(
         Rect::new(info.x + 30.0, info.y + 100.0, info.w - 60.0, info.h),
         34.0,
         Some(progress),
+        Some(round),
     );
 
     let button = |i: f32| Rect::new(area.x + 40.0, area.y + 80.0 + i * 55.0, area.w - 80.0, 48.0);

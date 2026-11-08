@@ -11,7 +11,7 @@ use crate::i18n::t;
 use crate::player::Player;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
-use crate::world::{TerrainKind, World};
+use crate::world::{GravityLevel, Sky, TerrainKind, Walls, WindLevel, World};
 
 choice!(SuddenDeath {
     Off,
@@ -198,55 +198,84 @@ pub struct Preview {
 }
 
 impl Setup {
-    /// Every setting as (label key, value), for the pause menu. With
-    /// `progress` (round, turn) the rounds line shows where the game is.
-    pub fn summary(&self, progress: Option<(u32, u32)>) -> Vec<(&'static str, String)> {
+    /// Every setting as (label key, value, picked at random), for the pause menu. With `progress` (round, turn) the
+    /// rounds line shows where the game is. With `round` (the world as set up, and this round's world) a `Random`
+    /// setting shows what it came out as, marked as picked at random.
+    pub fn summary(
+        &self,
+        progress: Option<(u32, u32)>,
+        round: Option<(World, World)>,
+    ) -> Vec<(&'static str, String, bool)> {
         let on = |b: bool| if b { t!("on") } else { t!("off") };
-        let w = &self.world;
+        let (w, r) = round.unwrap_or((self.world, self.world));
+        let during = round.is_some();
         let wind = if w.wind_changes {
-            t!("summary-wind-changes", wind = w.wind.text())
+            t!("summary-wind-changes", wind = r.wind.text())
         } else {
-            w.wind.text()
+            r.wind.text()
         };
         let mut lines = vec![
             (
                 "setup-players",
                 t!("summary-players", humans = self.humans, bots = self.bots),
+                false,
             ),
-            ("setup-difficulty", ai::difficulty_text(self.level())),
-            ("setup-ladder", on(self.ladder)),
+            ("setup-difficulty", ai::difficulty_text(self.level()), false),
+            ("setup-ladder", on(self.ladder), false),
         ];
         match progress {
             Some((round, turn)) => {
                 lines.push((
                     "summary-round",
                     t!("summary-round-of", round = round, rounds = self.rounds),
+                    false,
                 ));
-                lines.push(("summary-turn", turn.to_string()));
+                lines.push(("summary-turn", turn.to_string(), false));
             }
-            None => lines.push(("setup-rounds", self.rounds.to_string())),
+            None => lines.push(("setup-rounds", self.rounds.to_string(), false)),
         }
         lines.extend([
-            ("setup-power-limit", on(self.power_limit)),
-            ("setup-sudden-death", self.sudden_death.text()),
-            ("setup-turn-order", self.turn_order.text()),
-            ("setup-terrain", w.terrain.text()),
-            ("setup-wind", wind),
-            ("setup-gravity", w.gravity.text()),
-            ("setup-walls", w.walls.text()),
-            ("setup-sky", w.sky.text()),
+            ("setup-power-limit", on(self.power_limit), false),
+            ("setup-sudden-death", self.sudden_death.text(), false),
+            ("setup-turn-order", self.turn_order.text(), false),
+            (
+                "setup-terrain",
+                r.terrain.text(),
+                during && w.terrain.is_random(),
+            ),
+            ("setup-wind", wind, during && w.wind.is_random()),
+            (
+                "setup-gravity",
+                r.gravity.text(),
+                during && w.gravity.is_random(),
+            ),
+            ("setup-walls", r.walls.text(), during && w.walls.is_random()),
+            ("setup-sky", r.sky.text(), during && w.sky.is_random()),
         ]);
         lines
     }
 
     /// Draws `summary()` as a label/value list starting at the top of `r`.
-    pub fn draw_summary(&self, r: Rect, step: f32, progress: Option<(u32, u32)>) {
+    pub fn draw_summary(
+        &self,
+        r: Rect,
+        step: f32,
+        progress: Option<(u32, u32)>,
+        round: Option<(World, World)>,
+    ) {
         let mut y = r.y;
-        for (key, value) in self.summary(progress) {
+        let mut any_random = false;
+        for (key, value, random) in self.summary(progress, round) {
             ui::text_fit(&t!(key), r.x, y, r.w * 0.55, 20.0, LIGHTGRAY);
             let w = ui::measure(&value, 20.0).width.min(r.w * 0.45);
-            ui::text_fit(&value, r.x + r.w - w, y, r.w * 0.45, 20.0, WHITE);
+            // Picked at random this round: a different colour, explained under the list.
+            let color = if random { SKYBLUE } else { WHITE };
+            ui::text_fit(&value, r.x + r.w - w, y, r.w * 0.45, 20.0, color);
+            any_random |= random;
             y += step;
+        }
+        if any_random {
+            ui::text_wrapped(&t!("summary-random-note"), r.x, y + 4.0, r.w, 17.0, SKYBLUE);
         }
     }
 }
@@ -265,13 +294,14 @@ impl Setup {
         self.power_limit = gen_range(0, 2) == 1;
         self.sudden_death = pick();
         self.turn_order = pick();
+        // Real values, so the preview shows what you get (Random stays a choice you make yourself).
         self.world = World {
-            terrain: pick(),
-            wind: pick(),
+            terrain: TerrainKind::any_real(),
+            wind: WindLevel::any_real(),
             wind_changes: gen_range(0, 2) == 1,
-            gravity: pick(),
-            walls: pick(),
-            sky: pick(),
+            gravity: GravityLevel::any_real(),
+            walls: Walls::any_real(),
+            sky: Sky::any_real(),
         };
     }
 }
