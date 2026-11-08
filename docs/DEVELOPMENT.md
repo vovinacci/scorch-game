@@ -178,8 +178,11 @@ The feed keeps the last 6 events for 8 seconds; the full log shows the last 18 l
 
 ## Screenshots
 
-The README's screenshots in `docs/screenshots/` come from `--screen <name> --shot <file>` (see above); regenerate them
-when screens change.
+The README's screenshots in `docs/screenshots/` come from `--screen <name> --shot <file>` (see above), in English:
+`arsenal` (saved as `battle.png`), `menu`, `shop` and `setup`. A shot holds only the 16:9 game area, whatever the
+window's shape. Build with `SCORCH_BUILD_VERSION=<release>` so the corner shows a plain version (then use a profile with
+`"check_updates": false`, or the menu asks about updates), regenerate them when screens change, and shrink them with
+`oxipng -o 4 --strip safe`.
 
 ## Font
 
@@ -226,6 +229,7 @@ dirty.
 |---|---|
 | `main.rs` | Screens state machine, menus, intro, About, pause, saving flow, `--screen` |
 | `battle.rs` | Turns, physics, damage, bots' aiming and targeting, battle log |
+| `battle/tests.rs` | The battle's unit tests (other files keep theirs in a `tests` module at the bottom) |
 | `world.rs` | World settings, shell physics (`step_shell`), sky |
 | `terrain.rs` | Heightmap terrain, terrain types, craters |
 | `setup.rs` | New game screen and match rules |

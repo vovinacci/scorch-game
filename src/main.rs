@@ -1120,11 +1120,25 @@ async fn run() {
         if let Some(path) = &shot
             && frame == 90
         {
-            get_screen_data().export_png(path);
+            game_area(&get_screen_data()).export_png(path);
             break;
         }
         next_frame().await;
     }
+}
+
+/// The 16:9 game area of a screenshot, without the bands around it, so shots look the same in any
+/// window.
+fn game_area(screen: &Image) -> Image {
+    let (w, h) = (f32::from(screen.width), f32::from(screen.height));
+    let scale = (w / ui::WIDTH).min(h / ui::HEIGHT);
+    let (gw, gh) = ((ui::WIDTH * scale).floor(), (ui::HEIGHT * scale).floor());
+    screen.sub_image(Rect::new(
+        ((w - gw) / 2.0).floor(),
+        ((h - gh) / 2.0).floor(),
+        gw,
+        gh,
+    ))
 }
 
 /// The guides must name every weapon and setting value: these tests fail when they drift apart.
