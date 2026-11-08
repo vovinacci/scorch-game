@@ -11,7 +11,7 @@ use crate::i18n::t;
 use crate::player::Player;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
-use crate::world::{TerrainKind, World};
+use crate::world::{GravityLevel, Sky, TerrainKind, Walls, WindLevel, World};
 
 choice!(SuddenDeath {
     Off,
@@ -200,13 +200,25 @@ pub struct Preview {
 impl Setup {
     /// Every setting as (label key, value), for the pause menu. With
     /// `progress` (round, turn) the rounds line shows where the game is.
-    pub fn summary(&self, progress: Option<(u32, u32)>) -> Vec<(&'static str, String)> {
+    /// `round`: this round's world, during a game: a `Random` setting then shows what it came out as.
+    pub fn summary(
+        &self,
+        progress: Option<(u32, u32)>,
+        round: Option<World>,
+    ) -> Vec<(&'static str, String)> {
         let on = |b: bool| if b { t!("on") } else { t!("off") };
         let w = &self.world;
+        // "Bouncy (random)" for a Random setting during a game.
+        let shown = |random: bool, value: String| match round {
+            Some(_) if random => t!("summary-random", value = value),
+            _ => value,
+        };
+        let r = round.unwrap_or(*w);
+        let wind = shown(w.wind == WindLevel::Random, r.wind.text());
         let wind = if w.wind_changes {
-            t!("summary-wind-changes", wind = w.wind.text())
+            t!("summary-wind-changes", wind = wind)
         } else {
-            w.wind.text()
+            wind
         };
         let mut lines = vec![
             (
@@ -232,17 +244,29 @@ impl Setup {
             ("setup-turn-order", self.turn_order.text()),
             ("setup-terrain", w.terrain.text()),
             ("setup-wind", wind),
-            ("setup-gravity", w.gravity.text()),
-            ("setup-walls", w.walls.text()),
-            ("setup-sky", w.sky.text()),
+            (
+                "setup-gravity",
+                shown(w.gravity == GravityLevel::Random, r.gravity.text()),
+            ),
+            (
+                "setup-walls",
+                shown(w.walls == Walls::Random, r.walls.text()),
+            ),
+            ("setup-sky", shown(w.sky == Sky::Random, r.sky.text())),
         ]);
         lines
     }
 
     /// Draws `summary()` as a label/value list starting at the top of `r`.
-    pub fn draw_summary(&self, r: Rect, step: f32, progress: Option<(u32, u32)>) {
+    pub fn draw_summary(
+        &self,
+        r: Rect,
+        step: f32,
+        progress: Option<(u32, u32)>,
+        round: Option<World>,
+    ) {
         let mut y = r.y;
-        for (key, value) in self.summary(progress) {
+        for (key, value) in self.summary(progress, round) {
             ui::text_fit(&t!(key), r.x, y, r.w * 0.55, 20.0, LIGHTGRAY);
             let w = ui::measure(&value, 20.0).width.min(r.w * 0.45);
             ui::text_fit(&value, r.x + r.w - w, y, r.w * 0.45, 20.0, WHITE);

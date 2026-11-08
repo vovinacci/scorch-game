@@ -12,6 +12,7 @@ use macroquad::rand::gen_range;
 use serde::{Deserialize, Serialize};
 
 use crate::ai::AiProfile;
+use crate::choice::Choice;
 use crate::economy;
 use crate::i18n::t;
 use crate::items::{ITEMS, PARACHUTE, Use, shield_to_raise};
@@ -23,7 +24,7 @@ use crate::sound::Sfx;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
 use crate::weapons::{Kind, WEAPONS};
-use crate::world::{Flight, World, step_shell};
+use crate::world::{Flight, GravityLevel, Sky, Walls, WindLevel, World, step_shell};
 
 const SPEED_PER_POWER: f32 = 0.75;
 pub const MAX_POWER: f32 = 1000.0;
@@ -385,6 +386,9 @@ pub struct Battle {
     /// Index of this turn's "fires" line in `history`, to mark a miss.
     #[serde(skip)]
     shot_line: Option<usize>,
+    /// The world as set up, before `Random` settings were picked for this round (`rules.world` has the picks).
+    #[serde(default)]
+    setup_world: World,
     /// Mouse aiming in progress (left button held after pressing it on the battlefield).
     #[serde(skip)]
     drag: Option<Drag>,
@@ -402,6 +406,8 @@ impl Battle {
         rounds: u32,
         mut rules: Rules,
     ) -> Self {
+        let chosen = rules.world;
+        rules.world = chosen.for_round();
         let mut terrain = Terrain::generate(rules.world.terrain);
         let n = players.len();
         // Shots per tank -> the turn it starts (every tank's shot is one turn).
@@ -436,7 +442,7 @@ impl Battle {
             })
             .collect();
 
-        Self {
+        let mut battle = Self {
             terrain,
             tanks,
             current: order.first().copied().unwrap_or(0) % n,
@@ -461,7 +467,39 @@ impl Battle {
             history: Vec::new(),
             shot_line: None,
             drag: None,
+            setup_world: chosen,
+        };
+        let picks = battle.random_picks(true);
+        if !picks.is_empty() {
+            battle.note(t!("log-random-world", picks = picks), LIGHTGRAY);
         }
+        battle
+    }
+
+    /// This round's world, with `Random` settings picked.
+    pub fn round_world(&self) -> World {
+        self.rules.world
+    }
+
+    /// What the `Random` world settings came out as this round, as "Gravity: High, Walls: Bouncy" (empty without
+    /// any). Without `all`, only what can't be seen on screen (gravity and walls; the HUD shows the wind and the sky
+    /// is in view).
+    fn random_picks(&self, all: bool) -> String {
+        let (chosen, world) = (self.setup_world, self.rules.world);
+        let mut picks = Vec::new();
+        if all && chosen.wind == WindLevel::Random {
+            picks.push(format!("{}: {}", t!("setup-wind"), world.wind.text()));
+        }
+        if chosen.gravity == GravityLevel::Random {
+            picks.push(format!("{}: {}", t!("setup-gravity"), world.gravity.text()));
+        }
+        if chosen.walls == Walls::Random {
+            picks.push(format!("{}: {}", t!("setup-walls"), world.walls.text()));
+        }
+        if all && chosen.sky == Sky::Random {
+            picks.push(format!("{}: {}", t!("setup-sky"), world.sky.text()));
+        }
+        picks.join(", ")
     }
 
     /// Raises each player's strongest switched-on shield for this round (uses one up).
@@ -1777,7 +1815,18 @@ impl Battle {
         let w = ui::measure(&turn, 18.0).width;
         ui::text_at(&turn, ui::WIDTH - 16.0 - w, 66.0, 18.0, LIGHTGRAY);
 
-        // The current tank's shield, under the turn counter.
+        // Random world settings picked for this round, under the turn counter.
+        let mut y = 88.0;
+        let picks = self.random_picks(false);
+        if !picks.is_empty() {
+            let text = t!("hud-random-world", picks = picks);
+            let max = 520.0;
+            let w = ui::measure(&text, 18.0).width.min(max);
+            ui::text_fit(&text, ui::WIDTH - 16.0 - w, y, max, 18.0, LIGHTGRAY);
+            y += 22.0;
+        }
+
+        // The current tank's shield, under that.
         if let Some(shield) = tank.shield {
             let text = t!(
                 "hud-shield",
@@ -1786,7 +1835,7 @@ impl Battle {
                 full = ITEMS[shield.item].shield_energy().unwrap_or(0.0)
             );
             let w = ui::measure(&text, 18.0).width;
-            ui::text_at(&text, ui::WIDTH - 16.0 - w, 88.0, 18.0, shield.color());
+            ui::text_at(&text, ui::WIDTH - 16.0 - w, y, 18.0, shield.color());
         }
 
         // Sudden death warning or banner.

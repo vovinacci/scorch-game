@@ -267,11 +267,15 @@ random except the number of human players; you can still check and change it all
 | Option | Choices | Default |
 |---|---|---|
 | Terrain | Rolling hills, Mountains, Flatlands, Canyon, Random | Rolling hills |
-| Wind | Off, Calm (up to 20), Normal (up to 40), Strong (up to 70) | Normal |
+| Wind | Off, Calm (up to 20), Normal (up to 40), Strong (up to 70), Random | Normal |
 | Wind changes each turn | Off, On | On |
-| Gravity | Low, Normal, High | Normal |
-| Walls | Open, Solid, Bouncy, Wrap-around | Open |
-| Sky | Night, Sunset, Day | Night |
+| Gravity | Low, Normal, High, Random | Normal |
+| Walls | Open, Solid, Bouncy, Wrap-around, Random | Open |
+| Sky | Night, Sunset, Day, Random | Night |
+
+**Random** picks a new value at the start of every round. During the round, the line under the turn counter says what
+gravity and walls came out as (wind strength shows in the HUD, and the sky is in view), the pause menu's "This game"
+shows every pick, for example "Bouncy (random)", and the battle log starts the round with the full list.
 
 Walls decide what happens at the edges of the screen:
 

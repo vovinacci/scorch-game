@@ -657,3 +657,29 @@ fn mouse_aiming_below_the_barrel_stays_flat_and_power_is_capped() {
     let (_, power) = point_aim(from, from + vec2(0.0, -600.0), 300.0);
     assert_eq!(power, 300.0, "never above the tank's maximum");
 }
+
+#[test]
+fn random_world_settings_get_a_real_value_every_round() {
+    let players = bots(2);
+    let mut rules = Setup::default().rules();
+    rules.world.wind = WindLevel::Random;
+    rules.world.gravity = GravityLevel::Random;
+    rules.world.walls = Walls::Random;
+    rules.world.sky = Sky::Random;
+    for _ in 0..20 {
+        let b = battle(&players, rules);
+        let w = b.rules.world;
+        assert!(w.wind != WindLevel::Random && w.gravity != GravityLevel::Random);
+        assert!(w.walls != Walls::Random && w.sky != Sky::Random);
+        assert_eq!(b.history.len(), 1, "one line in the log says what came out");
+        assert!(
+            !b.random_picks(false).contains(&t!("setup-sky")),
+            "the HUD leaves out what can be seen"
+        );
+    }
+    rules.world = Setup::default().rules().world;
+    assert!(
+        battle(&players, rules).history.is_empty(),
+        "nothing to say without Random"
+    );
+}

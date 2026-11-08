@@ -270,9 +270,9 @@ mod tests {
         );
         needed.extend(
             crate::setup::Setup::default()
-                .summary(Some((1, 1)))
+                .summary(Some((1, 1)), None)
                 .into_iter()
-                .chain(crate::setup::Setup::default().summary(None))
+                .chain(crate::setup::Setup::default().summary(None, None))
                 .map(|(k, _)| k.to_string()),
         );
         let en = keys(EN);
