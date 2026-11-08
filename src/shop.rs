@@ -255,17 +255,18 @@ fn draw_income(player: &Player, shoots_first: bool) {
 
 /// Bots buy at random what they can afford: weapons they fire, and now and then a parachute or a shield.
 pub fn ai_shop(player: &mut Player) {
-    let weapons = WEAPONS.len() - 1;
+    // Bots never fire utility weapons (Dirt Bomb, Digger, Tracer, Riot Bomb), so they don't buy them either.
+    let weapons: Vec<usize> = (1..WEAPONS.len())
+        .filter(|&w| !WEAPONS[w].kind.is_utility())
+        .collect();
     for _ in 0..8 {
-        let pick = gen_range(0, weapons + ITEMS.len());
-        if pick < weapons {
-            let w = pick + 1;
-            // Bots never fire Dirt Bombs or Diggers, so they don't buy them either.
-            if player.money >= WEAPONS[w].price && !WEAPONS[w].kind.is_utility() {
+        let pick = gen_range(0, weapons.len() + ITEMS.len());
+        if let Some(&w) = weapons.get(pick) {
+            if player.money >= WEAPONS[w].price {
                 buy(player, w);
             }
         } else {
-            let i = pick - weapons;
+            let i = pick - weapons.len();
             if player.money >= ITEMS[i].price {
                 buy_item(player, i);
             }

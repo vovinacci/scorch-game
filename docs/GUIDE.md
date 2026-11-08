@@ -116,7 +116,7 @@ without anyone getting a kill.
 | Nuke | A huge explosion | 85 | 100 | $200 | 1 |
 | Dirt Bomb | Throws up a mound of earth, no damage | 45 | 0 | $40 | 2 |
 | Digger | Burrows 160 pixels sideways under the ground, which sinks 40 pixels above it; no damage | - | 0 | $40 | 2 |
-| Riot Bomb | Clears away the dirt where it lands, hurting no one | 60 | 0 | $50 | 2 |
+| Riot Bomb | Clears away the dirt where it lands; no blast damage, but a tank whose ground is cleared falls | 60 | 0 | $50 | 2 |
 | Roller | Lands, rolls downhill and explodes in the next dip, at a tank or at a slope it can't climb | 30 | 50 | $80 | 2 |
 | Leapfrog | Explodes, then hops on and explodes again, three blasts in all | 25 each | 35 each | $100 | 1 |
 | Napalm | Spills burning fuel that runs downhill and burns for 3 seconds | - | 20 per second | $110 | 1 |

@@ -582,25 +582,13 @@ impl Battle {
         }
         tank.angle = tank.angle.clamp(0.0, 180.0);
         tank.power = tank.power.clamp(0.0, max_power);
-        // Weapon strip: click a weapon, or press its key (1-9, then 0, - and = for the tenth to twelfth).
+        // Weapon strip: click a weapon, or press its key.
         let strip = weapon_strip(player);
-        let keys = [
-            KeyCode::Key1,
-            KeyCode::Key2,
-            KeyCode::Key3,
-            KeyCode::Key4,
-            KeyCode::Key5,
-            KeyCode::Key6,
-            KeyCode::Key7,
-            KeyCode::Key8,
-            KeyCode::Key9,
-            KeyCode::Key0,
-            KeyCode::Minus,
-            KeyCode::Equal,
-        ];
         let clicked = is_mouse_button_pressed(MouseButton::Left).then(ui::mouse);
         for (k, &(w, r)) in strip.iter().enumerate() {
-            if keys.get(k).is_some_and(|&key| is_key_pressed(key))
+            if STRIP_KEYS
+                .get(k)
+                .is_some_and(|&(key, _)| is_key_pressed(key))
                 || clicked.is_some_and(|m| r.contains(m))
             {
                 tank.weapon = w;
@@ -732,7 +720,7 @@ impl Battle {
         if !p.child {
             self.tanks[p.owner].last_trail = Trail {
                 points: p.trail,
-                tracer: WEAPONS[p.weapon].kind == Kind::Tracer,
+                tracer: WEAPONS[p.weapon].kind.is_probe(),
             };
         }
     }
@@ -937,12 +925,13 @@ impl Battle {
             .collect()
     }
 
-    /// `owner` took the ground away under every enemy tank between `x0` and `x1`: if one dies of the fall, the kill
-    /// is `owner`'s.
+    /// Call after `owner` changed the ground between `x0` and `x1`: an enemy tank left above the ground there will
+    /// fall, and if the fall kills it, the kill is `owner`'s.
     fn undermine(&mut self, x0: f32, x1: f32, owner: usize) {
         let (a, b) = (x0.min(x1), x0.max(x1));
         for (i, tank) in self.tanks.iter_mut().enumerate() {
-            if i != owner && tank.alive && (a..=b).contains(&tank.pos.x) {
+            let falls = self.terrain.height_at(tank.pos.x) > tank.pos.y + 0.5;
+            if i != owner && tank.alive && (a..=b).contains(&tank.pos.x) && falls {
                 tank.last_hit_by = Some(owner);
             }
         }
@@ -951,24 +940,28 @@ impl Battle {
     fn detonate(&mut self, pos: Vec2, weapon: usize, owner: usize, players: &mut [Player]) {
         let w = &WEAPONS[weapon];
         match w.kind {
-            // Dirt Bomb adds earth, Riot Bomb clears it; neither hurts anyone.
-            Kind::Dirt | Kind::Riot => {
-                self.sounds.push(Sfx::Dirt);
-                if w.kind == Kind::Dirt {
-                    self.terrain.add_dirt(pos, w.radius);
-                } else {
-                    self.terrain.carve(pos, w.radius);
-                    self.undermine(pos.x - w.radius, pos.x + w.radius, owner);
-                }
-                self.explosions.push(Explosion {
-                    pos,
-                    radius: w.radius,
-                    age: 0.0,
-                    dirt: true,
-                });
+            Kind::Dirt => {
+                self.terrain.add_dirt(pos, w.radius);
+                self.dirt_burst(pos, w.radius);
+            }
+            Kind::Riot => {
+                self.terrain.carve(pos, w.radius);
+                self.undermine(pos.x - w.radius, pos.x + w.radius, owner);
+                self.dirt_burst(pos, w.radius);
             }
             _ => self.blast(pos, w.radius, w.damage, Some(owner), players),
         }
+    }
+
+    /// The sound and look of earth thrown up or cleared away (no blast).
+    fn dirt_burst(&mut self, pos: Vec2, radius: f32) {
+        self.sounds.push(Sfx::Dirt);
+        self.explosions.push(Explosion {
+            pos,
+            radius,
+            age: 0.0,
+            dirt: true,
+        });
     }
 
     /// Damages every tank in range (more damage closer to the center) and carves a crater.
@@ -1415,7 +1408,9 @@ impl Battle {
                 .max_by_key(|&w| WEAPONS[w].price)
                 .unwrap_or(0);
         }
-        let safe_distance = WEAPONS[weapon].radius + WEAPONS[weapon].kind.sideways_reach() + 25.0;
+        let safe_distance = WEAPONS[weapon].radius + 25.0;
+        let side_speed = WEAPONS[weapon].kind.side_speed();
+        let gravity = self.world().gravity();
 
         let mut best = Shot {
             angle: 90.0,
@@ -1441,7 +1436,10 @@ impl Battle {
                 };
                 // Rollers and Napalm are aimed at where they end up, not where they land.
                 let hit = damage_point(WEAPONS[weapon].kind, landing, &self.terrain);
-                if hit.distance(shooter.center()) < safe_distance {
+                // MIRV warheads split at the top of the arc and drift apart for as long as they fall, which the
+                // landing speed tells (the fall starts with no vertical speed).
+                let drift = side_speed * landing.vel.y.max(0.0) / gravity;
+                if hit.distance(shooter.center()) < safe_distance + drift {
                     continue;
                 }
                 let d = hit.distance(target);
@@ -1784,6 +1782,22 @@ pub fn draw_history(battle: &Battle) {
 }
 
 /// Weapon strip along the bottom: the weapons `player` has ammo for, in Tab order, with where each one is drawn.
+/// The weapon strip's keys, in strip order, with the label shown in front of each weapon.
+const STRIP_KEYS: [(KeyCode, &str); 12] = [
+    (KeyCode::Key1, "1 "),
+    (KeyCode::Key2, "2 "),
+    (KeyCode::Key3, "3 "),
+    (KeyCode::Key4, "4 "),
+    (KeyCode::Key5, "5 "),
+    (KeyCode::Key6, "6 "),
+    (KeyCode::Key7, "7 "),
+    (KeyCode::Key8, "8 "),
+    (KeyCode::Key9, "9 "),
+    (KeyCode::Key0, "0 "),
+    (KeyCode::Minus, "- "),
+    (KeyCode::Equal, "= "),
+];
+
 fn weapon_strip(player: &Player) -> Vec<(usize, Rect)> {
     const GAP: f32 = 6.0;
     // More than this and the names get too small: the strip wraps onto a second row above.
@@ -1815,13 +1829,7 @@ fn draw_weapon_strip(player: &Player, selected: usize) {
             Color::new(1.0, 1.0, 1.0, 0.15)
         };
         draw_rectangle_lines(r.x, r.y, r.w, r.h, if on { 2.0 } else { 1.0 }, border);
-        let key = match k {
-            0..9 => format!("{} ", k + 1),
-            9 => "0 ".to_string(),
-            10 => "- ".to_string(),
-            11 => "= ".to_string(),
-            _ => String::new(),
-        };
+        let key = STRIP_KEYS.get(k).map_or("", |&(_, label)| label);
         let text = format!("{key}{} {}", WEAPONS[w].text(), player.ammo_label(w));
         let color = if on { WHITE } else { LIGHTGRAY };
         ui::text_centered_fit(&text, r.center().x, r.y + 18.0, r.w - 8.0, 16.0, color);

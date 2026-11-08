@@ -38,15 +38,11 @@ impl Kind {
         self == Kind::Tracer
     }
 
-    /// How far from where the shell aims its blasts can land sideways, in pixels: MIRV warheads spread out on the
-    /// way down. Bots keep their own tank out of this.
-    pub fn sideways_reach(self) -> f32 {
-        // About how long warheads fall after the split.
-        const FALL_SECONDS: f32 = 1.5;
+    /// Sideways speed of the outermost MIRV warhead relative to the shell, in pixels per second (0 for other
+    /// weapons). Times the fall from the top of the arc, it's how far from the shell's landing the outer blasts land.
+    pub fn side_speed(self) -> f32 {
         match self {
-            Kind::Mirv { warheads, spread } => {
-                f32::from(warheads - 1) / 2.0 * f32::from(spread) * FALL_SECONDS
-            }
+            Kind::Mirv { warheads, spread } => f32::from(warheads - 1) / 2.0 * f32::from(spread),
             _ => 0.0,
         }
     }

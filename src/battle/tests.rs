@@ -519,7 +519,15 @@ fn a_riot_bomb_clears_dirt_without_damage() {
         b.terrain.height_at(640.0) > 640.0,
         "a deep hole where it landed"
     );
-    assert_eq!(b.tanks[1].health, 100.0, "no damage");
+    assert_eq!(
+        b.tanks[1].health, 100.0,
+        "no blast damage (the fall comes later)"
+    );
+    assert_eq!(
+        b.tanks[1].last_hit_by,
+        Some(0),
+        "a deadly fall would be the bomber's kill"
+    );
 }
 
 #[test]
@@ -573,9 +581,19 @@ fn a_tracer_is_not_a_shot_at_anyone() {
 }
 
 #[test]
-fn bots_keep_clear_of_spreading_warheads() {
-    let reach = |name: &str| WEAPONS[weapon(name)].kind.sideways_reach();
-    assert_eq!(reach("Missile"), 0.0);
-    assert!(reach("MIRV") > 100.0);
-    assert!(reach("Death's Head") > reach("MIRV"));
+fn outer_warheads_drift_faster_on_a_deaths_head() {
+    let side = |name: &str| WEAPONS[weapon(name)].kind.side_speed();
+    assert_eq!(side("Missile"), 0.0);
+    assert_eq!(side("MIRV"), 90.0);
+    assert_eq!(side("Death's Head"), 120.0);
+}
+
+#[test]
+fn a_riot_bomb_leaves_tanks_on_untouched_ground_alone() {
+    // A tank down in a valley, within reach sideways of a Riot Bomb landing on a high ledge, but far below it.
+    let (mut players, mut b) = range(|x| if x < 600.0 { 400.0 } else { 600.0 });
+    b.tanks[1].pos = vec2(610.0, 600.0);
+    drop(&mut b, weapon("Riot Bomb"), 560.0, 0.0);
+    run(&mut b, &mut players);
+    assert_eq!(b.tanks[1].last_hit_by, None, "its ground didn't move");
 }
