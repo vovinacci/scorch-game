@@ -209,7 +209,7 @@ controls-fine-key = Shift (тримати)
 controls-fine = Точне налаштування
 controls-weapon-key = Tab
 controls-weapon = Наступна зброя
-controls-pick-key = 1-9, 0, -
+controls-pick-key = 1-9, 0, -, =
 controls-pick = Вибрати зброю (або клацнути)
 controls-fire-key = Пробіл
 controls-fire = Вогонь
@@ -376,6 +376,9 @@ weapon-leapfrog = Жабка
 weapon-funky-bomb = Шалена бомба
 weapon-napalm = Напалм
 weapon-digger = Копач
+weapon-tracer = Трасер
+weapon-riot-bomb = Розчищувач
+weapon-deaths-head = Мертва голова
 
 ## Підсумки
 

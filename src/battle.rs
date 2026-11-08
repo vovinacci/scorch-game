@@ -109,6 +109,14 @@ const PREFER_LEADER: f32 = 0.8;
 /// don't all gang up on the same player.
 const CROWD_PENALTY: f32 = 0.5;
 
+/// The path of a tank's previous shot.
+#[derive(Default)]
+struct Trail {
+    points: Vec<Vec2>,
+    /// It was a Tracer: shown even with "Last shot path" off.
+    tracer: bool,
+}
+
 #[derive(Serialize, Deserialize)]
 struct Tank {
     /// Bottom-center of the tank, resting on the ground.
@@ -126,7 +134,7 @@ struct Tank {
     last_hit_by: Option<usize>,
     /// Path of this tank's previous shot, drawn faintly to help aiming.
     #[serde(skip)]
-    last_trail: Vec<Vec2>,
+    last_trail: Trail,
     /// Bots only.
     aim: Option<AimMemory>,
     /// Who hit this tank since its last shot. Bots shoot back.
@@ -387,7 +395,7 @@ impl Battle {
                     fled: false,
                     fall_from: None,
                     last_hit_by: None,
-                    last_trail: Vec::new(),
+                    last_trail: Trail::default(),
                     aim: None,
                     revenge: None,
                     shield: None,
@@ -574,7 +582,7 @@ impl Battle {
         }
         tank.angle = tank.angle.clamp(0.0, 180.0);
         tank.power = tank.power.clamp(0.0, max_power);
-        // Weapon strip: click a weapon, or press its key (1-9, then 0 and - for the tenth and eleventh).
+        // Weapon strip: click a weapon, or press its key (1-9, then 0, - and = for the tenth to twelfth).
         let strip = weapon_strip(player);
         let keys = [
             KeyCode::Key1,
@@ -588,6 +596,7 @@ impl Battle {
             KeyCode::Key9,
             KeyCode::Key0,
             KeyCode::Minus,
+            KeyCode::Equal,
         ];
         let clicked = is_mouse_button_pressed(MouseButton::Left).then(ui::mouse);
         for (k, &(w, r)) in strip.iter().enumerate() {
@@ -623,7 +632,10 @@ impl Battle {
         if weapon != 0 {
             players[i].ammo[weapon] -= 1;
         }
-        players[i].round_stats.shots += 1;
+        // A Tracer is for aiming, not a shot at anyone: it doesn't count against accuracy.
+        if WEAPONS[weapon].kind != Kind::Tracer {
+            players[i].round_stats.shots += 1;
+        }
         if !players[i].has(weapon) {
             tank.weapon = 0;
         }
@@ -667,14 +679,22 @@ impl Battle {
                     let flight = step_shell(&mut p.pos, &mut p.vel, self.wind, world, STEP);
                     p.trail.push(p.pos);
 
-                    if WEAPONS[p.weapon].kind == Kind::Mirv && !p.child && p.vel.y > 0.0 {
-                        for k in -2..=2 {
+                    if let Kind::Mirv { warheads, spread } = WEAPONS[p.weapon].kind
+                        && !p.child
+                        && p.vel.y > 0.0
+                    {
+                        let middle = f32::from(warheads - 1) / 2.0;
+                        for k in 0..warheads {
                             // Every warhead is a new shell for the deflectors.
-                            let vel = p.vel + vec2(k as f32 * 45.0, 0.0);
+                            let side = (f32::from(k) - middle) * f32::from(spread);
+                            let vel = p.vel + vec2(side, 0.0);
                             self.projectiles
                                 .push(Projectile::new(p.pos, vel, p.weapon, p.owner, true));
                         }
-                        self.tanks[p.owner].last_trail = p.trail;
+                        self.tanks[p.owner].last_trail = Trail {
+                            points: p.trail,
+                            tracer: false,
+                        };
                         continue;
                     }
 
@@ -709,7 +729,10 @@ impl Battle {
     /// A shell is done: its path is kept to help aim the next shot (warheads and bomblets don't count).
     fn landed(&mut self, p: Projectile) {
         if !p.child {
-            self.tanks[p.owner].last_trail = p.trail;
+            self.tanks[p.owner].last_trail = Trail {
+                points: p.trail,
+                tracer: WEAPONS[p.weapon].kind == Kind::Tracer,
+            };
         }
     }
 
@@ -758,6 +781,9 @@ impl Battle {
                 }
             }
             Kind::Napalm => self.ignite(p.pos.x, p.owner),
+            // A Tracer only leaves its path (see `landed`).
+            Kind::Tracer => {}
+            Kind::Riot => self.clear(p.pos, WEAPONS[p.weapon].radius),
             _ => self.detonate(p.pos, p.weapon, p.owner, players),
         }
         self.landed(p);
@@ -905,6 +931,18 @@ impl Battle {
             .filter(|(i, t)| *i != owner && t.alive && t.shield.is_some_and(|s| s.deflects()))
             .map(|(_, t)| t.center())
             .collect()
+    }
+
+    /// Riot Bomb: removes the dirt in `radius` around `pos`, hurting no one.
+    fn clear(&mut self, pos: Vec2, radius: f32) {
+        self.sounds.push(Sfx::Dirt);
+        self.terrain.carve(pos, radius);
+        self.explosions.push(Explosion {
+            pos,
+            radius,
+            age: 0.0,
+            dirt: true,
+        });
     }
 
     fn detonate(&mut self, pos: Vec2, weapon: usize, owner: usize, players: &mut [Player]) {
@@ -1434,9 +1472,16 @@ impl Battle {
         self.world().sky.draw();
         self.terrain.draw();
 
-        if settings.shot_path && matches!(self.phase, Phase::Aim { .. }) {
-            for p in self.tanks[self.current].last_trail.iter().step_by(6) {
-                draw_circle(p.x, p.y, 1.5, Color::new(1.0, 1.0, 1.0, 0.3));
+        let trail = &self.tanks[self.current].last_trail;
+        if (settings.shot_path || trail.tracer) && matches!(self.phase, Phase::Aim { .. }) {
+            // A Tracer's path is brighter and denser: that's what it was bought for.
+            let (step, color) = if trail.tracer {
+                (3, Color::new(0.5, 1.0, 1.0, 0.6))
+            } else {
+                (6, Color::new(1.0, 1.0, 1.0, 0.3))
+            };
+            for p in trail.points.iter().step_by(step) {
+                draw_circle(p.x, p.y, 1.5, color);
             }
         }
 
@@ -1731,16 +1776,21 @@ pub fn draw_history(battle: &Battle) {
 /// Weapon strip along the bottom: the weapons `player` has ammo for, in Tab order, with where each one is drawn.
 fn weapon_strip(player: &Player) -> Vec<(usize, Rect)> {
     const GAP: f32 = 6.0;
+    // More than this and the names get too small: the strip wraps onto a second row above.
+    const PER_ROW: usize = 7;
     let owned: Vec<usize> = (0..WEAPONS.len()).filter(|&w| player.has(w)).collect();
-    let n = owned.len() as f32;
-    let w = ((ui::WIDTH - 32.0 - GAP * (n - 1.0)) / n).min(150.0);
-    let left = (ui::WIDTH - (w * n + GAP * (n - 1.0))) / 2.0;
+    let rows = owned.len().div_ceil(PER_ROW);
     owned
-        .into_iter()
+        .chunks(PER_ROW)
         .enumerate()
-        .map(|(k, weapon)| {
-            let r = Rect::new(left + k as f32 * (w + GAP), HEIGHT - 58.0, w, 26.0);
-            (weapon, r)
+        .flat_map(|(row, chunk)| {
+            let n = chunk.len() as f32;
+            let w = ((ui::WIDTH - 32.0 - GAP * (n - 1.0)) / n).min(150.0);
+            let left = (ui::WIDTH - (w * n + GAP * (n - 1.0))) / 2.0;
+            let y = HEIGHT - 58.0 - (rows - 1 - row) as f32 * (26.0 + GAP);
+            chunk.iter().enumerate().map(move |(k, &weapon)| {
+                (weapon, Rect::new(left + k as f32 * (w + GAP), y, w, 26.0))
+            })
         })
         .collect()
 }
@@ -1759,6 +1809,7 @@ fn draw_weapon_strip(player: &Player, selected: usize) {
             0..9 => format!("{} ", k + 1),
             9 => "0 ".to_string(),
             10 => "- ".to_string(),
+            11 => "= ".to_string(),
             _ => String::new(),
         };
         let text = format!("{key}{} {}", WEAPONS[w].text(), player.ammo_label(w));

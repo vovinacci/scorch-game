@@ -480,8 +480,57 @@ fn the_weapon_strip_shows_owned_weapons_on_screen() {
     p.ammo = [1; crate::weapons::WEAPON_COUNT];
     let strip = weapon_strip(p);
     assert_eq!(strip.len(), WEAPONS.len());
-    for pair in strip.windows(2) {
-        assert!(pair[0].1.right() < pair[1].1.left(), "no overlap");
+    for (k, (_, a)) in strip.iter().enumerate() {
+        assert!(a.w >= 140.0, "wide enough to read");
+        assert!(a.left() >= 0.0 && a.right() <= ui::WIDTH && a.bottom() <= HEIGHT);
+        assert!(
+            strip[k + 1..].iter().all(|(_, b)| !a.overlaps(b)),
+            "no overlap"
+        );
     }
-    assert!(strip[0].1.left() >= 0.0 && strip.last().unwrap().1.right() <= ui::WIDTH);
+}
+
+#[test]
+fn a_tracer_hurts_no_one_and_leaves_a_bright_path() {
+    let (mut players, mut b) = range(|_| 600.0);
+    b.tanks[1].pos = vec2(645.0, 600.0);
+    drop(&mut b, weapon("Tracer"), 640.0, 50.0);
+    let blasts = run(&mut b, &mut players);
+    assert_eq!(blasts, []);
+    assert_eq!(b.tanks[1].health, 100.0);
+    assert_eq!(b.terrain.height_at(640.0), 600.0, "no crater");
+    let trail = &b.tanks[0].last_trail;
+    assert!(trail.tracer && !trail.points.is_empty());
+}
+
+#[test]
+fn a_riot_bomb_clears_dirt_without_damage() {
+    let (mut players, mut b) = range(|_| 600.0);
+    b.tanks[1].pos = vec2(660.0, 600.0);
+    drop(&mut b, weapon("Riot Bomb"), 640.0, 0.0);
+    let blasts = run(&mut b, &mut players);
+    assert_eq!(blasts, [], "no blast, only cleared dirt");
+    assert!(
+        b.terrain.height_at(640.0) > 640.0,
+        "a deep hole where it landed"
+    );
+    assert_eq!(b.tanks[1].health, 100.0, "no damage");
+}
+
+#[test]
+fn deaths_head_splits_into_nine_warheads() {
+    let (mut players, mut b) = range(|_| 700.0);
+    // Already falling, high above the ground: it splits on the next step.
+    b.projectiles.push(Projectile::new(
+        vec2(640.0, 100.0),
+        vec2(0.0, 10.0),
+        weapon("Death's Head"),
+        0,
+        false,
+    ));
+    b.step_projectiles(&mut players);
+    assert_eq!(b.projectiles.len(), 9);
+    assert!(b.projectiles.iter().all(|p| p.child));
+    let blasts = run(&mut b, &mut players);
+    assert_eq!(blasts.len(), 9, "every warhead explodes");
 }

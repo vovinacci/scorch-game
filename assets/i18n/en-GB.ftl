@@ -204,7 +204,7 @@ controls-fine-key = Shift (hold)
 controls-fine = Fine adjustment
 controls-weapon-key = Tab
 controls-weapon = Next weapon
-controls-pick-key = 1-9, 0, -
+controls-pick-key = 1-9, 0, -, =
 controls-pick = Pick a weapon (or click it)
 controls-fire-key = Space
 controls-fire = Fire
@@ -347,6 +347,9 @@ weapon-leapfrog = Leapfrog
 weapon-funky-bomb = Funky Bomb
 weapon-napalm = Napalm
 weapon-digger = Digger
+weapon-tracer = Tracer
+weapon-riot-bomb = Riot Bomb
+weapon-deaths-head = Death's Head
 
 ## Final standings
 

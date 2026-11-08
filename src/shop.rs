@@ -39,6 +39,8 @@ pub fn frame(player: &mut Player, shoots_first: bool) -> ShopAction {
 
 /// The middle panel: weapons and items to buy, and Done / Save & exit / Abandon.
 fn shop_panel(player: &mut Player) -> ShopAction {
+    /// Height of a row of buy buttons, gap included.
+    const ROW: f32 = 40.0;
     let area = Rect::new(370.0, 70.0, 540.0, 620.0);
     ui::panel(area);
     // Hotseat players need to see whose turn it is to shop.
@@ -61,9 +63,9 @@ fn shop_panel(player: &mut Player) -> ShopAction {
     let cell = |top: f32, k: usize| {
         Rect::new(
             area.x + 40.0 + (k % 2) as f32 * (col_w + 10.0),
-            top + (k / 2) as f32 * 44.0,
+            top + (k / 2) as f32 * ROW,
             col_w,
-            38.0,
+            ROW - 6.0,
         )
     };
     let top = area.y + 104.0;
@@ -82,9 +84,9 @@ fn shop_panel(player: &mut Player) -> ShopAction {
             buy(player, w);
         }
     }
-    let mut y = top + weapons.len().div_ceil(2) as f32 * 44.0;
-    ui::text_at(t!("shop-items"), area.x + 40.0, y + 22.0, 22.0, GOLD);
-    y += 32.0;
+    let mut y = top + weapons.len().div_ceil(2) as f32 * ROW;
+    ui::text_at(t!("shop-items"), area.x + 40.0, y + 20.0, 22.0, GOLD);
+    y += 28.0;
     for (i, item) in ITEMS.iter().enumerate() {
         let label = t!(
             "shop-buy",
@@ -96,24 +98,24 @@ fn shop_panel(player: &mut Player) -> ShopAction {
             buy_item(player, i);
         }
     }
-    y += ITEMS.len().div_ceil(2) as f32 * 44.0;
+    y += ITEMS.len().div_ceil(2) as f32 * ROW;
 
     let half = (area.w - 90.0) / 2.0;
     if ui::button(
-        Rect::new(area.x + 40.0, y + 12.0, half, 46.0),
+        Rect::new(area.x + 40.0, y + 6.0, half, 42.0),
         &t!("shop-done"),
         true,
     ) {
         ShopAction::Done
     } else if ui::button(
-        Rect::new(area.x + 50.0 + half, y + 12.0, half, 46.0),
+        Rect::new(area.x + 50.0 + half, y + 6.0, half, 42.0),
         &t!("save-exit-menu"),
         true,
     ) || is_key_pressed(KeyCode::Escape)
     {
         ShopAction::SaveAndExit
     } else if ui::button(
-        Rect::new(area.x + 40.0, y + 68.0, area.w - 80.0, 40.0),
+        Rect::new(area.x + 40.0, y + 56.0, area.w - 80.0, 38.0),
         &t!("abandon-game"),
         true,
     ) {
@@ -147,12 +149,12 @@ fn draw_inventory(player: &mut Player) {
             area.x + 20.0,
             y,
             area.w - 100.0,
-            20.0,
+            18.0,
             color,
         );
-        let cw = ui::measure(&count, 20.0).width;
-        ui::text_at(&count, area.x + area.w - 20.0 - cw, y, 20.0, color);
-        y += 24.0;
+        let cw = ui::measure(&count, 18.0).width;
+        ui::text_at(&count, area.x + area.w - 20.0 - cw, y, 18.0, color);
+        y += 21.0;
     }
     // Items: one on/off switch each (off = keep them, don't use them).
     ui::text_at(t!("shop-items"), area.x + 20.0, y + 8.0, 22.0, GOLD);
@@ -174,13 +176,13 @@ fn draw_inventory(player: &mut Player) {
         let on = &mut player.items_on[i];
         let label = if *on { t!("on") } else { t!("off") };
         if ui::button(
-            Rect::new(area.x + area.w - 100.0, y + 2.0, 80.0, 32.0),
+            Rect::new(area.x + area.w - 100.0, y + 4.0, 80.0, 28.0),
             &label,
             true,
         ) {
             *on = !*on;
         }
-        y += 38.0;
+        y += 34.0;
     }
     let (radius, damage) = crate::battle::death_blast(player);
     ui::text_wrapped(
@@ -190,9 +192,9 @@ fn draw_inventory(player: &mut Player) {
             damage = damage.round()
         ),
         area.x + 20.0,
-        y + 24.0,
+        y + 22.0,
         area.w - 40.0,
-        20.0,
+        18.0,
         SKYBLUE,
     );
 }
