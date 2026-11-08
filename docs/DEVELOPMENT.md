@@ -38,6 +38,7 @@ numbers behind the rules, file formats, versioning and the code map.
 ## Building and running
 
 ```text
+make           # list all targets
 make run       # debug build, then play
 make release   # optimised build, then play
 make test      # unit tests

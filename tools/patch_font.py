@@ -17,7 +17,8 @@ from pathlib import Path
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 
-# Only for type hints, so it loads only if something asks for it.
+# Only for type hints, so it loads only if something asks for it. fontTools has no public name for its glyph class.
+# noinspection PyProtectedMember
 lazy from fontTools.ttLib.tables._g_l_y_f import Glyph
 
 PX = 62.5  # font units per pixel
@@ -73,13 +74,10 @@ def outline(rows: list[int]) -> Glyph:
 
 def main(args: list[str]) -> None:
     """Patch the font, or with "check" only compare one glyph."""
-    match args:
-        case [src_ttf, bdf_path, out]:
-            check = False
-        case [src_ttf, bdf_path, out, "check"]:
-            check = True
-        case _:
-            sys.exit(__doc__)
+    if len(args) not in {3, 4} or args[3:] not in ([], ["check"]):
+        sys.exit(__doc__)
+    src_ttf, bdf_path, out = args[:3]
+    check = args[3:] == ["check"]
 
     bdf = Path(bdf_path).read_text(encoding="ascii").split("\n")
     font = TTFont(src_ttf)
