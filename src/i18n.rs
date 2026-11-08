@@ -192,13 +192,26 @@ mod tests {
         BUNDLE_UK.with(|_| ());
     }
 
+    /// Every `.rs` file under `dir`, in subfolders too.
+    fn rust_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+        let mut files = Vec::new();
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                files.extend(rust_files(&path));
+            } else if path.extension().is_some_and(|e| e == "rs") {
+                files.push(path);
+            }
+        }
+        files
+    }
+
     #[test]
     fn every_key_used_in_code_exists() {
         let en = keys(EN);
-        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src");
         let mut missing = Vec::new();
-        for entry in std::fs::read_dir(dir).unwrap() {
-            let code = std::fs::read_to_string(entry.unwrap().path()).unwrap();
+        for path in rust_files(concat!(env!("CARGO_MANIFEST_DIR"), "/src").as_ref()) {
+            let code = std::fs::read_to_string(path).unwrap();
             // A key right after `t!(`, but not inside `format!(` or `print!(`.
             for (at, _) in code.match_indices("t!(\"") {
                 if code[..at].ends_with(|c: char| c.is_alphanumeric() || c == '_') {
