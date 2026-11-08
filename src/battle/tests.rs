@@ -411,6 +411,11 @@ fn a_digger_sinks_the_ground_under_a_tank() {
         "only as far as it digs"
     );
     assert_eq!(b.tanks[1].health, 100.0, "no damage by itself");
+    assert_eq!(
+        b.tanks[1].last_hit_by,
+        Some(0),
+        "a deadly fall would be the digger's kill"
+    );
 }
 
 #[test]
@@ -480,8 +485,154 @@ fn the_weapon_strip_shows_owned_weapons_on_screen() {
     p.ammo = [1; crate::weapons::WEAPON_COUNT];
     let strip = weapon_strip(p);
     assert_eq!(strip.len(), WEAPONS.len());
-    for pair in strip.windows(2) {
-        assert!(pair[0].1.right() < pair[1].1.left(), "no overlap");
+    for (k, (_, a)) in strip.iter().enumerate() {
+        assert!(a.w >= 140.0, "wide enough to read");
+        assert!(a.left() >= 0.0 && a.right() <= ui::WIDTH && a.bottom() <= HEIGHT);
+        assert!(
+            strip[k + 1..].iter().all(|(_, b)| !a.overlaps(b)),
+            "no overlap"
+        );
     }
-    assert!(strip[0].1.left() >= 0.0 && strip.last().unwrap().1.right() <= ui::WIDTH);
+}
+
+#[test]
+fn a_tracer_hurts_no_one_and_leaves_a_bright_path() {
+    let (mut players, mut b) = range(|_| 600.0);
+    b.tanks[1].pos = vec2(645.0, 600.0);
+    drop(&mut b, weapon("Tracer"), 640.0, 50.0);
+    let blasts = run(&mut b, &mut players);
+    assert_eq!(blasts, []);
+    assert_eq!(b.tanks[1].health, 100.0);
+    assert_eq!(b.terrain.height_at(640.0), 600.0, "no crater");
+    let trail = &b.tanks[0].last_trail;
+    assert!(trail.tracer && !trail.points.is_empty());
+}
+
+#[test]
+fn a_riot_bomb_clears_dirt_without_damage() {
+    let (mut players, mut b) = range(|_| 600.0);
+    b.tanks[1].pos = vec2(660.0, 600.0);
+    drop(&mut b, weapon("Riot Bomb"), 640.0, 0.0);
+    let blasts = run(&mut b, &mut players);
+    assert_eq!(blasts, [], "no blast, only cleared dirt");
+    assert!(
+        b.terrain.height_at(640.0) > 640.0,
+        "a deep hole where it landed"
+    );
+    assert_eq!(
+        b.tanks[1].health, 100.0,
+        "no blast damage (the fall comes later)"
+    );
+    assert_eq!(
+        b.tanks[1].last_hit_by,
+        Some(0),
+        "a deadly fall would be the bomber's kill"
+    );
+}
+
+#[test]
+fn deaths_head_splits_into_nine_warheads() {
+    let (mut players, mut b) = range(|_| 700.0);
+    // Already falling, high above the ground: it splits on the next step.
+    b.projectiles.push(Projectile::new(
+        vec2(640.0, 100.0),
+        vec2(0.0, 10.0),
+        weapon("Death's Head"),
+        0,
+        false,
+    ));
+    b.step_projectiles(&mut players);
+    assert_eq!(b.projectiles.len(), 9);
+    assert!(b.projectiles.iter().all(|p| p.child));
+    let blasts = run(&mut b, &mut players);
+    assert_eq!(blasts.len(), 9, "every warhead explodes");
+}
+
+#[test]
+fn a_tracer_is_not_a_shot_at_anyone() {
+    let mut players = bots(2);
+    players[1].items[3] = 1;
+    let mut rules = Setup::default().rules();
+    rules.world.terrain = crate::world::TerrainKind::Flat;
+    let mut b = battle(&players, rules);
+    b.raise_shields(&mut players);
+    let target = b.tanks[1].center();
+    b.projectiles.push(Projectile::new(
+        target + vec2(-60.0, -30.0),
+        vec2(200.0, 0.0),
+        weapon("Tracer"),
+        0,
+        false,
+    ));
+    b.step_projectiles(&mut players);
+    let full = ITEMS[3].shield_energy().unwrap();
+    assert_eq!(
+        b.tanks[1].shield.map(|s| s.energy),
+        Some(full),
+        "costs the deflector nothing"
+    );
+
+    let me = b.current;
+    players[me].ammo[weapon("Tracer")] = 1;
+    b.tanks[me].weapon = weapon("Tracer");
+    b.fire(&mut players);
+    assert_eq!(b.shot_line, None, "never logged as a miss");
+    assert_eq!(players[me].round_stats.shots, 0, "not counted for accuracy");
+}
+
+#[test]
+fn outer_warheads_drift_faster_on_a_deaths_head() {
+    let side = |name: &str| WEAPONS[weapon(name)].kind.side_speed();
+    assert_eq!(side("Missile"), 0.0);
+    assert_eq!(side("MIRV"), 90.0);
+    assert_eq!(side("Death's Head"), 120.0);
+}
+
+#[test]
+fn a_riot_bomb_leaves_tanks_on_untouched_ground_alone() {
+    // A tank down in a valley, within reach sideways of a Riot Bomb landing on a high ledge, but far below it.
+    let (mut players, mut b) = range(|x| if x < 600.0 { 400.0 } else { 600.0 });
+    b.tanks[1].pos = vec2(610.0, 600.0);
+    drop(&mut b, weapon("Riot Bomb"), 560.0, 0.0);
+    run(&mut b, &mut players);
+    assert_eq!(b.tanks[1].last_hit_by, None, "its ground didn't move");
+}
+
+#[test]
+fn the_weapon_strip_turns_see_through_over_a_tank_in_a_deep_valley() {
+    let (players, mut b) = range(|_| 400.0);
+    let strip = weapon_strip(&players[0]);
+    assert!(!covers_a_tank(&strip, &b.tank_areas(&players)));
+    // Down in a crater at the bottom of the screen, right behind the strip.
+    b.tanks[1].pos = vec2(640.0, 690.0);
+    assert!(covers_a_tank(&strip, &b.tank_areas(&players)));
+}
+
+#[test]
+fn a_hole_under_only_part_of_a_tank_doesnt_count_as_dropping_it() {
+    let (players, mut b) = range(|x| {
+        if (639.0..=641.0).contains(&x) {
+            700.0
+        } else {
+            600.0
+        }
+    });
+    b.tanks[1].pos = vec2(640.0, 600.0);
+    b.undermine(600.0, 680.0, 0, &players);
+    assert_eq!(b.tanks[1].last_hit_by, None, "its edges still hold it up");
+}
+
+#[test]
+fn dropping_a_tank_is_logged_and_asks_for_revenge() {
+    let (mut players, mut b) = range(|_| 600.0);
+    b.tanks[1].pos = vec2(650.0, 600.0);
+    let before = b.history.len();
+    drop(&mut b, weapon("Riot Bomb"), 640.0, 0.0);
+    run(&mut b, &mut players);
+    assert_eq!(b.tanks[1].revenge, Some(0));
+    assert_eq!(
+        b.history.len(),
+        before + 1,
+        "one line, so the shot isn't logged as a miss"
+    );
 }

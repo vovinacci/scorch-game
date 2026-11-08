@@ -6,8 +6,8 @@ use crate::i18n::t;
 pub enum Kind {
     /// Explodes on impact: damages tanks and carves terrain.
     Blast,
-    /// Splits into 5 warheads at the top of its arc.
-    Mirv,
+    /// Splits into `warheads` at the top of its arc, `spread` pixels per second apart sideways.
+    Mirv { warheads: u8, spread: u8 },
     /// Adds a mound of dirt instead of exploding. Great for burying enemies.
     Dirt,
     /// Lands, rolls downhill and explodes in the next dip, against a tank or a slope it can't climb.
@@ -20,12 +20,31 @@ pub enum Kind {
     Napalm,
     /// Burrows sideways under the ground, so the dirt above it sinks. No damage.
     Digger,
+    /// Harmless: only draws its whole path, to help aim the next shot.
+    Tracer,
+    /// Clears the dirt around where it lands without hurting anyone.
+    Riot,
 }
 
 impl Kind {
-    /// Changes the ground but does no damage; bots don't fire these at enemies.
+    /// Does no damage (it changes the ground, or only shows a path); bots don't buy or fire these.
     pub fn is_utility(self) -> bool {
-        matches!(self, Kind::Dirt | Kind::Digger)
+        matches!(self, Kind::Dirt | Kind::Digger | Kind::Tracer | Kind::Riot)
+    }
+
+    /// Not a shot at anyone, only a look at the path: it doesn't count for accuracy, isn't logged as a miss and
+    /// doesn't drain Mag Deflectors.
+    pub fn is_probe(self) -> bool {
+        self == Kind::Tracer
+    }
+
+    /// Sideways speed of the outermost MIRV warhead relative to the shell, in pixels per second (0 for other
+    /// weapons). Times the fall from the top of the arc, it's how far from the shell's landing the outer blasts land.
+    pub fn side_speed(self) -> f32 {
+        match self {
+            Kind::Mirv { warheads, spread } => f32::from(warheads - 1) / 2.0 * f32::from(spread),
+            _ => 0.0,
+        }
     }
 }
 
@@ -42,16 +61,13 @@ pub struct Weapon {
 impl Weapon {
     /// Name on screen, in the current language.
     pub fn text(&self) -> String {
-        t!(&format!(
-            "weapon-{}",
-            self.name.to_lowercase().replace(' ', "-")
-        ))
+        t!(&crate::i18n::name_key("weapon", self.name))
     }
 }
 
 /// Index 0 is the default weapon with infinite ammo.
 /// New weapons go at the end: saves store ammo by index.
-pub const WEAPONS: [Weapon; 11] = [
+pub const WEAPONS: [Weapon; 14] = [
     Weapon {
         name: "Baby Missile",
         kind: Kind::Blast,
@@ -70,7 +86,10 @@ pub const WEAPONS: [Weapon; 11] = [
     },
     Weapon {
         name: "MIRV",
-        kind: Kind::Mirv,
+        kind: Kind::Mirv {
+            warheads: 5,
+            spread: 45,
+        },
         radius: 25.0,
         damage: 35.0,
         price: 120,
@@ -139,6 +158,33 @@ pub const WEAPONS: [Weapon; 11] = [
         damage: 0.0,
         price: 40,
         bundle: 2,
+    },
+    Weapon {
+        name: "Tracer",
+        kind: Kind::Tracer,
+        radius: 0.0,
+        damage: 0.0,
+        price: 10,
+        bundle: 5,
+    },
+    Weapon {
+        name: "Riot Bomb",
+        kind: Kind::Riot,
+        radius: 60.0,
+        damage: 0.0,
+        price: 50,
+        bundle: 2,
+    },
+    Weapon {
+        name: "Death's Head",
+        kind: Kind::Mirv {
+            warheads: 9,
+            spread: 30,
+        },
+        radius: 35.0,
+        damage: 45.0,
+        price: 250,
+        bundle: 1,
     },
 ];
 

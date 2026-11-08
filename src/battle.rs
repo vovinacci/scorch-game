@@ -32,6 +32,8 @@ pub const POWER_PER_HEALTH: f32 = 10.0;
 /// Even a nearly dead tank can lob a short shot.
 pub const MIN_POWER_LIMIT: f32 = 50.0;
 const TANK_RADIUS: f32 = 12.0;
+/// Text size of the name above each tank.
+const NAME_SIZE: f32 = 16.0;
 const BARREL: f32 = 18.0;
 /// Fixed physics step: the same shot always flies the same way, whatever the frame rate.
 const STEP: f32 = 1.0 / 120.0;
@@ -109,6 +111,14 @@ const PREFER_LEADER: f32 = 0.8;
 /// don't all gang up on the same player.
 const CROWD_PENALTY: f32 = 0.5;
 
+/// The path of a tank's previous shot.
+#[derive(Default)]
+struct Trail {
+    points: Vec<Vec2>,
+    /// It was a Tracer: shown even with "Last shot path" off.
+    tracer: bool,
+}
+
 #[derive(Serialize, Deserialize)]
 struct Tank {
     /// Bottom-center of the tank, resting on the ground.
@@ -126,7 +136,7 @@ struct Tank {
     last_hit_by: Option<usize>,
     /// Path of this tank's previous shot, drawn faintly to help aiming.
     #[serde(skip)]
-    last_trail: Vec<Vec2>,
+    last_trail: Trail,
     /// Bots only.
     aim: Option<AimMemory>,
     /// Who hit this tank since its last shot. Bots shoot back.
@@ -387,7 +397,7 @@ impl Battle {
                     fled: false,
                     fall_from: None,
                     last_hit_by: None,
-                    last_trail: Vec::new(),
+                    last_trail: Trail::default(),
                     aim: None,
                     revenge: None,
                     shield: None,
@@ -444,6 +454,21 @@ impl Battle {
 
     fn world(&self) -> World {
         self.rules.world
+    }
+
+    /// Where each living tank is drawn, with its health bar and name above it (as wide as the name).
+    fn tank_areas(&self, players: &[Player]) -> Vec<Rect> {
+        self.tanks
+            .iter()
+            .zip(players)
+            .filter(|(t, _)| t.alive && !t.fled)
+            .map(|(t, p)| {
+                // The font is monospaced, half as wide as it is tall.
+                let w = (p.label().chars().count() as f32 * NAME_SIZE * 0.5).max(48.0);
+                // Name, health number and shield stack up to about 74 px above the ground.
+                Rect::new(t.pos.x - w / 2.0, t.pos.y - 74.0, w, 76.0)
+            })
+            .collect()
     }
 
     fn max_power(&self, tank: &Tank) -> f32 {
@@ -574,24 +599,13 @@ impl Battle {
         }
         tank.angle = tank.angle.clamp(0.0, 180.0);
         tank.power = tank.power.clamp(0.0, max_power);
-        // Weapon strip: click a weapon, or press its key (1-9, then 0 and - for the tenth and eleventh).
+        // Weapon strip: click a weapon, or press its key.
         let strip = weapon_strip(player);
-        let keys = [
-            KeyCode::Key1,
-            KeyCode::Key2,
-            KeyCode::Key3,
-            KeyCode::Key4,
-            KeyCode::Key5,
-            KeyCode::Key6,
-            KeyCode::Key7,
-            KeyCode::Key8,
-            KeyCode::Key9,
-            KeyCode::Key0,
-            KeyCode::Minus,
-        ];
         let clicked = is_mouse_button_pressed(MouseButton::Left).then(ui::mouse);
         for (k, &(w, r)) in strip.iter().enumerate() {
-            if keys.get(k).is_some_and(|&key| is_key_pressed(key))
+            if STRIP_KEYS
+                .get(k)
+                .is_some_and(|&(key, _)| is_key_pressed(key))
                 || clicked.is_some_and(|m| r.contains(m))
             {
                 tank.weapon = w;
@@ -623,7 +637,10 @@ impl Battle {
         if weapon != 0 {
             players[i].ammo[weapon] -= 1;
         }
-        players[i].round_stats.shots += 1;
+        let probe = WEAPONS[weapon].kind.is_probe();
+        if !probe {
+            players[i].round_stats.shots += 1;
+        }
         if !players[i].has(weapon) {
             tank.weapon = 0;
         }
@@ -637,7 +654,8 @@ impl Battle {
             angle = tank.angle.round(),
             power = tank.power.round()
         );
-        self.shot_line = Some(self.history.len());
+        // A probe's line gets no "missed": it wasn't aimed at anyone.
+        self.shot_line = (!probe).then_some(self.history.len());
         self.note(text, players[i].color);
         self.projectiles
             .push(Projectile::new(pos, vel, weapon, i, false));
@@ -662,19 +680,27 @@ impl Battle {
         for mut p in std::mem::take(&mut self.projectiles) {
             let next = match p.motion {
                 Motion::Rolling { dir, time } => self.roll(p, dir, time, players),
-                Motion::Digging { dir, left } => self.dig(p, dir, left),
+                Motion::Digging { dir, left } => self.dig(p, dir, left, players),
                 Motion::Flying => {
                     let flight = step_shell(&mut p.pos, &mut p.vel, self.wind, world, STEP);
                     p.trail.push(p.pos);
 
-                    if WEAPONS[p.weapon].kind == Kind::Mirv && !p.child && p.vel.y > 0.0 {
-                        for k in -2..=2 {
+                    if let Kind::Mirv { warheads, spread } = WEAPONS[p.weapon].kind
+                        && !p.child
+                        && p.vel.y > 0.0
+                    {
+                        let middle = f32::from(warheads - 1) / 2.0;
+                        for k in 0..warheads {
                             // Every warhead is a new shell for the deflectors.
-                            let vel = p.vel + vec2(k as f32 * 45.0, 0.0);
+                            let side = (f32::from(k) - middle) * f32::from(spread);
+                            let vel = p.vel + vec2(side, 0.0);
                             self.projectiles
                                 .push(Projectile::new(p.pos, vel, p.weapon, p.owner, true));
                         }
-                        self.tanks[p.owner].last_trail = p.trail;
+                        self.tanks[p.owner].last_trail = Trail {
+                            points: p.trail,
+                            tracer: false,
+                        };
                         continue;
                     }
 
@@ -709,7 +735,10 @@ impl Battle {
     /// A shell is done: its path is kept to help aim the next shot (warheads and bomblets don't count).
     fn landed(&mut self, p: Projectile) {
         if !p.child {
-            self.tanks[p.owner].last_trail = p.trail;
+            self.tanks[p.owner].last_trail = Trail {
+                points: p.trail,
+                tracer: WEAPONS[p.weapon].kind.is_probe(),
+            };
         }
     }
 
@@ -758,6 +787,8 @@ impl Battle {
                 }
             }
             Kind::Napalm => self.ignite(p.pos.x, p.owner),
+            // A Tracer only leaves its path (see `landed`).
+            Kind::Tracer => {}
             _ => self.detonate(p.pos, p.weapon, p.owner, players),
         }
         self.landed(p);
@@ -793,13 +824,22 @@ impl Battle {
     }
 
     /// One step of a Digger burrowing sideways: the ground above sinks as it passes.
-    fn dig(&mut self, mut p: Projectile, dir: f32, left: f32) -> Option<Projectile> {
+    fn dig(
+        &mut self,
+        mut p: Projectile,
+        dir: f32,
+        left: f32,
+        players: &[Player],
+    ) -> Option<Projectile> {
         let step = DIG_SPEED * STEP;
         let x = p.pos.x + dir * step;
         self.terrain.sink(p.pos.x, x, DIG_DEPTH);
         p.pos = vec2(x, self.terrain.height_at(x) + 4.0);
         let left = left - step;
         if left <= 0.0 || !(0.0..WIDTH as f32).contains(&x) {
+            // Tanks only fall once the shells are done, so the whole trench can be checked here.
+            let start = x - dir * (DIG_LENGTH - left);
+            self.undermine(start, x, p.owner, players);
             self.explosions.push(Explosion {
                 pos: p.pos,
                 radius: 14.0,
@@ -866,6 +906,9 @@ impl Battle {
 
     /// Each Mag Deflector pays `DEFLECT_COST` once for a shell entering its field; one that runs out goes down.
     fn charge_deflectors(&mut self, p: &mut Projectile, players: &[Player]) {
+        if WEAPONS[p.weapon].kind.is_probe() {
+            return;
+        }
         let mut down = Vec::new();
         for (i, tank) in self.tanks.iter_mut().enumerate() {
             let bit = 1u8 << i;
@@ -907,20 +950,56 @@ impl Battle {
             .collect()
     }
 
+    /// Call after `owner` changed the ground between `x0` and `x1`. An enemy tank there that's no longer held up will
+    /// fall (the same test as `settle`): it counts as hit by `owner`, for the kill and for revenge, and the log says
+    /// so (so the shot isn't logged as a miss).
+    fn undermine(&mut self, x0: f32, x1: f32, owner: usize, players: &[Player]) {
+        let (a, b) = (x0.min(x1), x0.max(x1));
+        let mut dropped = Vec::new();
+        for (i, tank) in self.tanks.iter_mut().enumerate() {
+            let under = tank.pos.x + TANK_RADIUS >= a && tank.pos.x - TANK_RADIUS <= b;
+            let falls = self.terrain.support_y(tank.pos.x, TANK_RADIUS) > tank.pos.y + 0.5;
+            if i != owner && tank.alive && under && falls {
+                tank.last_hit_by = Some(owner);
+                tank.revenge = Some(owner);
+                dropped.push(i);
+            }
+        }
+        for i in dropped {
+            let text = t!(
+                "log-undermined",
+                name = players[i].label(),
+                you = you(&players[i])
+            );
+            self.log(text, players[owner].color);
+        }
+    }
+
     fn detonate(&mut self, pos: Vec2, weapon: usize, owner: usize, players: &mut [Player]) {
         let w = &WEAPONS[weapon];
-        if w.kind == Kind::Dirt {
-            self.sounds.push(Sfx::Dirt);
-            self.terrain.add_dirt(pos, w.radius);
-            self.explosions.push(Explosion {
-                pos,
-                radius: w.radius,
-                age: 0.0,
-                dirt: true,
-            });
-        } else {
-            self.blast(pos, w.radius, w.damage, Some(owner), players);
+        match w.kind {
+            Kind::Dirt => {
+                self.terrain.add_dirt(pos, w.radius);
+                self.dirt_burst(pos, w.radius);
+            }
+            Kind::Riot => {
+                self.terrain.carve(pos, w.radius);
+                self.undermine(pos.x - w.radius, pos.x + w.radius, owner, players);
+                self.dirt_burst(pos, w.radius);
+            }
+            _ => self.blast(pos, w.radius, w.damage, Some(owner), players),
         }
+    }
+
+    /// The sound and look of earth thrown up or cleared away (no blast).
+    fn dirt_burst(&mut self, pos: Vec2, radius: f32) {
+        self.sounds.push(Sfx::Dirt);
+        self.explosions.push(Explosion {
+            pos,
+            radius,
+            age: 0.0,
+            dirt: true,
+        });
     }
 
     /// Damages every tank in range (more damage closer to the center) and carves a crater.
@@ -1368,6 +1447,8 @@ impl Battle {
                 .unwrap_or(0);
         }
         let safe_distance = WEAPONS[weapon].radius + 25.0;
+        let side_speed = WEAPONS[weapon].kind.side_speed();
+        let gravity = self.world().gravity();
 
         let mut best = Shot {
             angle: 90.0,
@@ -1393,7 +1474,10 @@ impl Battle {
                 };
                 // Rollers and Napalm are aimed at where they end up, not where they land.
                 let hit = damage_point(WEAPONS[weapon].kind, landing, &self.terrain);
-                if hit.distance(shooter.center()) < safe_distance {
+                // MIRV warheads split at the top of the arc and drift apart for as long as they fall, which the
+                // landing speed tells (the fall starts with no vertical speed).
+                let drift = side_speed * landing.vel.y.max(0.0) / gravity;
+                if hit.distance(shooter.center()) < safe_distance + drift {
                     continue;
                 }
                 let d = hit.distance(target);
@@ -1434,9 +1518,16 @@ impl Battle {
         self.world().sky.draw();
         self.terrain.draw();
 
-        if settings.shot_path && matches!(self.phase, Phase::Aim { .. }) {
-            for p in self.tanks[self.current].last_trail.iter().step_by(6) {
-                draw_circle(p.x, p.y, 1.5, Color::new(1.0, 1.0, 1.0, 0.3));
+        let trail = &self.tanks[self.current].last_trail;
+        if (settings.shot_path || trail.tracer) && matches!(self.phase, Phase::Aim { .. }) {
+            // A Tracer's path is brighter and denser: that's what it was bought for.
+            let (step, color) = if trail.tracer {
+                (3, Color::new(0.5, 1.0, 1.0, 0.6))
+            } else {
+                (6, Color::new(1.0, 1.0, 1.0, 0.3))
+            };
+            for p in trail.points.iter().step_by(step) {
+                draw_circle(p.x, p.y, 1.5, color);
             }
         }
 
@@ -1542,7 +1633,7 @@ impl Battle {
         let tank = &self.tanks[self.current];
         // Your turn only: on bot turns the bottom of the screen has the skip button.
         if matches!(self.phase, Phase::Aim { .. }) && !player.is_bot() {
-            draw_weapon_strip(player, tank.weapon);
+            draw_weapon_strip(player, tank.weapon, &self.tank_areas(players));
         }
         let name = player.label();
         ui::text_fit(&name, 16.0, 29.0, 260.0, 24.0, player.color);
@@ -1728,39 +1819,73 @@ pub fn draw_history(battle: &Battle) {
     }
 }
 
+/// The weapon strip's keys, in strip order, with the label shown in front of each weapon.
+const STRIP_KEYS: [(KeyCode, &str); 12] = [
+    (KeyCode::Key1, "1 "),
+    (KeyCode::Key2, "2 "),
+    (KeyCode::Key3, "3 "),
+    (KeyCode::Key4, "4 "),
+    (KeyCode::Key5, "5 "),
+    (KeyCode::Key6, "6 "),
+    (KeyCode::Key7, "7 "),
+    (KeyCode::Key8, "8 "),
+    (KeyCode::Key9, "9 "),
+    (KeyCode::Key0, "0 "),
+    (KeyCode::Minus, "- "),
+    (KeyCode::Equal, "= "),
+];
+
 /// Weapon strip along the bottom: the weapons `player` has ammo for, in Tab order, with where each one is drawn.
 fn weapon_strip(player: &Player) -> Vec<(usize, Rect)> {
     const GAP: f32 = 6.0;
+    // More than this and the names get too small: the strip wraps onto a second row above.
+    const PER_ROW: usize = 7;
     let owned: Vec<usize> = (0..WEAPONS.len()).filter(|&w| player.has(w)).collect();
-    let n = owned.len() as f32;
-    let w = ((ui::WIDTH - 32.0 - GAP * (n - 1.0)) / n).min(150.0);
-    let left = (ui::WIDTH - (w * n + GAP * (n - 1.0))) / 2.0;
+    let rows = owned.len().div_ceil(PER_ROW);
     owned
-        .into_iter()
+        .chunks(PER_ROW)
         .enumerate()
-        .map(|(k, weapon)| {
-            let r = Rect::new(left + k as f32 * (w + GAP), HEIGHT - 58.0, w, 26.0);
-            (weapon, r)
+        .flat_map(|(row, chunk)| {
+            let n = chunk.len() as f32;
+            let w = ((ui::WIDTH - 32.0 - GAP * (n - 1.0)) / n).min(150.0);
+            let left = (ui::WIDTH - (w * n + GAP * (n - 1.0))) / 2.0;
+            let y = HEIGHT - 58.0 - (rows - 1 - row) as f32 * (26.0 + GAP);
+            chunk.iter().enumerate().map(move |(k, &weapon)| {
+                (weapon, Rect::new(left + k as f32 * (w + GAP), y, w, 26.0))
+            })
         })
         .collect()
 }
 
-fn draw_weapon_strip(player: &Player, selected: usize) {
-    for (k, (w, r)) in weapon_strip(player).into_iter().enumerate() {
+/// Whether any box of the strip lies over a tank's area.
+fn covers_a_tank(strip: &[(usize, Rect)], tanks: &[Rect]) -> bool {
+    strip
+        .iter()
+        .any(|(_, r)| tanks.iter().any(|t| t.overlaps(r)))
+}
+
+/// The strip, on your turn. If a tank stands behind it (deep valleys and craters reach down there), the boxes turn
+/// see-through, so the tank stays visible; they still work.
+fn draw_weapon_strip(player: &Player, selected: usize, tanks: &[Rect]) {
+    let strip = weapon_strip(player);
+    let fill = if covers_a_tank(&strip, tanks) {
+        Color {
+            a: 0.25,
+            ..ui::PANEL
+        }
+    } else {
+        ui::PANEL
+    };
+    for (k, (w, r)) in strip.into_iter().enumerate() {
         let on = w == selected;
-        draw_rectangle(r.x, r.y, r.w, r.h, ui::PANEL);
+        draw_rectangle(r.x, r.y, r.w, r.h, fill);
         let border = if on {
             GOLD
         } else {
             Color::new(1.0, 1.0, 1.0, 0.15)
         };
         draw_rectangle_lines(r.x, r.y, r.w, r.h, if on { 2.0 } else { 1.0 }, border);
-        let key = match k {
-            0..9 => format!("{} ", k + 1),
-            9 => "0 ".to_string(),
-            10 => "- ".to_string(),
-            _ => String::new(),
-        };
+        let key = STRIP_KEYS.get(k).map_or("", |&(_, label)| label);
         let text = format!("{key}{} {}", WEAPONS[w].text(), player.ammo_label(w));
         let color = if on { WHITE } else { LIGHTGRAY };
         ui::text_centered_fit(&text, r.center().x, r.y + 18.0, r.w - 8.0, 16.0, color);
@@ -2018,7 +2143,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
         }
         label_y = number_y - 16.0;
     }
-    ui::text_centered(&player.label(), x, label_y, 16.0, WHITE);
+    ui::text_centered(&player.label(), x, label_y, NAME_SIZE, WHITE);
 
     if is_current {
         let bob = (get_time() * 5.0).sin() as f32 * 4.0;

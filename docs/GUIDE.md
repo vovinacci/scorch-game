@@ -23,7 +23,7 @@ The game is dedicated to the memory of Joseph Rivkind (1952–2026), who taught 
 | Up / Down | Shot power | Move between options |
 | Shift (hold) | Fine adjustment (5 times slower) | |
 | Tab | Next weapon you have ammo for | |
-| 1-9, 0, - | Pick a weapon from the weapon strip (or click it) | |
+| 1-9, 0, -, = | Pick a weapon from the weapon strip (or click it) | |
 | Space | Fire | Choose |
 | Enter | Skip to the end of the round (only bots left) | Choose |
 | L (hold) | Full battle log of this round | |
@@ -49,7 +49,9 @@ on.
 Each tank has its name and a health bar above it. In Settings you can show health as a bar, a number, or both.
 
 Above the bottom line, the **weapon strip** lists every weapon you have ammo for, with how many are left. The selected
-one has a gold frame. On your turn, click a weapon or press the key in front of it.
+one has a gold frame. With more than 7 weapons it takes two rows. If a tank stands behind the strip (deep down in a
+valley or a crater), the strip turns see-through so you can still see it. On your turn, click a weapon or press the key
+in front of it (the first 12 have keys; Tab reaches the rest).
 
 While a bot aims, the bottom line tells you which tank it's aiming at and why. On your turn, the bottom line lists the
 controls.
@@ -99,30 +101,36 @@ battle is a risk to everyone around you, you included.
 
 ### Who gets the kill
 
-A kill always goes to the last **enemy** who damaged the tank this round, however it finally died: by that enemy's shot,
-by a fall, by its own shot, by self-destructing or by sudden death. So if you weaken a tank and it then blows itself up,
-the kill is yours. A tank that no enemy ever hit dies without anyone getting a kill.
+A kill always goes to the last **enemy** who damaged the tank this round (or took the ground from under it with a Riot
+Bomb or a Digger), however it finally died: by that enemy's shot, by a fall, by its own shot, by self-destructing or by
+sudden death. So if you weaken a tank and it then blows itself up, the kill is yours. A tank that no enemy ever hit dies
+without anyone getting a kill.
 
 ## Weapons
 
 | Weapon | What it does | Radius | Damage | Price | You get |
 |---|---|---|---|---|---|
 | Baby Missile | Explodes | 20 | 30 | free | unlimited |
+| Tracer | Harmless: draws its whole path, brighter than the usual last shot path, to help you aim | - | 0 | $10 | 5 |
 | Missile | Explodes | 35 | 55 | $60 | 3 |
 | MIRV | Splits into 5 warheads at the top of its arc | 25 each | 35 each | $120 | 1 |
 | Nuke | A huge explosion | 85 | 100 | $200 | 1 |
 | Dirt Bomb | Throws up a mound of earth, no damage | 45 | 0 | $40 | 2 |
 | Digger | Burrows 160 pixels sideways under the ground, which sinks 40 pixels above it; no damage | - | 0 | $40 | 2 |
+| Riot Bomb | Clears away the dirt where it lands; no blast damage, but a tank whose ground is cleared falls | 60 | 0 | $50 | 2 |
 | Roller | Lands, rolls downhill and explodes in the next dip, at a tank or at a slope it can't climb | 30 | 50 | $80 | 2 |
 | Leapfrog | Explodes, then hops on and explodes again, three blasts in all | 25 each | 35 each | $100 | 1 |
 | Napalm | Spills burning fuel that runs downhill and burns for 3 seconds | - | 20 per second | $110 | 1 |
 | Baby Nuke | A big explosion | 55 | 75 | $130 | 1 |
 | Funky Bomb | Explodes and throws 6 bomblets around at random | 22 each | 28 each | $150 | 1 |
+| Death's Head | Splits into 9 warheads at the top of its arc, spread wider than the MIRV's | 35 each | 45 each | $250 | 1 |
 
 Everyone starts the game with $100 and 2 Missiles. Weapons and money carry over from round to round. The Dirt Bomb is
 for burying an enemy or building a wall in front of yourself; the Digger digs a buried tank out, or drops an enemy into
-a trench (the fall hurts). Rollers and Napalm find the low ground, so they're best against a tank in a valley. Napalm
-burns any tank close to the fire, yours too, and shields soak up the burn like any other damage.
+a trench (the fall hurts); the Riot Bomb clears a mound away, digs out a buried tank or opens a path through a hill. A
+Tracer's path stays on screen for your next turn, even with "Last shot path" off; it doesn't count as a shot in your
+accuracy and doesn't drain a Mag Deflector. Rollers and Napalm find the low ground, so they're best against a tank in a
+valley. Napalm burns any tank close to the fire, yours too, and shields soak up the burn like any other damage.
 
 ## Parachutes and shields
 

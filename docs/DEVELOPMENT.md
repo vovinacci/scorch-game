@@ -123,11 +123,29 @@ The player's guide explains the rules; these are the exact values.
 - Falling: the first 15 px are free, then 0.4 health per px.
 - Health limits power: max power = health x 10, at least 50.
 - Death blast: radius 35, damage 40, plus 15% of the radius and 10% of the damage of every carried shell (not Baby
-  Missiles or Dirt Bombs), capped at radius 110 and damage 120. One Nuke aboard: radius 48, damage 50.
+  Missiles or utility weapons), capped at radius 110 and damage 120. One Nuke aboard: radius 48, damage 50.
 - Self-destruct: radius 75, damage 80, then the death blast.
 - Sudden death: 5 health per turn, past shields. The setting is shots per tank (8/12/16/24); `Battle::new` multiplies it
   by the number of tanks into the turn it starts, which saved battles store.
 - Kills from a death blast go to whoever caused the death, or to the dead tank itself if nobody did.
+
+### Weapons
+
+- The table is `WEAPONS` in `src/weapons.rs`; saves store ammo by index, so new weapons go at the end.
+- Utility weapons do no damage: Dirt Bomb, Digger, Tracer, Riot Bomb. Bots don't buy or fire them, and they don't add to
+  the death blast.
+- MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,
+  centred on the shell's (MIRV 5 x 45 px/s, Death's Head 9 x 30 px/s).
+- Tracer is a probe: no shot in accuracy stats, no "missed" in the log, no Mag Deflector charge. Its path is drawn every
+  3rd point in light cyan (alpha 0.6), shown even with "Last shot path" off; a normal last shot path is every 6th point
+  in white (alpha 0.3).
+- Riot Bomb carves a circle of radius 60. When a Riot Bomb lands or a Digger finishes its trench, every enemy tank over
+  the changed ground that is no longer held up (the same support test as falling: the highest ground under its 24 px
+  width) gets the shooter as last hitter and revenge target, and the log says its ground gave way. So a deadly fall is
+  the shooter's kill, and the shot isn't logged as a miss.
+- Weapon strip: up to 7 boxes per row (at most 150 px wide), extra rows above; keys 1-9, 0, -, = for the first 12.
+  Generated ground reaches y 690 and craters go lower, so when any tank's area (48 x 46 px around it, bar and name
+  included) overlaps a box, the boxes are drawn at alpha 0.25 instead of 0.9.
 
 ### Parachutes and shields
 
@@ -155,7 +173,10 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 - Next error = error x L + wobble, wobble uniform within ±12% of E. Typical miss on shot n = 0.7 x E x L^(n-1); "on
   target" means under 2° and 30 power, which is what the custom bot editor and the guide's table use.
 - Presets: Moron E = 25° / 300, L = 0.8; Shooter 12° / 180, 0.5; Sniper 6° / 90, 0.3.
-- Weapon: 60% chance of its biggest weapon (not Dirt Bomb), otherwise a Baby Missile.
+- Weapon: 60% chance of its most expensive weapon that isn't a utility one, otherwise a Baby Missile. Shots landing
+  closer to the bot than the weapon's radius + 25 px are ruled out; for MIRV-type weapons add the outer warhead's drift:
+  its sideways speed x the fall time from the top of the arc (landing vertical speed / gravity).
+- Shop: 8 random picks among the non-utility weapons and the items, each bought if affordable.
 - Target score for a new target: nearness (weight 1.0) + damage taken (0.8) + share of the most wins (0.8) - 0.5 per
   other bot aiming at that tank + random 0-0.3.
 
