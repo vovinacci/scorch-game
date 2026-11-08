@@ -403,7 +403,7 @@ fn a_digger_sinks_the_ground_under_a_tank() {
     b.tanks[1].pos = vec2(700.0, 600.0);
     drop(&mut b, weapon("Digger"), 640.0, 100.0);
     let blasts = run(&mut b, &mut players);
-    assert_eq!(blasts, [] as [Vec2; 0]);
+    assert_eq!(blasts, []);
     assert_eq!(b.terrain.height_at(700.0), 600.0 + DIG_DEPTH);
     assert_eq!(
         b.terrain.height_at(640.0 + DIG_LENGTH + 20.0),
