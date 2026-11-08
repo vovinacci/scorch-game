@@ -283,6 +283,7 @@ fn a_mag_deflectors_last_energy_still_pushes_the_shell_that_paid_for_it() {
     rules.world.terrain = crate::world::TerrainKind::Flat;
     let mut b = battle(&players, rules);
     b.raise_shields(&mut players);
+    b.wind = 0.0;
     b.tanks[1].shield.as_mut().unwrap().energy = DEFLECT_COST;
     let target = b.tanks[1].center();
     b.projectiles.push(Projectile::new(
@@ -1121,4 +1122,19 @@ fn a_miss_is_marked_even_when_another_line_follows_the_shot() {
         "{}",
         b.history[k].text
     );
+}
+
+#[test]
+fn a_spent_deflector_absorbs_nothing_and_adds_nothing() {
+    let mut players = bots(2);
+    players[1].items[3] = 1;
+    let mut b = battle(&players, Setup::default().rules());
+    b.raise_shields(&mut players);
+    b.tanks[1].shield.as_mut().unwrap().energy = -5.0;
+    b.hurt(&[(1, 30.0)], Some(0), &mut players);
+    assert_eq!(b.tanks[1].health, 70.0, "exactly the hit, nothing extra");
+    assert!(b.tanks[1].shield_up().is_none(), "not shown while spent");
+    assert_eq!(b.spent_deflectors(), 0b10);
+    b.drop_spent_deflectors(&players);
+    assert!(b.tanks[1].shield.is_none());
 }

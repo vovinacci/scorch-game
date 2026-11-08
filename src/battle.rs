@@ -135,7 +135,8 @@ struct Tank {
     /// Who hit this tank since its last shot. Bots shoot back.
     #[serde(default)]
     revenge: Option<usize>,
-    /// The shield raised at round start, while it has energy left.
+    /// The shield raised at round start. A Mag Deflector that has run out stays here (at 0 or below) while the
+    /// shells that paid for it fly, then goes down (`drop_spent_deflectors`); any other shield goes at 0.
     #[serde(default)]
     shield: Option<ActiveShield>,
     /// A parachute is open (only while falling).
@@ -177,6 +178,12 @@ impl ActiveShield {
 }
 
 impl Tank {
+    /// The shield as players see it: up, with energy left (a spent Mag Deflector still pushing its last shells
+    /// isn't shown).
+    fn shield_up(&self) -> Option<ActiveShield> {
+        self.shield.filter(|s| s.energy > 0.0)
+    }
+
     fn center(&self) -> Vec2 {
         self.pos - vec2(0.0, 8.0)
     }
@@ -966,7 +973,9 @@ impl Battle {
                 self.detonate(p.pos, p.weapon, p.owner, players);
                 if p.hops < hops {
                     p.hops += 1;
-                    p.charged = 0;
+                    // Each hop is a new pass, paying again, except to a deflector this shell spent: that one keeps
+                    // pushing it.
+                    p.charged &= self.spent_deflectors();
                     p.vel = vec2(p.vel.x * HOP_KEEP, -HOP_UP);
                     p.pos.y = self.terrain.height_at(p.pos.x) - 4.0;
                     return Some(p);
@@ -1101,7 +1110,8 @@ impl Battle {
         }
     }
 
-    /// Each Mag Deflector pays `DEFLECT_COST` once for a shell entering its field; one that runs out goes down.
+    /// Each Mag Deflector with energy left pays `DEFLECT_COST` once for a shell entering its field. One that runs out
+    /// stays up for the shells that paid for it and goes down when the turn's shells are done.
     fn charge_deflectors(&mut self, p: &mut Projectile) {
         if WEAPONS[p.weapon].kind.is_probe() {
             return;
@@ -1129,21 +1139,35 @@ impl Battle {
         }
     }
 
-    /// Centres of the Mag Deflectors pushing shell `p`: every enemy deflector with energy left, plus a spent one this
-    /// shell already paid for (its last push still works).
+    /// Centres of the Mag Deflectors pushing shell `p`: enemy deflectors with energy left, plus a spent one this
+    /// shell paid for (its last push still works).
     fn deflectors_for(&self, p: &Projectile) -> Vec<Vec2> {
+        self.deflectors_paid(p.owner, p.charged)
+    }
+
+    /// Enemy deflectors (not `owner`'s) with energy left, plus spent ones whose bit is set in `paid`.
+    fn deflectors_paid(&self, owner: usize, paid: u8) -> Vec<Vec2> {
         self.tanks
             .iter()
             .enumerate()
             .filter(|(i, t)| {
-                let paid = p.charged & (1u8 << i) != 0;
-                *i != p.owner
+                let paid = paid & (1u8 << i) != 0;
+                *i != owner
                     && t.alive
                     && t.shield
                         .is_some_and(|s| s.deflects() && (s.energy > 0.0 || paid))
             })
             .map(|(_, t)| t.center())
             .collect()
+    }
+
+    /// Bits of the tanks whose Mag Deflector has run out but is still up.
+    fn spent_deflectors(&self) -> u8 {
+        self.tanks
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| t.shield.is_some_and(|s| s.deflects() && s.energy <= 0.0))
+            .fold(0, |bits, (i, _)| bits | 1u8 << i)
     }
 
     /// Once the shells are done, Mag Deflectors that ran out of energy go down.
@@ -1164,16 +1188,9 @@ impl Battle {
         }
     }
 
-    /// Centres of the Mag Deflectors that push `owner`'s shells (everyone's but its own).
+    /// Centres of the Mag Deflectors that push `owner`'s shells (everyone's but its own, with energy left).
     fn deflectors(&self, owner: usize) -> Vec<Vec2> {
-        self.tanks
-            .iter()
-            .enumerate()
-            .filter(|(i, t)| {
-                *i != owner && t.alive && t.shield.is_some_and(|s| s.deflects() && s.energy > 0.0)
-            })
-            .map(|(_, t)| t.center())
-            .collect()
+        self.deflectors_paid(owner, 0)
     }
 
     /// Call after `owner` changed the ground between `x0` and `x1`. An enemy tank there that's no longer held up will
@@ -1272,11 +1289,12 @@ impl Battle {
             // A shield takes the hit first.
             let mut absorbed = 0.0;
             let mut shield_down = false;
-            if let Some(shield) = &mut tank.shield {
+            // (A spent Mag Deflector, at 0 or below, absorbs nothing; it goes down when the shells are done.)
+            if let Some(shield) = tank.shield.as_mut().filter(|s| s.energy > 0.0) {
                 absorbed = dmg.min(shield.energy);
                 shield.energy -= absorbed;
                 dmg -= absorbed;
-                if shield.energy <= 0.0 {
+                if shield.energy <= 0.0 && !shield.deflects() {
                     tank.shield = None;
                     shield_down = true;
                 }
@@ -1536,6 +1554,8 @@ impl Battle {
     }
 
     fn next_turn(&mut self, players: &[Player]) {
+        // A deflector a blast drained to 0 while things settled goes down now.
+        self.drop_spent_deflectors(players);
         // The shot hurt no enemy.
         if let Some(k) = self.shot_line.take()
             && !self.shot_hit
@@ -2065,7 +2085,7 @@ impl Battle {
         }
 
         // The current tank's shield, under that.
-        if let Some(shield) = tank.shield {
+        if let Some(shield) = tank.shield_up() {
             let text = t!(
                 "hud-shield",
                 name = ITEMS[shield.item].text(),
@@ -2446,7 +2466,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
     draw_circle(x, y - 8.0, 7.0, player.color);
     draw_rectangle(x - 12.0, y - 8.0, 24.0, 8.0, player.color);
 
-    if let Some(shield) = tank.shield {
+    if let Some(shield) = tank.shield_up() {
         let color = shield.color();
         let a = 0.25 + 0.55 * shield.strength();
         draw_circle(
@@ -2487,7 +2507,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
     } else {
         RED
     };
-    let mut label_y = if tank.shield.is_some() {
+    let mut label_y = if tank.shield_up().is_some() {
         y - 42.0
     } else {
         y - 38.0
@@ -2502,7 +2522,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
         );
         draw_rectangle(x - 16.0, y - 32.0, 32.0 * hp, 4.0, hp_color);
         // Shield energy: a second bar just above, in the shield's colour.
-        if let Some(shield) = tank.shield {
+        if let Some(shield) = tank.shield_up() {
             draw_rectangle(
                 x - 16.0,
                 y - 36.0,
@@ -2522,7 +2542,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
     if health != HealthDisplay::Bar {
         let number_y = if health == HealthDisplay::Number {
             // Clear of the shield ring when one is up.
-            if tank.shield.is_some() {
+            if tank.shield_up().is_some() {
                 y - 32.0
             } else {
                 y - 26.0
@@ -2533,7 +2553,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
         let health_text = format!("{:.0}", tank.health.max(0.0).ceil());
         ui::text_centered(&health_text, x, number_y, 16.0, hp_color);
         // Shield energy follows the health number: "75 +40".
-        if let Some(shield) = tank.shield {
+        if let Some(shield) = tank.shield_up() {
             ui::text_at(
                 format!("+{:.0}", shield.shown()),
                 x + ui::measure(&health_text, 16.0).width / 2.0 + 4.0,
