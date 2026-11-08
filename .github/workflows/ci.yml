@@ -15,7 +15,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   # The oldest macOS the game supports (README, packaging/Info.plist), whatever the runner's version.
-  MACOSX_DEPLOYMENT_TARGET: "11.0"
+  MACOSX_DEPLOYMENT_TARGET: "15.0"
 
 jobs:
   checks:

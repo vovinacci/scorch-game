@@ -4,7 +4,7 @@
 # and fails if it needs a newer glibc. The result goes to target/release/scorch, where tools/package.sh expects it.
 #
 #   tools/build-linux.sh   # needs python3, ALSA (libasound.so.2; or set ALSA_LIB to it) and objdump
-set -euo pipefail
+set -eufo pipefail
 
 GLIBC_FLOOR=2.35 # also in README.md (system requirements)
 

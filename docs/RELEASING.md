@@ -76,7 +76,7 @@ Release files:
 | All | `SHA256SUMS` and its minisign signature `SHA256SUMS.minisig` |
 
 - Linux builds link against a fixed glibc (2.35, `GLIBC_FLOOR` in `tools/build-linux.sh`) with cargo-zigbuild, and fail
-  if the binary needs a newer one; ARM64 on GitHub's ARM runners. macOS builds set `MACOSX_DEPLOYMENT_TARGET` to 11.0.
+  if the binary needs a newer one; ARM64 on GitHub's ARM runners. macOS builds set `MACOSX_DEPLOYMENT_TARGET` to 15.0.
 - No code signing with a paid certificate. Windows shows SmartScreen ("More info" > "Run anyway"). The macOS app has an
   ad-hoc signature (Apple Silicon refuses unsigned apps as "damaged"), but Gatekeeper still rejects it, so players
   remove the quarantine mark with `xattr` (README). Opening with a double-click would need an Apple Developer ID and
