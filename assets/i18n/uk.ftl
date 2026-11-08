@@ -303,6 +303,7 @@ log-coach-long = { $target_you ->
     [yes] Переліт: { $px } px за ваш танк
    *[no] Переліт: { $px } px за танк { $name }
 }
+log-coach-off-field = Вилетів за межі поля
 log-coach-wind = ; вітер зніс на { $px } px { $dir }
 coach-left = ліворуч
 coach-right = праворуч

@@ -965,30 +965,117 @@ fn the_aiming_preview_follows_the_real_shot() {
     assert_eq!(crate::setup::AimHelp::Coaching.preview(), 0.0);
 }
 
-#[test]
-fn coaching_says_how_far_short_or_past_a_miss_came_down() {
+/// A human (tank 0, x = 200) against a bot (tank 1, x = 900) on `ground`, with coaching on.
+fn coached(ground: fn(f32) -> f32, wind: f32) -> (Vec<Player>, Battle) {
     let mut players = bots(2);
     players[0].bot = None;
     let mut rules = Setup::default().rules();
     rules.aim_help = crate::setup::AimHelp::Coaching;
     let mut b = battle(&players, rules);
-    b.terrain = Terrain::from_fn(|_| 600.0);
-    b.wind = 0.0;
+    b.terrain = Terrain::from_fn(ground);
+    b.wind = wind;
     b.current = 0;
-    b.tanks[0].pos = vec2(200.0, 600.0);
-    b.tanks[1].pos = vec2(900.0, 600.0);
-    b.shot_line = Some(b.history.len());
-    b.note("fires".to_string(), WHITE);
-    b.last_landing = Some(vec2(780.0, 600.0));
-    b.next_turn(&players);
-    let line = &b.history.last().unwrap().text;
-    assert!(line.contains("120 px short"), "{line}");
+    for (tank, x) in b.tanks.iter_mut().zip([200.0, 900.0]) {
+        tank.pos = vec2(x, ground(x));
+    }
+    (players, b)
+}
 
-    b.current = 0;
-    b.shot_line = Some(b.history.len());
+/// Fires tank 0's shot with `weapon` at `angle` / `power` and plays the turn out; returns the history after it.
+fn fire_and_settle(
+    b: &mut Battle,
+    players: &mut [Player],
+    weapon: usize,
+    angle: f32,
+    power: f32,
+) -> Vec<String> {
+    let before = b.history.len();
+    players[0].ammo[weapon] = players[0].ammo[weapon].max(1);
+    b.tanks[0].weapon = weapon;
+    b.tanks[0].angle = angle;
+    b.tanks[0].power = power;
+    b.fire(players);
+    for _ in 0..40_000 {
+        if !matches!(b.phase, Phase::Flight | Phase::Settle) {
+            break;
+        }
+        b.update(STEP, players);
+    }
+    b.history[before..].iter().map(|l| l.text.clone()).collect()
+}
+
+#[test]
+fn coaching_says_short_or_past_from_a_real_shot() {
+    let flat = |_: f32| 600.0;
+    let (mut players, mut b) = coached(flat, 0.0);
+    let lines = fire_and_settle(&mut b, &mut players, 0, 45.0, 300.0);
+    assert!(lines.iter().any(|l| l.contains("px short of")), "{lines:?}");
+    assert!(
+        !lines.iter().any(|l| l.contains("wind")),
+        "no wind, no wind note: {lines:?}"
+    );
+
+    let (mut players, mut b) = coached(flat, 0.0);
+    let lines = fire_and_settle(&mut b, &mut players, 0, 70.0, 1000.0);
+    assert!(
+        lines
+            .iter()
+            .any(|l| l.contains("Flew off the field") || l.contains("px past")),
+        "{lines:?}"
+    );
+}
+
+#[test]
+fn coaching_reports_the_wind() {
+    let (mut players, mut b) = coached(|_| 600.0, 40.0);
+    let lines = fire_and_settle(&mut b, &mut players, 0, 50.0, 450.0);
+    assert!(
+        lines.iter().any(|l| l.contains("the wind moved it")),
+        "{lines:?}"
+    );
+}
+
+#[test]
+fn a_roller_rolling_on_is_not_reported_as_wind() {
+    // A slope down to the right, no wind: the Roller lands and rolls well past its first touch.
+    let (mut players, mut b) = coached(|x| 400.0 + x * 0.25, 0.0);
+    let lines = fire_and_settle(&mut b, &mut players, weapon("Roller"), 60.0, 380.0);
+    assert!(!lines.iter().any(|l| l.contains("wind")), "{lines:?}");
+}
+
+#[test]
+fn coaching_goes_the_short_way_round_with_wrap_walls() {
+    let (players, mut b) = coached(|_| 600.0, 0.0);
+    b.rules.world.walls = Walls::Wrap;
+    b.tanks[0].pos.x = 100.0;
+    b.tanks[1].pos.x = 1150.0;
+    assert_eq!(b.across(100.0, 1150.0), -(WIDTH as f32) + 1050.0);
+    // Fired left across the edge: 1200 is before the enemy at 1150 (80 px round the edge), 1100 is beyond it.
+    for (x, expect) in [(1200.0, "50 px short"), (1100.0, "50 px past")] {
+        let shot = CoachShot {
+            landing: Some(vec2(x, 600.0)),
+            still: Some(vec2(x, 600.0)),
+            from: 100.0,
+            dir: -1.0,
+        };
+        b.coach(shot, &players);
+        let line = &b.history.last().unwrap().text;
+        assert!(line.contains(expect), "{line}");
+    }
+}
+
+#[test]
+fn a_miss_is_marked_even_when_another_line_follows_the_shot() {
+    let (players, mut b) = coached(|_| 600.0, 0.0);
+    let k = b.history.len();
+    b.shot_line = Some(k);
+    b.shot_hit = false;
     b.note("fires".to_string(), WHITE);
-    b.last_landing = Some(vec2(950.0, 600.0));
+    b.note("Sudden death!".to_string(), WHITE);
     b.next_turn(&players);
-    let line = &b.history.last().unwrap().text;
-    assert!(line.contains("50 px past"), "{line}");
+    assert!(
+        b.history[k].text.ends_with(&t!("log-miss")),
+        "{}",
+        b.history[k].text
+    );
 }

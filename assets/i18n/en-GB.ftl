@@ -294,6 +294,7 @@ log-coach-long = { $target_you ->
     [yes] Came down { $px } px past your tank
    *[no] Came down { $px } px past { $name }
 }
+log-coach-off-field = Flew off the field
 log-coach-wind = ; the wind moved it { $px } px { $dir }
 coach-left = left
 coach-right = right

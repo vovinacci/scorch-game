@@ -24,7 +24,7 @@ use crate::sound::Sfx;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
 use crate::weapons::{Kind, WEAPONS};
-use crate::world::{Flight, World, step_shell};
+use crate::world::{Flight, Walls, World, step_shell};
 
 const SPEED_PER_POWER: f32 = 0.75;
 pub const MAX_POWER: f32 = 1000.0;
@@ -231,6 +231,27 @@ impl TracerPath {
     }
 }
 
+/// A human's shot as fired, for the aiming help's coaching: where it first comes down (the unsplit shell for a MIRV,
+/// the first touch for Rollers, Diggers and Leapfrogs), the same without wind, and where and which way it was fired.
+/// `None` landings: it leaves the field.
+#[derive(Clone, Copy)]
+struct CoachShot {
+    landing: Option<Vec2>,
+    still: Option<Vec2>,
+    from: f32,
+    dir: f32,
+}
+
+/// What the aiming preview depends on: whose turn, the aim and the wind.
+#[derive(Clone, Copy, PartialEq)]
+struct PreviewKey {
+    turn: u32,
+    current: usize,
+    angle: f32,
+    power: f32,
+    wind: f32,
+}
+
 /// Power per pixel between the tank and the cursor when aiming with the mouse: 500 px is full power.
 const POWER_PER_PIXEL: f32 = 2.0;
 /// Shift slows aiming down this much, with the keys and with the mouse.
@@ -416,9 +437,15 @@ pub struct Battle {
     /// `None` in battles saved before Random existed: nothing was random then.
     #[serde(default)]
     setup_world: Option<World>,
-    /// Where the current turn's shell came down (not warheads or bomblets), for the aiming help's coaching.
+    /// The current shot hurt an enemy (or dropped one): not a miss.
     #[serde(skip)]
-    last_landing: Option<Vec2>,
+    shot_hit: bool,
+    /// Aiming help: where a human's shot first comes down, with and without wind, worked out when it is fired.
+    #[serde(skip)]
+    coach_shot: Option<CoachShot>,
+    /// Aiming help: the last predicted path, kept while the aim doesn't change.
+    #[serde(skip)]
+    preview: std::cell::RefCell<Option<(PreviewKey, Vec<Vec2>)>>,
     /// Paths of the Tracers fired this round. They stay drawn until the round ends, also after a save.
     #[serde(default)]
     tracers: Vec<TracerPath>,
@@ -502,7 +529,9 @@ impl Battle {
             drag: None,
             setup_world: Some(chosen),
             tracers: Vec::new(),
-            last_landing: None,
+            shot_hit: false,
+            coach_shot: None,
+            preview: std::cell::RefCell::default(),
         };
         let picks = battle.random_picks(true);
         if !picks.is_empty() {
@@ -809,6 +838,19 @@ impl Battle {
         );
         // A probe's line gets no "missed": it wasn't aimed at anyone.
         self.shot_line = (!probe).then_some(self.history.len());
+        self.shot_hit = false;
+        self.coach_shot = None;
+        if self.rules.aim_help.coaches() && !players[i].is_bot() && !probe {
+            let (world, deflectors) = (self.world(), self.deflectors(i));
+            let land =
+                |wind| simulate(pos, vel, wind, world, &self.terrain, &deflectors).map(|l| l.pos);
+            self.coach_shot = Some(CoachShot {
+                landing: land(self.wind),
+                still: land(0.0),
+                from: self.tanks[i].pos.x,
+                dir: vel.x.signum(),
+            });
+        }
         self.note(text, players[i].color);
         self.projectiles
             .push(Projectile::new(pos, vel, weapon, i, false));
@@ -888,7 +930,6 @@ impl Battle {
         if p.child {
             return;
         }
-        self.last_landing = Some(p.pos);
         if WEAPONS[p.weapon].kind.is_probe() {
             self.tracers.push(TracerPath::new(p.owner, &p.trail));
         } else {
@@ -1117,6 +1158,7 @@ impl Battle {
                 tank.last_hit_by = Some(owner);
                 tank.revenge = Some(owner);
                 dropped.push(i);
+                self.shot_hit = true;
             }
         }
         for i in dropped {
@@ -1218,6 +1260,7 @@ impl Battle {
                 // dies by its own shot, a fall or sudden death, that enemy still
                 // gets the kill: your hits caused it.
                 if o != i {
+                    self.shot_hit = true;
                     tank.last_hit_by = Some(o);
                     tank.revenge = Some(o);
                     // A hit on a shield pays like a hit on health, so shields don't shut down the catch-up money.
@@ -1394,50 +1437,57 @@ impl Battle {
         }
     }
 
-    /// Aiming help: after a human's missed shot, says how far it came down from the nearest enemy, short or past,
-    /// and how far the wind moved it.
-    fn coach(&mut self, players: &[Player]) {
+    /// Signed sideways distance from `a` to `b`: the short way round with wrap-around walls.
+    fn across(&self, a: f32, b: f32) -> f32 {
+        let d = b - a;
+        let w = WIDTH as f32;
+        if self.world().walls == Walls::Wrap && d.abs() > w / 2.0 {
+            d - w * d.signum()
+        } else {
+            d
+        }
+    }
+
+    /// Aiming help: after a human's missed shot, says how far from the nearest enemy it first came down, short or
+    /// past, and how far the wind moved it; or that it flew off the field.
+    fn coach(&mut self, shot: CoachShot, players: &[Player]) {
         let me = self.current;
-        let Some(landed) = self.last_landing else {
+        let Some(landed) = shot.landing else {
+            self.note(t!("log-coach-off-field"), LIGHTGRAY);
             return;
         };
-        let shooter = &self.tanks[me];
-        let Some((enemy, tank)) = self
+        let Some((enemy, to)) = self
             .tanks
             .iter()
             .enumerate()
             .filter(|&(i, t)| i != me && t.alive && !t.fled)
+            .map(|(i, t)| (i, t.pos.x))
             .min_by(|a, b| {
-                let (da, db) = ((a.1.pos.x - landed.x).abs(), (b.1.pos.x - landed.x).abs());
+                let (da, db) = (
+                    self.across(a.1, landed.x).abs(),
+                    self.across(b.1, landed.x).abs(),
+                );
                 da.total_cmp(&db)
             })
         else {
             return;
         };
-        let (from, to) = (shooter.pos.x, tank.pos.x);
-        let off = (landed.x - to).abs().round();
-        // Short: it came down between the shooter and the enemy (or behind the shooter).
-        let short = (landed.x - from).abs() < (to - from).abs()
-            || (landed.x - from).signum() != (to - from).signum();
-        let name = players[enemy].label();
-        let you = you(&players[enemy]);
-        let mut text = if short {
+        // Along the way it was fired: short = it came down before reaching the enemy.
+        let dir = if shot.dir == 0.0 {
+            self.across(shot.from, to).signum()
+        } else {
+            shot.dir
+        };
+        let fell_short = self.across(shot.from, landed.x) * dir < self.across(shot.from, to) * dir;
+        let off = self.across(to, landed.x).abs().round();
+        let (name, you) = (players[enemy].label(), you(&players[enemy]));
+        let mut text = if fell_short {
             t!("log-coach-short", px = off, name = name, target_you = you)
         } else {
             t!("log-coach-long", px = off, name = name, target_you = you)
         };
-        // How far the wind moved it: the same shot without wind.
-        let vel = launch_velocity(shooter.angle, shooter.power);
-        let still = simulate(
-            shooter.muzzle(),
-            vel,
-            0.0,
-            self.world(),
-            &self.terrain,
-            &self.deflectors(me),
-        );
-        if let Some(still) = still {
-            let drift = (landed.x - still.pos.x).round();
+        if let Some(still) = shot.still {
+            let drift = self.across(still.x, landed.x).round();
             if drift.abs() >= 20.0 {
                 let dir = if drift < 0.0 {
                     t!("coach-left")
@@ -1455,16 +1505,16 @@ impl Battle {
     }
 
     fn next_turn(&mut self, players: &[Player]) {
-        // Nothing was logged after the shot: it hit nobody.
+        // The shot hurt no enemy.
         if let Some(k) = self.shot_line.take()
-            && k + 1 == self.history.len()
+            && !self.shot_hit
         {
             self.history[k].text += &t!("log-miss");
-            if self.rules.aim_help.coaches() && !players[self.current].is_bot() {
-                self.coach(players);
+            if let Some(shot) = self.coach_shot {
+                self.coach(shot, players);
             }
         }
-        self.last_landing = None;
+        self.coach_shot = None;
         let n = self.tanks.len();
         let order: Vec<usize> = if self.order.len() == n {
             self.order.clone()
@@ -1735,15 +1785,27 @@ impl Battle {
         if share > 0.0 && matches!(self.phase, Phase::Aim { .. }) && !players[self.current].is_bot()
         {
             let tank = &self.tanks[self.current];
-            let vel = launch_velocity(tank.angle, tank.power);
-            let path = predict_path(
-                tank.muzzle(),
-                vel,
-                self.wind,
-                self.world(),
-                &self.terrain,
-                &self.deflectors(self.current),
-            );
+            let key = PreviewKey {
+                turn: self.turns,
+                current: self.current,
+                angle: tank.angle,
+                power: tank.power,
+                wind: self.wind,
+            };
+            let mut cache = self.preview.borrow_mut();
+            if cache.as_ref().is_none_or(|(k, _)| *k != key) {
+                let vel = launch_velocity(tank.angle, tank.power);
+                let path = predict_path(
+                    tank.muzzle(),
+                    vel,
+                    self.wind,
+                    self.world(),
+                    &self.terrain,
+                    &self.deflectors(self.current),
+                );
+                *cache = Some((key, path));
+            }
+            let path = &cache.as_ref().expect("filled above").1;
             let shown = (path.len() as f32 * share).ceil() as usize;
             for w in path[..shown.min(path.len())].windows(2).step_by(4) {
                 if !wraps(w[0], w[1]) {
