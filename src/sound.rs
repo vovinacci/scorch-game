@@ -1,5 +1,5 @@
-//! Sound effects, made in code when the game starts: noise bursts, sweeps and tones in the spirit of the original's
-//! PC speaker, with no sound files to ship. The battle only lists what happened (`Sfx`); the main loop plays it.
+//! Sound effects, made in code when the game starts in the style of an 8-bit console (pulse, triangle
+//! and noise voices), with no sound files to ship. The battle only lists what happened (`Sfx`); the main loop plays it.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -73,111 +73,184 @@ impl Sounds {
     }
 }
 
-/// The samples of one effect, -1..1, peaking at 0.8 so every effect is about as loud.
-fn synth(sfx: Sfx) -> Vec<f32> {
-    use std::f32::consts::TAU;
-    let mut noise = Noise(0x9E37_79B9 ^ sfx as u32);
-    let mut out = match sfx {
-        Sfx::Fire => {
-            let mut boom = render(0.25, |_, _| noise.next());
-            lowpass(&mut boom, 3000.0);
-            let mut phase = 0.0;
-            render(0.25, |t, _| {
-                phase += TAU * (60.0 + 220.0 * (-t * 8.0).exp()) / RATE as f32;
-                0.6 * phase.sin() * (-t * 12.0).exp()
-            })
-            .into_iter()
-            .zip(&boom)
-            .enumerate()
-            .map(|(i, (tone, n))| tone + 0.5 * n * (-(i as f32 / RATE as f32) * 25.0).exp())
-            .collect()
-        }
-        Sfx::Blast => explosion(&mut noise, 0.9, 900.0, 5.0, 55.0),
-        Sfx::BigBlast => explosion(&mut noise, 1.8, 500.0, 2.5, 40.0),
-        Sfx::Dirt => {
-            let mut thud = render(0.35, |t, _| noise.next() * (-t * 14.0).exp());
-            lowpass(&mut thud, 400.0);
-            add_tone(&mut thud, 90.0, 20.0, 0.6);
-            thud
-        }
-        Sfx::Shield => render(0.3, |t, _| {
-            let f = 600.0 + 1200.0 * t;
-            (TAU * f * t).sin() * (0.6 + 0.4 * (TAU * 30.0 * t).sin()) * (-t * 10.0).exp()
-        }),
-        Sfx::Parachute => {
-            let mut whoosh = render(0.4, |_, p| noise.next() * (std::f32::consts::PI * p).sin());
-            lowpass(&mut whoosh, 1500.0);
-            whoosh
-        }
-        Sfx::Burn => {
-            let mut pop = 0.0_f32;
-            let mut crackle = render(1.0, |t, _| {
-                let n = noise.next();
-                if n > 0.997 {
-                    pop = 1.0;
-                }
-                pop *= 0.995;
-                (0.15 * n + pop * noise.next()) * (-t * 2.0).exp()
-            });
-            lowpass(&mut crackle, 2500.0);
-            crackle
-        }
-        Sfx::Dig => {
-            let mut rumble = render(0.6, |t, p| {
-                noise.next() * (0.6 + 0.4 * (TAU * 12.0 * t).sin()) * (1.0 - p)
-            });
-            lowpass(&mut rumble, 250.0);
-            rumble
-        }
-        Sfx::Click => render(0.03, |t, _| {
-            let square = if (1000.0 * t).fract() < 0.5 {
-                1.0
-            } else {
-                -1.0
-            };
-            square * (-t * 120.0).exp()
-        }),
-        Sfx::RoundEnd => {
-            let notes = [523.25, 659.25, 783.99, 1046.5];
-            let note = 0.11;
-            render(note * notes.len() as f32 + 0.2, |t, _| {
-                let k = ((t / note) as usize).min(notes.len() - 1);
-                let local = t - k as f32 * note;
-                let triangle = 1.0 - 4.0 * ((notes[k] * t).fract() - 0.5).abs();
-                triangle * (-local * 9.0).exp()
-            })
-        }
-    };
-    normalize(&mut out, 0.8);
-    out
-}
-
-fn explosion(noise: &mut Noise, seconds: f32, cutoff: f32, decay: f32, thump: f32) -> Vec<f32> {
-    let mut boom = render(seconds, |t, _| {
-        noise.next() * (1.0 - (-t * 200.0).exp()) * (-t * decay).exp()
-    });
-    lowpass(&mut boom, cutoff);
-    add_tone(&mut boom, thump, decay * 1.6, 0.7);
-    boom
-}
-
-/// `seconds` of samples from `f(time, progress 0..1)`.
-fn render(seconds: f32, mut f: impl FnMut(f32, f32) -> f32) -> Vec<f32> {
-    let n = (seconds * RATE as f32) as usize;
-    (0..n)
-        .map(|i| f(i as f32 / RATE as f32, i as f32 / n as f32))
-        .collect()
-}
-
-/// Adds a decaying sine of `freq` Hz.
-fn add_tone(samples: &mut [f32], freq: f32, decay: f32, level: f32) {
-    for (i, s) in samples.iter_mut().enumerate() {
-        let t = i as f32 / RATE as f32;
-        *s += level * (std::f32::consts::TAU * freq * t).sin() * (-t * decay).exp();
+/// How loud each effect is next to the others (the loudest peaks at 0.8): explosions lead, the sounds
+/// you hear all the time (clicks, fire, digging) stay in the background.
+fn gain(sfx: Sfx) -> f32 {
+    match sfx {
+        Sfx::BigBlast => 1.0,
+        Sfx::Blast => 0.85,
+        Sfx::Fire | Sfx::Dirt => 0.6,
+        Sfx::Shield | Sfx::RoundEnd => 0.5,
+        Sfx::Parachute | Sfx::Burn | Sfx::Dig => 0.4,
+        Sfx::Click => 0.25,
     }
 }
 
-/// One-pole low-pass filter: keeps the rumble, dulls the hiss.
+/// The samples of one effect, -1..1. Made like an 8-bit console: pulse and triangle waves and a
+/// stepped noise channel, with pitch and volume changing once per 1/60 s frame and volume in 16 steps.
+fn synth(sfx: Sfx) -> Vec<f32> {
+    let mut noise = Noise(0x9E37_79B9 ^ sfx as u32);
+    let mut chip = Chip::default();
+    let mut out = match sfx {
+        // A short downward zap.
+        Sfx::Fire => chip.render(0.16, |c, t| {
+            c.pulse(0.25, 900.0 * (-t * 14.0).exp() + 140.0, fade(t, 0.16))
+        }),
+        // Falling noise: the classic 8-bit explosion, with a low triangle thump under it.
+        Sfx::Blast => chip.render(0.7, |c, t| {
+            0.8 * c.noise(&mut noise, 1800.0 * (-t * 5.0).exp() + 250.0, fade(t, 0.7))
+                + 0.5 * c.triangle(110.0 * (-t * 6.0).exp() + 40.0, fade(t, 0.4))
+        }),
+        Sfx::BigBlast => chip.render(1.5, |c, t| {
+            0.8 * c.noise(&mut noise, 1200.0 * (-t * 2.5).exp() + 120.0, fade(t, 1.5))
+                + 0.6 * c.triangle(80.0 * (-t * 3.0).exp() + 30.0, fade(t, 0.9))
+        }),
+        // A dull low thud.
+        Sfx::Dirt => chip.render(0.22, |c, t| {
+            0.6 * c.noise(&mut noise, 350.0, fade(t, 0.18))
+                + 0.6 * c.triangle(90.0 - 150.0 * t, fade(t, 0.22))
+        }),
+        // A quick rising arpeggio, like a power-up.
+        Sfx::Shield => chip.render(0.24, |c, t| {
+            let notes = [659.25, 830.61, 987.77, 1318.5];
+            let note = notes[((t / 0.05) as usize).min(notes.len() - 1)];
+            c.pulse(0.125, note, fade(t, 0.24))
+        }),
+        // A soft upward slide.
+        Sfx::Parachute => chip.render(0.3, |c, t| {
+            c.pulse(0.5, 260.0 + 500.0 * t, fade(t, 0.3).min(t * 20.0))
+        }),
+        // Crackle: short noise bursts at random volume, fading out.
+        Sfx::Burn => chip.render(0.8, |c, t| {
+            let level = c.frame_random(&mut noise) * fade(t, 0.8);
+            c.noise(&mut noise, 3000.0, level)
+        }),
+        // A low chugging rumble.
+        Sfx::Dig => chip.render(0.45, |c, t| {
+            let chug = if (t * 16.0).fract() < 0.5 { 1.0 } else { 0.4 };
+            c.noise(&mut noise, 220.0, chug * fade(t, 0.45))
+        }),
+        // A single blip.
+        Sfx::Click => chip.render(0.035, |c, t| c.pulse(0.5, 1046.5, fade(t, 0.035))),
+        // A little fanfare: melody on a pulse wave, bass on the triangle.
+        Sfx::RoundEnd => {
+            let melody = [(523.25, 0.0), (659.25, 0.1), (783.99, 0.2), (1046.5, 0.3)];
+            let bass = [(130.81, 0.0), (196.0, 0.2), (261.63, 0.3)];
+            let at = |notes: &[(f32, f32)], t: f32| {
+                notes
+                    .iter()
+                    .rev()
+                    .find(|n| t >= n.1)
+                    .map_or((0.0, 0.0), |n| (n.0, t - n.1))
+            };
+            chip.render(0.75, |c, t| {
+                let (m, mt) = at(&melody, t);
+                let (b, bt) = at(&bass, t);
+                let hold = if t < 0.3 { 0.09 } else { 0.45 };
+                0.6 * c.pulse(0.25, m, fade(mt, hold)) + 0.5 * c.triangle(b, fade(bt, 0.45))
+            })
+        }
+    };
+    // Take the sharpest edge off the square waves, so they buzz less.
+    lowpass(&mut out, 6000.0);
+    normalize(&mut out, 0.8 * gain(sfx));
+    out
+}
+
+/// 1 at the start, falling to 0 at `length` seconds (a straight line, then quantised by `Chip`).
+fn fade(t: f32, length: f32) -> f32 {
+    (1.0 - t / length).clamp(0.0, 1.0)
+}
+
+/// The 8-bit voices. Pitch and volume are read once per 1/60 s frame, and volume is kept to 16 steps, which
+/// gives the stepped sound of old consoles. Each voice keeps its own phase so pitch changes don't click.
+#[derive(Default)]
+struct Chip {
+    /// Seconds into the effect.
+    time: f32,
+    /// Frame the held values belong to (none yet: the first sample sets them).
+    frame: Option<u32>,
+    held: Vec<(f32, f32)>,
+    /// Index of the next voice called within this sample.
+    voice: usize,
+    phases: Vec<f32>,
+    noise_bit: f32,
+    random: f32,
+}
+
+const FRAME: f32 = 1.0 / 60.0;
+
+impl Chip {
+    fn render(&mut self, seconds: f32, mut f: impl FnMut(&mut Chip, f32) -> f32) -> Vec<f32> {
+        let n = (seconds * RATE as f32) as usize;
+        (0..n)
+            .map(|i| {
+                self.time = i as f32 / RATE as f32;
+                let frame = (self.time / FRAME) as u32;
+                let new_frame = self.frame != Some(frame);
+                if new_frame {
+                    self.frame = Some(frame);
+                    self.held.clear();
+                }
+                self.voice = 0;
+                // Call `f` at the frame start to latch the values, then reuse them.
+                let frame_time = frame as f32 * FRAME;
+                f(self, frame_time)
+            })
+            .collect()
+    }
+
+    /// The (frequency, volume) held for this voice during the current frame, and its phase step.
+    fn step(&mut self, freq: f32, volume: f32) -> (f32, f32) {
+        let v = self.voice;
+        self.voice += 1;
+        if self.held.len() <= v {
+            let volume = (volume.clamp(0.0, 1.0) * 15.0).round() / 15.0;
+            self.held.push((freq.max(1.0), volume));
+        }
+        if self.phases.len() <= v {
+            self.phases.push(0.0);
+        }
+        let (freq, volume) = self.held[v];
+        let before = self.phases[v];
+        self.phases[v] = (before + freq / RATE as f32).fract();
+        (before, volume)
+    }
+
+    /// Square-ish wave; `duty` is the share of each cycle spent high (0.125, 0.25 or 0.5 on old chips).
+    fn pulse(&mut self, duty: f32, freq: f32, volume: f32) -> f32 {
+        let (phase, volume) = self.step(freq, volume);
+        if phase < duty { volume } else { -volume }
+    }
+
+    /// Triangle stepped to 16 levels, like the bass channel of old consoles.
+    fn triangle(&mut self, freq: f32, volume: f32) -> f32 {
+        let (phase, volume) = self.step(freq, volume);
+        let tri = 1.0 - 4.0 * (phase - 0.5).abs();
+        (tri * 7.5).round() / 7.5 * volume
+    }
+
+    /// Noise that changes value `freq` times a second: low rates rumble, high rates hiss.
+    fn noise(&mut self, noise: &mut Noise, freq: f32, volume: f32) -> f32 {
+        let v = self.voice;
+        let (phase, volume) = self.step(freq, volume);
+        if self.phases[v] < phase || self.time == 0.0 {
+            // The phase wrapped: a new noise value.
+            self.noise_bit = if noise.next() > 0.0 { 1.0 } else { -1.0 };
+        }
+        self.noise_bit * volume
+    }
+
+    /// A random 0..1 that stays the same for the whole frame.
+    fn frame_random(&mut self, noise: &mut Noise) -> f32 {
+        if self.voice == 0 && self.held.is_empty() {
+            self.random = (noise.next() + 1.0) / 2.0;
+        }
+        self.random
+    }
+}
+
+/// One-pole low-pass filter: rounds off the sharpest edges.
 fn lowpass(samples: &mut [f32], cutoff: f32) {
     let k = 1.0 - (-std::f32::consts::TAU * cutoff / RATE as f32).exp();
     let mut y = 0.0;
@@ -240,8 +313,24 @@ mod tests {
             let s = synth(sfx);
             assert!(!s.is_empty(), "{sfx:?}");
             let peak = s.iter().fold(0.0_f32, |m, v| m.max(v.abs()));
-            assert!((peak - 0.8).abs() < 1e-3, "{sfx:?} peaks at {peak}");
+            let want = 0.8 * gain(sfx);
+            assert!(
+                (peak - want).abs() < 1e-3,
+                "{sfx:?} peaks at {peak}, not {want}"
+            );
             assert!(s.iter().all(|v| v.is_finite()), "{sfx:?}");
+        }
+    }
+
+    /// Writes every effect as a WAV file, to listen to while tuning:
+    /// `SCORCH_SOUNDS=<dir> cargo test write_sounds -- --ignored`.
+    #[test]
+    #[ignore]
+    fn write_sounds() {
+        let dir = std::env::var("SCORCH_SOUNDS").expect("set SCORCH_SOUNDS to a folder");
+        std::fs::create_dir_all(&dir).unwrap();
+        for sfx in ALL {
+            std::fs::write(format!("{dir}/{sfx:?}.wav"), wav(&synth(sfx))).unwrap();
         }
     }
 

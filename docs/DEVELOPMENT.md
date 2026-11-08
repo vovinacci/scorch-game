@@ -227,6 +227,6 @@ dirty.
 | `update.rs` | Self-update: check, signed download, replace, restart (see RELEASING.md) |
 | `i18n.rs` | Languages, `t!` translation lookup, language detection |
 | `ui.rs` | Widgets, keyboard focus, scaling to the window, font |
-| `sound.rs` | Sound effects synthesised at start (no sound files), played from the battle's `take_sounds()` |
+| `sound.rs` | 8-bit style sound effects (pulse, triangle and noise voices) synthesised at start, no sound files; played from the battle's `take_sounds()`. To listen while tuning: `SCORCH_SOUNDS=<dir> cargo test write_sounds -- --ignored` |
 | `logo.rs` | Main menu logo |
 | `choice.rs` | Helper for settings with a fixed list of values |
