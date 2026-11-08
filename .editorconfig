@@ -16,6 +16,11 @@ max_line_length = 100
 [*.md]
 max_line_length = 120
 
+[*.sh]
+# shfmt -i 2 -ci (make shell).
+indent_size = 2
+max_line_length = 120
+
 [*.{toml,yaml,yml,json,nix}]
 indent_size = 2
 

@@ -26,6 +26,40 @@ Scorched Earth style artillery game in Rust + macroquad.
   in commits or PRs (no Co-authored-by, no "Generated with").
 - New saved fields need `#[serde(default)]` so older save files still load.
 
+## Shell scripts
+
+Shell scripts (`tools/*.sh`) follow the [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
+with the changes below; where they disagree, this section wins. `make shell` formats with `shfmt -i 2 -ci`, and the
+`shell` hook runs shfmt and shellcheck on every commit. A new script starts with:
+
+```bash
+#!/usr/bin/env bash
+#
+# What the script does, and why when it is not obvious.
+
+set -euf -o pipefail
+export LC_ALL="C.UTF-8"
+PS4='+ $(date -u +%Y-%m-%dT%H:%M:%S%z) ${BASH_SOURCE[0]##*/}:${LINENO}: '
+```
+
+and ends with `main "$@"`, an empty line and `# EOF` (a truncated file then shows as a missing marker).
+
+- `#!/usr/bin/env bash`, not `#!/bin/bash`: macOS ships bash 3.2 there, and NixOS has no `/bin/bash`.
+- `set -euf -o pipefail`: `-u` stops on an unset variable, `-f` turns globbing off so a path is used literally. Match
+  patterns with `find` (`readarray -t files < <(find "${dir}" -maxdepth 1 -name "${pattern}")`), not `set +f`. Leave
+  `-e` out only in a script that must go on after a failed command, with a comment saying why.
+- `LC_ALL="C.UTF-8"`: sorting and character classes behave the same on a runner and a laptop.
+- `PS4` in single quotes, so every `set -x` line shows its own time, file and line.
+- Functions: `function kebab-name() {`. The work goes in `main`. A script with several actions dispatches with
+  `case "${1:-}"` in `main`, and its `*)` branch prints the usage to stderr and exits 1 (a bare `"$1"` would stop on
+  "unbound variable" before the usage).
+- Brace every expansion: `"${var}"`, not `"$var"`. Constants are `readonly`; `export` only what a child process needs.
+- A required value gets a message: `"${1:?usage: ...}"` or `: "${VAR:?VAR must be set}"`.
+- Errors go to stderr (`echo "..." >&2`).
+- A continued pipeline ends its line with `|` (shfmt's layout). Lines up to 120 columns (`.editorconfig`).
+- A script that guards something (like `check_ascii.sh` or the glibc check in `build-linux.sh`) is finished only once it
+  has been seen failing on the input it exists to catch.
+
 ## Gotchas
 
 - Test runs: use `XDG_DATA_HOME=<scratch dir>` so the user's saves stay untouched. The user may be playing at the same

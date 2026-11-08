@@ -10,7 +10,7 @@ endif
 VENV = .venv
 BIN = $(VENV)/bin
 
-.PHONY: run release build check test lint fmt fmt-check docs docs-check ascii-check tools hooks hooks-install clean
+.PHONY: run release build check test lint fmt fmt-check docs docs-check shell shell-check ascii-check tools hooks hooks-install clean
 
 run:            ## Build in debug mode and play
 	$(call CARGO,run)
@@ -30,7 +30,7 @@ test:
 lint:
 	$(call CARGO,clippy --all-targets -- -D warnings)
 
-fmt: docs       ## Format Rust code and Markdown docs
+fmt: docs shell ## Format Rust code, Markdown docs and shell scripts
 	cargo fmt
 
 fmt-check:
@@ -41,6 +41,13 @@ docs: tools     ## Rewrap and fix Markdown docs (120 columns)
 
 docs-check: tools
 	$(BIN)/rumdl check .
+
+shell: tools    ## Format shell scripts (shfmt)
+	$(BIN)/shfmt -i 2 -ci -w tools
+
+shell-check: tools
+	$(BIN)/shfmt -i 2 -ci -d tools
+	$(BIN)/shellcheck tools/*.sh
 
 ascii-check:    ## Code and config must be ASCII (see tools/check_ascii.sh)
 	tools/check_ascii.sh $$(find src tools build.rs Cargo.toml .cargo Makefile shell.nix flake.nix mise.toml requirements.txt prek.toml .rumdl.toml .editorconfig -type f)
