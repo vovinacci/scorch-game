@@ -739,3 +739,121 @@ fn random_picks_only_real_values_and_feeling_lucky_does_too() {
     }
     assert!(TerrainKind::Random.is_random() && !TerrainKind::Canyon.is_random());
 }
+
+/// Balance table: every weapon fired many times through the real physics at a tank 700 px away on flat ground, aimed
+/// perfectly and with a bot-like aiming error. Prints damage per shot and per dollar. Run by hand:
+/// `cargo test balance_table -- --ignored --nocapture`.
+#[test]
+#[ignore = "prints a table; run by hand when tuning weapons"]
+#[expect(clippy::too_many_lines, reason = "one measuring loop with its table")]
+fn balance_table() {
+    const SHOOTER_X: f32 = 200.0;
+    const TARGET_X: f32 = 900.0;
+    const SHOTS: usize = 300;
+    // (name, angle sigma in degrees, power sigma): perfect, a bot a few shots in, a bot's first tries.
+    const AIMS: [(&str, f32, f32); 3] = [
+        ("perfect", 0.0, 0.0),
+        ("close", 1.0, 15.0),
+        ("rough", 3.0, 45.0),
+    ];
+
+    let flat = |_: f32| 600.0;
+    let setup = |players: &mut Vec<Player>| {
+        let (p, mut b) = range(flat);
+        *players = p;
+        b.tanks[0].pos = vec2(SHOOTER_X, 600.0);
+        b.tanks[1].pos = vec2(TARGET_X, 600.0);
+        b
+    };
+    let gauss = |sigma: f32| {
+        if sigma == 0.0 {
+            return 0.0;
+        }
+        let (u, v): (f32, f32) = (gen_range(1e-6, 1.0), gen_range(0.0, 1.0));
+        sigma * (-2.0 * u.ln()).sqrt() * (std::f32::consts::TAU * v).cos()
+    };
+
+    println!();
+    println!(
+        "{:<13} {:>5} {:>3} {:>6} | {:>7} {:>7} {:>7} | {:>5} {:>5} | {:>6} {:>5}",
+        "weapon",
+        "price",
+        "x",
+        "$/shot",
+        "perfect",
+        "close",
+        "rough",
+        "kill%",
+        "self",
+        "dmg/$",
+        "best"
+    );
+    for (w, weapon) in WEAPONS.iter().enumerate() {
+        // The perfect aim for this weapon: where it does its damage (Rollers roll on), as close to the target as can be.
+        let mut players = Vec::new();
+        let b = setup(&mut players);
+        let target = b.tanks[1].center();
+        let world = b.world();
+        let mut best = (f32::MAX, 45.0, 500.0);
+        for angle in (200..=800).map(|a| a as f32 / 10.0).step_by(5) {
+            for power in (300..=1000).step_by(5) {
+                let muzzle = vec2(SHOOTER_X, 590.0) + direction(angle) * BARREL;
+                let vel = launch_velocity(angle, power as f32);
+                let Some(landing) = simulate(muzzle, vel, 0.0, world, &b.terrain, &[]) else {
+                    continue;
+                };
+                let d = damage_point(weapon.kind, landing, &b.terrain).distance(target);
+                if d < best.0 {
+                    best = (d, angle, power as f32);
+                }
+            }
+        }
+
+        let mut means = Vec::new();
+        let (mut kills, mut self_damage) = (0, 0.0);
+        for (k, &(_, sa, sp)) in AIMS.iter().enumerate() {
+            let mut total = 0.0;
+            for _ in 0..SHOTS {
+                let mut b = setup(&mut players);
+                b.wind = 0.0;
+                let angle = best.1 + gauss(sa);
+                b.tanks[0].angle = angle;
+                let vel = launch_velocity(angle, best.2 + gauss(sp));
+                b.projectiles
+                    .push(Projectile::new(b.tanks[0].muzzle(), vel, w, 0, false));
+                run(&mut b, &mut players);
+                let hit = 100.0 - b.tanks[1].health;
+                total += hit;
+                if k == 2 {
+                    kills += usize::from(b.tanks[1].health <= 0.0);
+                    self_damage += 100.0 - b.tanks[0].health;
+                }
+            }
+            means.push(total / SHOTS as f32);
+        }
+        let per_shot = if weapon.bundle == 0 {
+            0.0
+        } else {
+            weapon.price as f32 / weapon.bundle as f32
+        };
+        let per_dollar = if per_shot > 0.0 {
+            means[1] / per_shot
+        } else {
+            f32::INFINITY
+        };
+        println!(
+            "{:<13} {:>5} {:>3} {:>6.1} | {:>7.1} {:>7.1} {:>7.1} | {:>5.0} {:>5.1} | {:>6.2} {:>5.0}",
+            weapon.name,
+            weapon.price,
+            weapon.bundle,
+            per_shot,
+            means[0],
+            means[1],
+            means[2],
+            100.0 * kills as f32 / SHOTS as f32,
+            self_damage / SHOTS as f32,
+            per_dollar,
+            best.0
+        );
+    }
+}
