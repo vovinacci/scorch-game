@@ -21,7 +21,10 @@ alsa=${ALSA_LIB:-$(find /usr/lib /usr/lib64 /lib -name 'libasound.so.2' -print -
 [ -n "$alsa" ] || { echo "libasound.so.2 not found: install ALSA (libasound2-dev)" >&2; exit 1; }
 mkdir -p "$tmp/link"
 ln -sf "$alsa" "$tmp/link/libasound.so"
-export RUSTFLAGS="${RUSTFLAGS:-} -L native=$tmp/link"
+# The build machine's libasound may itself need a newer glibc (Ubuntu 24.04's needs 2.38). That's fine: players load
+# their own libasound, built for their glibc. So don't make the linker check that library's needs; the objdump check
+# below still covers everything scorch itself uses.
+export RUSTFLAGS="${RUSTFLAGS:-} -L native=$tmp/link -C link-arg=-Wl,--allow-shlib-undefined"
 
 cargo zigbuild --release --locked --target "$target.$GLIBC_FLOOR"
 
