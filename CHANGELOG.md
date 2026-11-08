@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/vovinacci/scorch-game/compare/v0.3.0...v0.4.0) - 2026-11-08
+
+### Features
+
+- Scorch icon on the window, Dock and taskbar, and in the Windows exe ([#29](https://github.com/vovinacci/scorch-game/pull/29))
+- open settings from the pause menu ([#27](https://github.com/vovinacci/scorch-game/pull/27))
+- 8-bit style sound effects, quieter in the background ([#28](https://github.com/vovinacci/scorch-game/pull/28))
+
 ## [0.3.0](https://github.com/vovinacci/scorch-game/compare/v0.2.1...v0.3.0) - 2026-11-05
 
 ### Features
