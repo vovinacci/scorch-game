@@ -59,6 +59,15 @@ pub struct Weapon {
 }
 
 impl Weapon {
+    /// What one shot costs in the shop (the price of a pack over its size); 0 for the free Baby Missile.
+    pub fn shot_price(&self) -> i32 {
+        if self.bundle == 0 {
+            0
+        } else {
+            self.price / self.bundle.cast_signed()
+        }
+    }
+
     /// Name on screen, in the current language.
     pub fn text(&self) -> String {
         t!(&crate::i18n::name_key("weapon", self.name))

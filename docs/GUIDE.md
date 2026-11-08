@@ -211,8 +211,9 @@ at a new target misses by 40-100% of its "first miss" in a random direction. Aft
 kept share, plus a little random wobble that never quite goes away. A bot that switches to a new target starts with a
 rough shot again.
 
-Bots follow "Health limits power" too. They usually fire their most expensive weapon, otherwise a Baby Missile. They
-never fire Dirt Bombs or Diggers, and aim Rollers and Napalm at the spot where they roll or run to.
+Bots follow "Health limits power" too. They usually fire their most expensive weapon (by the price of one shot),
+otherwise a Baby Missile. They never fire Dirt Bombs or Diggers, and aim Rollers and Napalm at the spot where they roll
+or run to.
 
 ### Whom a bot shoots at
 

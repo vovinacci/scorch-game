@@ -1587,12 +1587,12 @@ impl Battle {
         let target = self.tanks[memory.target].center();
         let max_power = self.max_power(shooter);
 
-        // Usually fire the biggest thing in the inventory; sometimes save ammo.
+        // Usually fire the biggest thing in the inventory (the dearest per shot); sometimes save ammo.
         let mut weapon = 0;
         if ui::chance(0.6) {
             weapon = (1..WEAPONS.len())
                 .filter(|&w| players[me].has(w) && !WEAPONS[w].kind.is_utility())
-                .max_by_key(|&w| WEAPONS[w].price)
+                .max_by_key(|&w| WEAPONS[w].shot_price())
                 .unwrap_or(0);
         }
         let safe_distance = WEAPONS[weapon].radius + 25.0;
