@@ -290,9 +290,10 @@ All text over the battlefield has a thin dark outline, so it's readable over any
 ## Menus
 
 - **Main menu:** Continue (when you have a saved game), New game, Statistics, Settings, About, Quit.
-- **Pause menu** (Esc during battle): Resume, Flee this round, Self-destruct, Battle log, Save & exit to menu, Save &
-  quit game, Abandon game. Flee and Self-destruct are greyed out unless you're aiming. Next to it, "This game" shows the
-  round, the turn and all options of the current game.
+- **Pause menu** (Esc during battle): Resume, Flee this round, Self-destruct, Battle log, Settings, Save & exit to menu,
+  Save & quit game, Abandon game. Flee and Self-destruct are greyed out unless you're aiming. Next to it, "This game"
+  shows the round, the turn and all options of the current game. Settings opens the same settings as the main menu; Back
+  returns to the paused battle.
 - **Settings:**
   - Display: **Language** (English, Українська), tank health (Bar, Bar + number, Number), last shot path, battle log,
     fullscreen.

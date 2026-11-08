@@ -61,7 +61,10 @@ enum Screen {
     About,
     Setup,
     CustomBot,
-    Settings,
+    /// `back` is where Back returns to: the main menu, or the paused battle.
+    Settings {
+        back: Box<Screen>,
+    },
     Stats,
     Battle {
         battle: Battle,
@@ -87,6 +90,7 @@ enum PauseAction {
     SaveAndQuit,
     Abandon,
     BattleLog,
+    Settings,
 }
 
 struct Game {
@@ -186,7 +190,7 @@ impl Game {
         match screen {
             Screen::Battle { battle, .. } => self.save_battle(battle),
             &Screen::Shop { shopper } => self.save_run(StageOut::Shop { shopper }),
-            Screen::ConfirmAbandon { back } => self.save_screen(back),
+            Screen::ConfirmAbandon { back } | Screen::Settings { back } => self.save_screen(back),
             _ => {}
         }
     }
@@ -333,12 +337,17 @@ impl Game {
                 }
             }
 
-            Screen::Settings => {
+            Screen::Settings { back } => {
+                // Over a paused battle, keep the battle in view behind the panels.
+                if let Screen::Battle { battle, .. } = back.as_ref() {
+                    battle.draw(&self.players, &self.profile.settings);
+                    ui::dim();
+                }
                 if settings::screen(&mut self.profile.settings) {
                     save::store_profile(&self.profile);
-                    Screen::Menu
+                    *back
                 } else {
-                    Screen::Settings
+                    Screen::Settings { back }
                 }
             }
 
@@ -406,6 +415,12 @@ impl Game {
                             paused: true,
                         }
                     }
+                    Some(PauseAction::Settings) => Screen::Settings {
+                        back: Box::new(Screen::Battle {
+                            battle,
+                            paused: true,
+                        }),
+                    },
                     Some(PauseAction::Abandon) => Screen::ConfirmAbandon {
                         back: Box::new(Screen::Battle {
                             battle,
@@ -508,7 +523,9 @@ impl Game {
         } else if item("menu-statistics") {
             Screen::Stats
         } else if item("menu-settings") {
-            Screen::Settings
+            Screen::Settings {
+                back: Box::new(Screen::Menu),
+            }
         } else if item("menu-about") {
             Screen::About
         } else if item("menu-quit") {
@@ -691,13 +708,7 @@ fn pause_menu(
     setup: &Setup,
     progress: (u32, u32),
 ) -> Option<PauseAction> {
-    draw_rectangle(
-        0.0,
-        0.0,
-        ui::WIDTH,
-        ui::HEIGHT,
-        Color::new(0.0, 0.0, 0.0, 0.5),
-    );
+    ui::dim();
     let area = Rect::new(220.0, 60.0, 400.0, 600.0);
     ui::panel(area);
     ui::text_centered(
@@ -724,7 +735,7 @@ fn pause_menu(
         Some(progress),
     );
 
-    let button = |i: f32| Rect::new(area.x + 40.0, area.y + 80.0 + i * 60.0, area.w - 80.0, 52.0);
+    let button = |i: f32| Rect::new(area.x + 40.0, area.y + 80.0 + i * 55.0, area.w - 80.0, 48.0);
     let action = if ui::button(button(0.0), &t!("pause-resume"), true)
         || is_key_pressed(KeyCode::Escape)
     {
@@ -735,11 +746,13 @@ fn pause_menu(
         Some(PauseAction::SelfDestruct)
     } else if ui::button(button(3.0), &t!("pause-battle-log"), true) || is_key_pressed(KeyCode::L) {
         Some(PauseAction::BattleLog)
-    } else if ui::button(button(4.0), &t!("save-exit-menu"), true) {
+    } else if ui::button(button(4.0), &t!("menu-settings"), true) {
+        Some(PauseAction::Settings)
+    } else if ui::button(button(5.0), &t!("save-exit-menu"), true) {
         Some(PauseAction::SaveToMenu)
-    } else if ui::button(button(5.0), &t!("pause-save-quit"), true) {
+    } else if ui::button(button(6.0), &t!("pause-save-quit"), true) {
         Some(PauseAction::SaveAndQuit)
-    } else if ui::button(button(6.0), &t!("abandon-game"), true) {
+    } else if ui::button(button(7.0), &t!("abandon-game"), true) {
         Some(PauseAction::Abandon)
     } else {
         None
@@ -774,7 +787,7 @@ fn arg_after(flag: &str) -> Option<String> {
 impl Game {
     /// Developer aid: `scorch --screen <name> [--shot file.png]` opens one
     /// screen directly with a fresh game, to check layouts (for example in
-    /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, stats, crash, arsenal,
+    /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, pause-settings, stats, crash, arsenal,
     /// battle, pause, over, defence, log, shop, abandon, final.
     fn open_screen(&mut self, name: &str) -> Screen {
         self.has_saved_run = false;
@@ -787,7 +800,12 @@ impl Game {
             "about" => Screen::About,
             "setup" => Screen::Setup,
             "custom" => Screen::CustomBot,
-            "settings" => Screen::Settings,
+            "settings" => Screen::Settings {
+                back: Box::new(Screen::Menu),
+            },
+            "pause-settings" => Screen::Settings {
+                back: Box::new(game_screen(self, true)),
+            },
             "stats" => Screen::Stats,
             "crash" => {
                 let report = |t| {
