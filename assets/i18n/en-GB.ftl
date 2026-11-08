@@ -83,6 +83,11 @@ setup-rounds = Rounds
 setup-power-limit = Health limits power
 setup-sudden-death = Sudden death
 setup-turn-order = Turn order
+AimHelp-Off = Off
+AimHelp-Coaching = Coaching
+AimHelp-ShortPath = Short path
+AimHelp-FullPath = Full path
+setup-aim-help = Aiming help
 TurnOrder-LosersFirst = Losers first
 TurnOrder-WinnersFirst = Winners first
 TurnOrder-Random = Random
@@ -281,6 +286,18 @@ log-fires = { $you ->
    *[no] { $name } fires
 } { $weapon }: angle { $angle }, power { $power }
 log-miss = {"  "}- miss
+log-coach-short = { $target_you ->
+    [yes] Came down { $px } px short of your tank
+   *[no] Came down { $px } px short of { $name }
+}
+log-coach-long = { $target_you ->
+    [yes] Came down { $px } px past your tank
+   *[no] Came down { $px } px past { $name }
+}
+log-coach-off-field = Flew off the field
+log-coach-wind = ; the wind moved it { $px } px { $dir }
+coach-left = left
+coach-right = right
 log-hit = { $name } hit { $target }  -{ $dmg }
 log-hit-self = { $you ->
     [yes] You hit yourself

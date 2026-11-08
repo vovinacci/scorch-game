@@ -21,6 +21,40 @@ choice!(SuddenDeath {
     After24,
 });
 
+// Help with aiming, for every human in the game alike: coaching after a missed shot, and a preview of the path while
+// aiming (the first third, or all of it).
+choice!(AimHelp {
+    Off,
+    Coaching,
+    ShortPath,
+    FullPath,
+});
+
+#[expect(
+    clippy::derivable_impls,
+    reason = "choice! declares the enum, so it can't take #[derive(Default)]"
+)]
+impl Default for AimHelp {
+    fn default() -> Self {
+        AimHelp::Off
+    }
+}
+
+impl AimHelp {
+    pub fn coaches(self) -> bool {
+        self != AimHelp::Off
+    }
+
+    /// Share of the predicted path shown while aiming (0 = none).
+    pub fn preview(self) -> f32 {
+        match self {
+            AimHelp::Off | AimHelp::Coaching => 0.0,
+            AimHelp::ShortPath => 1.0 / 3.0,
+            AimHelp::FullPath => 1.0,
+        }
+    }
+}
+
 choice!(TurnOrder {
     LosersFirst,
     WinnersFirst,
@@ -122,6 +156,7 @@ pub struct Setup {
     pub sudden_death: SuddenDeath,
     pub turn_order: TurnOrder,
     pub world: World,
+    pub aim_help: AimHelp,
 }
 
 impl Default for Setup {
@@ -137,6 +172,7 @@ impl Default for Setup {
             sudden_death: SuddenDeath::After12,
             turn_order: TurnOrder::LosersFirst,
             world: World::default(),
+            aim_help: AimHelp::Off,
         }
     }
 }
@@ -150,6 +186,7 @@ pub struct Rules {
     /// From the setup: shots each tank fires before sudden death. A battle turns it into the turn sudden death starts
     /// (shots x tanks), which is what saved battles store.
     pub sudden_death: Option<u32>,
+    pub aim_help: AimHelp,
 }
 
 impl Setup {
@@ -158,6 +195,7 @@ impl Setup {
             world: self.world,
             power_limit: self.power_limit,
             sudden_death: self.sudden_death.shots_each(),
+            aim_help: self.aim_help,
         }
     }
 
@@ -238,6 +276,7 @@ impl Setup {
             ("setup-power-limit", on(self.power_limit), false),
             ("setup-sudden-death", self.sudden_death.text(), false),
             ("setup-turn-order", self.turn_order.text(), false),
+            ("setup-aim-help", self.aim_help.text(), false),
             (
                 "setup-terrain",
                 r.terrain.text(),
@@ -424,14 +463,15 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
     ui::choice(row(right, 3.0), &t!("setup-gravity"), &mut world.gravity);
     ui::choice(row(right, 4.0), &t!("setup-walls"), &mut world.walls);
     ui::choice(row(right, 5.0), &t!("setup-sky"), &mut world.sky);
+    ui::choice(row(right, 6.0), &t!("setup-aim-help"), &mut setup.aim_help);
     draw_preview(
         preview,
-        *world,
+        setup.world,
         Rect::new(
             right.x + 20.0,
-            right.y + 52.0 + 6.0 * STEP + 8.0,
+            right.y + 52.0 + 7.0 * STEP + 6.0,
             right.w - 40.0,
-            140.0,
+            116.0,
         ),
     );
 

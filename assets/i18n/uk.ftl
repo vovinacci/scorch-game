@@ -88,6 +88,11 @@ setup-rounds = Раунди
 setup-power-limit = Здоров'я обмежує силу
 setup-sudden-death = Раптова смерть
 setup-turn-order = Черговість
+AimHelp-Off = Вимк.
+AimHelp-Coaching = Підказки
+AimHelp-ShortPath = Короткий шлях
+AimHelp-FullPath = Повний шлях
+setup-aim-help = Допомога з прицілом
 TurnOrder-LosersFirst = Спершу відстаючі
 TurnOrder-WinnersFirst = Спершу лідери
 TurnOrder-Random = Випадково
@@ -290,6 +295,18 @@ log-fires = { $you ->
    *[no] { $name } стріляє
 }: { $weapon }, кут { $angle }, сила { $power }
 log-miss = {"  "}- мимо
+log-coach-short = { $target_you ->
+    [yes] Недоліт: { $px } px до вашого танка
+   *[no] Недоліт: { $px } px до танка { $name }
+}
+log-coach-long = { $target_you ->
+    [yes] Переліт: { $px } px за ваш танк
+   *[no] Переліт: { $px } px за танк { $name }
+}
+log-coach-off-field = Вилетів за межі поля
+log-coach-wind = ; вітер зніс на { $px } px { $dir }
+coach-left = ліворуч
+coach-right = праворуч
 log-hit = { $you ->
     [yes] Ви влучаєте
    *[no] { $name } влучає

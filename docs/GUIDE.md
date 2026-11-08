@@ -274,11 +274,23 @@ random except the number of human players; you can still check and change it all
 | Gravity | Low, Normal, High, Random | Normal |
 | Walls | Open, Solid, Bouncy, Wrap-around, Random | Open |
 | Sky | Night, Sunset, Day, Random | Night |
+| Aiming help | Off, Coaching, Short path, Full path | Off |
 
 **Random** picks a new value at the start of every round. During the round, the lines under the turn counter say what
 gravity and walls came out as (you can see the terrain and sky, and the wind is in the HUD), the pause menu's "This
 game" shows every pick in blue, and the battle log starts the round with the full list. "I'm feeling lucky" sets real
 values, never Random.
+
+**Aiming help** is for learning, and it's the same for every player in the game (bots don't need it):
+
+- **Coaching:** after each of your shots that hits nobody, the battle log says how far from the nearest enemy it first
+  came down, short or past, and how far the wind moved it (or that it flew off the field).
+- **Short path:** coaching, plus a dotted line showing the first third of where your shot will fly, wind included, while
+  you aim.
+- **Full path:** coaching, plus the whole path to where the shot comes down. Aiming becomes easy: good for learning or a
+  relaxed game.
+
+The pause menu's "This game" shows the setting, so everyone knows what help was on.
 
 Walls decide what happens at the edges of the screen:
 
