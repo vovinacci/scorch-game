@@ -24,10 +24,7 @@ pub struct Item {
 impl Item {
     /// Name on screen, in the current language.
     pub fn text(&self) -> String {
-        t!(&format!(
-            "item-{}",
-            self.name.to_lowercase().replace(' ', "-")
-        ))
+        t!(&crate::i18n::name_key("item", self.name))
     }
 
     pub fn shield_energy(&self) -> Option<f32> {

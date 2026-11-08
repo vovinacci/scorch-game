@@ -32,6 +32,8 @@ pub const POWER_PER_HEALTH: f32 = 10.0;
 /// Even a nearly dead tank can lob a short shot.
 pub const MIN_POWER_LIMIT: f32 = 50.0;
 const TANK_RADIUS: f32 = 12.0;
+/// Text size of the name above each tank.
+const NAME_SIZE: f32 = 16.0;
 const BARREL: f32 = 18.0;
 /// Fixed physics step: the same shot always flies the same way, whatever the frame rate.
 const STEP: f32 = 1.0 / 120.0;
@@ -454,12 +456,18 @@ impl Battle {
         self.rules.world
     }
 
-    /// Where each living tank is drawn, with its health bar and name above it.
-    fn tank_areas(&self) -> Vec<Rect> {
+    /// Where each living tank is drawn, with its health bar and name above it (as wide as the name).
+    fn tank_areas(&self, players: &[Player]) -> Vec<Rect> {
         self.tanks
             .iter()
-            .filter(|t| t.alive && !t.fled)
-            .map(|t| Rect::new(t.pos.x - 24.0, t.pos.y - 44.0, 48.0, 46.0))
+            .zip(players)
+            .filter(|(t, _)| t.alive && !t.fled)
+            .map(|(t, p)| {
+                // The font is monospaced, half as wide as it is tall.
+                let w = (p.label().chars().count() as f32 * NAME_SIZE * 0.5).max(48.0);
+                // Name, health number and shield stack up to about 74 px above the ground.
+                Rect::new(t.pos.x - w / 2.0, t.pos.y - 74.0, w, 76.0)
+            })
             .collect()
     }
 
@@ -672,7 +680,7 @@ impl Battle {
         for mut p in std::mem::take(&mut self.projectiles) {
             let next = match p.motion {
                 Motion::Rolling { dir, time } => self.roll(p, dir, time, players),
-                Motion::Digging { dir, left } => self.dig(p, dir, left),
+                Motion::Digging { dir, left } => self.dig(p, dir, left, players),
                 Motion::Flying => {
                     let flight = step_shell(&mut p.pos, &mut p.vel, self.wind, world, STEP);
                     p.trail.push(p.pos);
@@ -816,14 +824,22 @@ impl Battle {
     }
 
     /// One step of a Digger burrowing sideways: the ground above sinks as it passes.
-    fn dig(&mut self, mut p: Projectile, dir: f32, left: f32) -> Option<Projectile> {
+    fn dig(
+        &mut self,
+        mut p: Projectile,
+        dir: f32,
+        left: f32,
+        players: &[Player],
+    ) -> Option<Projectile> {
         let step = DIG_SPEED * STEP;
         let x = p.pos.x + dir * step;
         self.terrain.sink(p.pos.x, x, DIG_DEPTH);
-        self.undermine(p.pos.x, x, p.owner);
         p.pos = vec2(x, self.terrain.height_at(x) + 4.0);
         let left = left - step;
         if left <= 0.0 || !(0.0..WIDTH as f32).contains(&x) {
+            // Tanks only fall once the shells are done, so the whole trench can be checked here.
+            let start = x - dir * (DIG_LENGTH - left);
+            self.undermine(start, x, p.owner, players);
             self.explosions.push(Explosion {
                 pos: p.pos,
                 radius: 14.0,
@@ -934,15 +950,28 @@ impl Battle {
             .collect()
     }
 
-    /// Call after `owner` changed the ground between `x0` and `x1`: an enemy tank left above the ground there will
-    /// fall, and if the fall kills it, the kill is `owner`'s.
-    fn undermine(&mut self, x0: f32, x1: f32, owner: usize) {
+    /// Call after `owner` changed the ground between `x0` and `x1`. An enemy tank there that's no longer held up will
+    /// fall (the same test as `settle`): it counts as hit by `owner`, for the kill and for revenge, and the log says
+    /// so (so the shot isn't logged as a miss).
+    fn undermine(&mut self, x0: f32, x1: f32, owner: usize, players: &[Player]) {
         let (a, b) = (x0.min(x1), x0.max(x1));
+        let mut dropped = Vec::new();
         for (i, tank) in self.tanks.iter_mut().enumerate() {
-            let falls = self.terrain.height_at(tank.pos.x) > tank.pos.y + 0.5;
-            if i != owner && tank.alive && (a..=b).contains(&tank.pos.x) && falls {
+            let under = tank.pos.x + TANK_RADIUS >= a && tank.pos.x - TANK_RADIUS <= b;
+            let falls = self.terrain.support_y(tank.pos.x, TANK_RADIUS) > tank.pos.y + 0.5;
+            if i != owner && tank.alive && under && falls {
                 tank.last_hit_by = Some(owner);
+                tank.revenge = Some(owner);
+                dropped.push(i);
             }
+        }
+        for i in dropped {
+            let text = t!(
+                "log-undermined",
+                name = players[i].label(),
+                you = you(&players[i])
+            );
+            self.log(text, players[owner].color);
         }
     }
 
@@ -955,7 +984,7 @@ impl Battle {
             }
             Kind::Riot => {
                 self.terrain.carve(pos, w.radius);
-                self.undermine(pos.x - w.radius, pos.x + w.radius, owner);
+                self.undermine(pos.x - w.radius, pos.x + w.radius, owner, players);
                 self.dirt_burst(pos, w.radius);
             }
             _ => self.blast(pos, w.radius, w.damage, Some(owner), players),
@@ -1604,7 +1633,7 @@ impl Battle {
         let tank = &self.tanks[self.current];
         // Your turn only: on bot turns the bottom of the screen has the skip button.
         if matches!(self.phase, Phase::Aim { .. }) && !player.is_bot() {
-            draw_weapon_strip(player, tank.weapon, &self.tank_areas());
+            draw_weapon_strip(player, tank.weapon, &self.tank_areas(players));
         }
         let name = player.label();
         ui::text_fit(&name, 16.0, 29.0, 260.0, 24.0, player.color);
@@ -1790,7 +1819,6 @@ pub fn draw_history(battle: &Battle) {
     }
 }
 
-/// Weapon strip along the bottom: the weapons `player` has ammo for, in Tab order, with where each one is drawn.
 /// The weapon strip's keys, in strip order, with the label shown in front of each weapon.
 const STRIP_KEYS: [(KeyCode, &str); 12] = [
     (KeyCode::Key1, "1 "),
@@ -1807,6 +1835,7 @@ const STRIP_KEYS: [(KeyCode, &str); 12] = [
     (KeyCode::Equal, "= "),
 ];
 
+/// Weapon strip along the bottom: the weapons `player` has ammo for, in Tab order, with where each one is drawn.
 fn weapon_strip(player: &Player) -> Vec<(usize, Rect)> {
     const GAP: f32 = 6.0;
     // More than this and the names get too small: the strip wraps onto a second row above.
@@ -2114,7 +2143,7 @@ fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDispl
         }
         label_y = number_y - 16.0;
     }
-    ui::text_centered(&player.label(), x, label_y, 16.0, WHITE);
+    ui::text_centered(&player.label(), x, label_y, NAME_SIZE, WHITE);
 
     if is_current {
         let bob = (get_time() * 5.0).sin() as f32 * 4.0;

@@ -124,6 +124,12 @@ number_arg!(i32, u32, f32, f64; u64, usize);
 
 /// Looks up `key` in the current language, falling back to English, then to
 /// the key itself.
+/// Translation key for a named thing: `name_key("weapon", "Death's Head")` is `weapon-deaths-head`.
+pub fn name_key(prefix: &str, name: &str) -> String {
+    let name = name.to_lowercase().replace(' ', "-").replace('\'', "");
+    format!("{prefix}-{name}")
+}
+
 pub fn tr(key: &str, args: &[(&str, Arg)]) -> String {
     let mut fluent_args = FluentArgs::new();
     for (name, value) in args {

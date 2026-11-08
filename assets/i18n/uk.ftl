@@ -418,6 +418,10 @@ log-shield-up = { $you ->
    *[no] { $name } піднімає захист: { $item }
 }
 log-shield-absorbed = {"  "}(щит -{ $absorbed })
+log-undermined = { $you ->
+    [yes] Під вашим танком осіла земля
+   *[no] Під танком { $name } осіла земля
+}
 log-shield-down = { $you ->
     [yes] Ваш щит зламано
    *[no] Щит танка { $name } зламано

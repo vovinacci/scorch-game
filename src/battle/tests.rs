@@ -602,8 +602,37 @@ fn a_riot_bomb_leaves_tanks_on_untouched_ground_alone() {
 fn the_weapon_strip_turns_see_through_over_a_tank_in_a_deep_valley() {
     let (players, mut b) = range(|_| 400.0);
     let strip = weapon_strip(&players[0]);
-    assert!(!covers_a_tank(&strip, &b.tank_areas()));
+    assert!(!covers_a_tank(&strip, &b.tank_areas(&players)));
     // Down in a crater at the bottom of the screen, right behind the strip.
     b.tanks[1].pos = vec2(640.0, 690.0);
-    assert!(covers_a_tank(&strip, &b.tank_areas()));
+    assert!(covers_a_tank(&strip, &b.tank_areas(&players)));
+}
+
+#[test]
+fn a_hole_under_only_part_of_a_tank_doesnt_count_as_dropping_it() {
+    let (players, mut b) = range(|x| {
+        if (639.0..=641.0).contains(&x) {
+            700.0
+        } else {
+            600.0
+        }
+    });
+    b.tanks[1].pos = vec2(640.0, 600.0);
+    b.undermine(600.0, 680.0, 0, &players);
+    assert_eq!(b.tanks[1].last_hit_by, None, "its edges still hold it up");
+}
+
+#[test]
+fn dropping_a_tank_is_logged_and_asks_for_revenge() {
+    let (mut players, mut b) = range(|_| 600.0);
+    b.tanks[1].pos = vec2(650.0, 600.0);
+    let before = b.history.len();
+    drop(&mut b, weapon("Riot Bomb"), 640.0, 0.0);
+    run(&mut b, &mut players);
+    assert_eq!(b.tanks[1].revenge, Some(0));
+    assert_eq!(
+        b.history.len(),
+        before + 1,
+        "one line, so the shot isn't logged as a miss"
+    );
 }

@@ -389,6 +389,10 @@ log-shield-up = { $you ->
    *[no] { $name } raises a { $item }
 }
 log-shield-absorbed = {"  "}(shield -{ $absorbed })
+log-undermined = { $you ->
+    [yes] The ground gives way under your tank
+   *[no] The ground gives way under { $name }
+}
 log-shield-down = { $you ->
     [yes] Your shield is down
    *[no] { $name }'s shield is down

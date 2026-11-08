@@ -61,10 +61,7 @@ pub struct Weapon {
 impl Weapon {
     /// Name on screen, in the current language.
     pub fn text(&self) -> String {
-        t!(&format!(
-            "weapon-{}",
-            self.name.to_lowercase().replace(' ', "-").replace('\'', "")
-        ))
+        t!(&crate::i18n::name_key("weapon", self.name))
     }
 }
 

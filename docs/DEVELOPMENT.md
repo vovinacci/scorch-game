@@ -139,8 +139,10 @@ The player's guide explains the rules; these are the exact values.
 - Tracer is a probe: no shot in accuracy stats, no "missed" in the log, no Mag Deflector charge. Its path is drawn every
   3rd point in light cyan (alpha 0.6), shown even with "Last shot path" off; a normal last shot path is every 6th point
   in white (alpha 0.3).
-- Riot Bomb carves a circle of radius 60. Riot Bomb and Digger set the shooter as the last hitter of every enemy tank
-  left above the ground they changed, so a deadly fall is the shooter's kill.
+- Riot Bomb carves a circle of radius 60. When a Riot Bomb lands or a Digger finishes its trench, every enemy tank over
+  the changed ground that is no longer held up (the same support test as falling: the highest ground under its 24 px
+  width) gets the shooter as last hitter and revenge target, and the log says its ground gave way. So a deadly fall is
+  the shooter's kill, and the shot isn't logged as a miss.
 - Weapon strip: up to 7 boxes per row (at most 150 px wide), extra rows above; keys 1-9, 0, -, = for the first 12.
   Generated ground reaches y 690 and craters go lower, so when any tank's area (48 x 46 px around it, bar and name
   included) overlaps a box, the boxes are drawn at alpha 0.25 instead of 0.9.
