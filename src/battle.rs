@@ -632,8 +632,8 @@ impl Battle {
         if weapon != 0 {
             players[i].ammo[weapon] -= 1;
         }
-        // A Tracer is for aiming, not a shot at anyone: it doesn't count against accuracy.
-        if WEAPONS[weapon].kind != Kind::Tracer {
+        let probe = WEAPONS[weapon].kind.is_probe();
+        if !probe {
             players[i].round_stats.shots += 1;
         }
         if !players[i].has(weapon) {
@@ -649,7 +649,8 @@ impl Battle {
             angle = tank.angle.round(),
             power = tank.power.round()
         );
-        self.shot_line = Some(self.history.len());
+        // A probe's line gets no "missed": it wasn't aimed at anyone.
+        self.shot_line = (!probe).then_some(self.history.len());
         self.note(text, players[i].color);
         self.projectiles
             .push(Projectile::new(pos, vel, weapon, i, false));
@@ -783,7 +784,6 @@ impl Battle {
             Kind::Napalm => self.ignite(p.pos.x, p.owner),
             // A Tracer only leaves its path (see `landed`).
             Kind::Tracer => {}
-            Kind::Riot => self.clear(p.pos, WEAPONS[p.weapon].radius),
             _ => self.detonate(p.pos, p.weapon, p.owner, players),
         }
         self.landed(p);
@@ -823,6 +823,7 @@ impl Battle {
         let step = DIG_SPEED * STEP;
         let x = p.pos.x + dir * step;
         self.terrain.sink(p.pos.x, x, DIG_DEPTH);
+        self.undermine(p.pos.x, x, p.owner);
         p.pos = vec2(x, self.terrain.height_at(x) + 4.0);
         let left = left - step;
         if left <= 0.0 || !(0.0..WIDTH as f32).contains(&x) {
@@ -892,6 +893,9 @@ impl Battle {
 
     /// Each Mag Deflector pays `DEFLECT_COST` once for a shell entering its field; one that runs out goes down.
     fn charge_deflectors(&mut self, p: &mut Projectile, players: &[Player]) {
+        if WEAPONS[p.weapon].kind.is_probe() {
+            return;
+        }
         let mut down = Vec::new();
         for (i, tank) in self.tanks.iter_mut().enumerate() {
             let bit = 1u8 << i;
@@ -933,31 +937,37 @@ impl Battle {
             .collect()
     }
 
-    /// Riot Bomb: removes the dirt in `radius` around `pos`, hurting no one.
-    fn clear(&mut self, pos: Vec2, radius: f32) {
-        self.sounds.push(Sfx::Dirt);
-        self.terrain.carve(pos, radius);
-        self.explosions.push(Explosion {
-            pos,
-            radius,
-            age: 0.0,
-            dirt: true,
-        });
+    /// `owner` took the ground away under every enemy tank between `x0` and `x1`: if one dies of the fall, the kill
+    /// is `owner`'s.
+    fn undermine(&mut self, x0: f32, x1: f32, owner: usize) {
+        let (a, b) = (x0.min(x1), x0.max(x1));
+        for (i, tank) in self.tanks.iter_mut().enumerate() {
+            if i != owner && tank.alive && (a..=b).contains(&tank.pos.x) {
+                tank.last_hit_by = Some(owner);
+            }
+        }
     }
 
     fn detonate(&mut self, pos: Vec2, weapon: usize, owner: usize, players: &mut [Player]) {
         let w = &WEAPONS[weapon];
-        if w.kind == Kind::Dirt {
-            self.sounds.push(Sfx::Dirt);
-            self.terrain.add_dirt(pos, w.radius);
-            self.explosions.push(Explosion {
-                pos,
-                radius: w.radius,
-                age: 0.0,
-                dirt: true,
-            });
-        } else {
-            self.blast(pos, w.radius, w.damage, Some(owner), players);
+        match w.kind {
+            // Dirt Bomb adds earth, Riot Bomb clears it; neither hurts anyone.
+            Kind::Dirt | Kind::Riot => {
+                self.sounds.push(Sfx::Dirt);
+                if w.kind == Kind::Dirt {
+                    self.terrain.add_dirt(pos, w.radius);
+                } else {
+                    self.terrain.carve(pos, w.radius);
+                    self.undermine(pos.x - w.radius, pos.x + w.radius, owner);
+                }
+                self.explosions.push(Explosion {
+                    pos,
+                    radius: w.radius,
+                    age: 0.0,
+                    dirt: true,
+                });
+            }
+            _ => self.blast(pos, w.radius, w.damage, Some(owner), players),
         }
     }
 
@@ -1405,7 +1415,7 @@ impl Battle {
                 .max_by_key(|&w| WEAPONS[w].price)
                 .unwrap_or(0);
         }
-        let safe_distance = WEAPONS[weapon].radius + 25.0;
+        let safe_distance = WEAPONS[weapon].radius + WEAPONS[weapon].kind.sideways_reach() + 25.0;
 
         let mut best = Shot {
             angle: 90.0,

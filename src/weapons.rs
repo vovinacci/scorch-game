@@ -27,9 +27,28 @@ pub enum Kind {
 }
 
 impl Kind {
-    /// Changes the ground but does no damage; bots don't fire these at enemies.
+    /// Does no damage (it changes the ground, or only shows a path); bots don't buy or fire these.
     pub fn is_utility(self) -> bool {
         matches!(self, Kind::Dirt | Kind::Digger | Kind::Tracer | Kind::Riot)
+    }
+
+    /// Not a shot at anyone, only a look at the path: it doesn't count for accuracy, isn't logged as a miss and
+    /// doesn't drain Mag Deflectors.
+    pub fn is_probe(self) -> bool {
+        self == Kind::Tracer
+    }
+
+    /// How far from where the shell aims its blasts can land sideways, in pixels: MIRV warheads spread out on the
+    /// way down. Bots keep their own tank out of this.
+    pub fn sideways_reach(self) -> f32 {
+        // About how long warheads fall after the split.
+        const FALL_SECONDS: f32 = 1.5;
+        match self {
+            Kind::Mirv { warheads, spread } => {
+                f32::from(warheads - 1) / 2.0 * f32::from(spread) * FALL_SECONDS
+            }
+            _ => 0.0,
+        }
     }
 }
 

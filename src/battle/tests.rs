@@ -411,6 +411,11 @@ fn a_digger_sinks_the_ground_under_a_tank() {
         "only as far as it digs"
     );
     assert_eq!(b.tanks[1].health, 100.0, "no damage by itself");
+    assert_eq!(
+        b.tanks[1].last_hit_by,
+        Some(0),
+        "a deadly fall would be the digger's kill"
+    );
 }
 
 #[test]
@@ -533,4 +538,44 @@ fn deaths_head_splits_into_nine_warheads() {
     assert!(b.projectiles.iter().all(|p| p.child));
     let blasts = run(&mut b, &mut players);
     assert_eq!(blasts.len(), 9, "every warhead explodes");
+}
+
+#[test]
+fn a_tracer_is_not_a_shot_at_anyone() {
+    let mut players = bots(2);
+    players[1].items[3] = 1;
+    let mut rules = Setup::default().rules();
+    rules.world.terrain = crate::world::TerrainKind::Flat;
+    let mut b = battle(&players, rules);
+    b.raise_shields(&mut players);
+    let target = b.tanks[1].center();
+    b.projectiles.push(Projectile::new(
+        target + vec2(-60.0, -30.0),
+        vec2(200.0, 0.0),
+        weapon("Tracer"),
+        0,
+        false,
+    ));
+    b.step_projectiles(&mut players);
+    let full = ITEMS[3].shield_energy().unwrap();
+    assert_eq!(
+        b.tanks[1].shield.map(|s| s.energy),
+        Some(full),
+        "costs the deflector nothing"
+    );
+
+    let me = b.current;
+    players[me].ammo[weapon("Tracer")] = 1;
+    b.tanks[me].weapon = weapon("Tracer");
+    b.fire(&mut players);
+    assert_eq!(b.shot_line, None, "never logged as a miss");
+    assert_eq!(players[me].round_stats.shots, 0, "not counted for accuracy");
+}
+
+#[test]
+fn bots_keep_clear_of_spreading_warheads() {
+    let reach = |name: &str| WEAPONS[weapon(name)].kind.sideways_reach();
+    assert_eq!(reach("Missile"), 0.0);
+    assert!(reach("MIRV") > 100.0);
+    assert!(reach("Death's Head") > reach("MIRV"));
 }

@@ -100,9 +100,10 @@ battle is a risk to everyone around you, you included.
 
 ### Who gets the kill
 
-A kill always goes to the last **enemy** who damaged the tank this round, however it finally died: by that enemy's shot,
-by a fall, by its own shot, by self-destructing or by sudden death. So if you weaken a tank and it then blows itself up,
-the kill is yours. A tank that no enemy ever hit dies without anyone getting a kill.
+A kill always goes to the last **enemy** who damaged the tank this round (or took the ground from under it with a Riot
+Bomb or a Digger), however it finally died: by that enemy's shot, by a fall, by its own shot, by self-destructing or by
+sudden death. So if you weaken a tank and it then blows itself up, the kill is yours. A tank that no enemy ever hit dies
+without anyone getting a kill.
 
 ## Weapons
 
@@ -126,9 +127,9 @@ the kill is yours. A tank that no enemy ever hit dies without anyone getting a k
 Everyone starts the game with $100 and 2 Missiles. Weapons and money carry over from round to round. The Dirt Bomb is
 for burying an enemy or building a wall in front of yourself; the Digger digs a buried tank out, or drops an enemy into
 a trench (the fall hurts); the Riot Bomb clears a mound away, digs out a buried tank or opens a path through a hill. A
-Tracer's path stays on screen for your next turn, even with "Last shot path" off, and doesn't count as a shot in your
-accuracy. Rollers and Napalm find the low ground, so they're best against a tank in a valley. Napalm burns any tank
-close to the fire, yours too, and shields soak up the burn like any other damage.
+Tracer's path stays on screen for your next turn, even with "Last shot path" off; it doesn't count as a shot in your
+accuracy and doesn't drain a Mag Deflector. Rollers and Napalm find the low ground, so they're best against a tank in a
+valley. Napalm burns any tank close to the fire, yours too, and shields soak up the burn like any other damage.
 
 ## Parachutes and shields
 
