@@ -143,9 +143,9 @@ The player's guide explains the rules; these are the exact values.
   the death blast.
 - MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,
   centred on the shell's (MIRV 5 x 45 px/s, Death's Head 9 x 30 px/s).
-- Tracer is a probe: no shot in accuracy stats, no "missed" in the log, no Mag Deflector charge. Its path is drawn every
-  3rd point in light cyan (alpha 0.6), shown even with "Last shot path" off; a normal last shot path is every 6th point
-  in white (alpha 0.3).
+- Tracer is a probe: no shot in accuracy stats, no "missed" in the log, no Mag Deflector charge. Its path is kept in
+  `Battle::tracers` (not saved) and drawn every phase until the round ends: a dashed line in the shooter's colour (alpha
+  0.55). It doesn't replace the shooter's last real shot path (every 6th point in white, alpha 0.3, while aiming).
 - Riot Bomb carves a circle of radius 60. When a Riot Bomb lands or a Digger finishes its trench, every enemy tank over
   the changed ground that is no longer held up (the same support test as falling: the highest ground under its 24 px
   width) gets the shooter as last hitter and revenge target, and the log says its ground gave way. So a deadly fall is

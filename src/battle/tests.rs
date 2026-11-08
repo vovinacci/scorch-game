@@ -496,7 +496,7 @@ fn the_weapon_strip_shows_owned_weapons_on_screen() {
 }
 
 #[test]
-fn a_tracer_hurts_no_one_and_leaves_a_bright_path() {
+fn a_tracer_hurts_no_one_and_its_path_stays() {
     let (mut players, mut b) = range(|_| 600.0);
     b.tanks[1].pos = vec2(645.0, 600.0);
     drop(&mut b, weapon("Tracer"), 640.0, 50.0);
@@ -504,8 +504,12 @@ fn a_tracer_hurts_no_one_and_leaves_a_bright_path() {
     assert_eq!(blasts, []);
     assert_eq!(b.tanks[1].health, 100.0);
     assert_eq!(b.terrain.height_at(640.0), 600.0, "no crater");
-    let trail = &b.tanks[0].last_trail;
-    assert!(trail.tracer && !trail.points.is_empty());
+    assert_eq!(b.tracers.len(), 1, "its path stays on the field");
+    assert_eq!(b.tracers[0].0, 0, "with who fired it");
+    assert!(
+        b.tanks[0].last_trail.is_empty(),
+        "the last real shot's path is kept"
+    );
 }
 
 #[test]
