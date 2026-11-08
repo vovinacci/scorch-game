@@ -2120,7 +2120,7 @@ mod tests {
             .collect();
         assert_eq!(lines[0], (1, "B1 targets B0 (revenge)"));
         assert!(lines[1].1.starts_with("B0 hit B1"), "{lines:?}");
-        assert!(b.log.len() == 1, "targeting stays out of the feed");
+        assert_eq!(b.log.len(), 1, "targeting stays out of the feed");
     }
 
     #[test]
