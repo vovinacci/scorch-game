@@ -152,9 +152,12 @@ The player's guide explains the rules; these are the exact values.
 - The table is `WEAPONS` in `src/weapons.rs`; saves store ammo by index, so new weapons go at the end.
 - Balance: `cargo test --release balance_table -- --ignored --nocapture` fires every weapon 300 times per aim through
   the real physics (perfect aim, about 1 degree / 15 power off, about 3 degrees / 45 off) in three scenarios: one tank
-  700 px away on flat ground, three tanks 60 px apart, one tank at the bottom of a valley. It prints mean damage to the
-  targets, kills, self-damage and damage per dollar. Most weapons sit near 0.4 damage per $ with close aim; the Missile
-  (about 1.2) is the cheap workhorse, Death's Head (0.35) pays for being forgiving.
+  700 px away on flat ground, three tanks 60 px apart, one tank at the bottom of a valley. Each shot is played out like
+  a turn (falls and death blasts included) and a tank loses at most its 100 health. It prints mean damage to the
+  targets, kill% and self-damage (rough aim) and damage per dollar (close aim). MIRV-type weapons are aimed with the
+  unsplit shell. Most weapons give 0.3-0.5 damage per $ on one target and about twice that in a crowd; the Missile
+  (about 1.1) is the cheap workhorse. Bots fire their most expensive weapon, so a price change also changes which weapon
+  a bot prefers.
 - Utility weapons do no damage: Dirt Bomb, Digger, Tracer, Riot Bomb. Bots don't buy or fire them, and they don't add to
   the death blast.
 - MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,

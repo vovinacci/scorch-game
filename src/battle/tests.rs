@@ -793,23 +793,33 @@ impl Scenario {
         (players, b)
     }
 
-    /// The angle and power that put `weapon`'s damage closest to the middle target, and how close that is.
-    fn best_aim(&self, weapon: usize) -> (f32, f32, f32) {
+    /// Where every (angle, power) on the search grid lands; the same for every weapon, so worked out once.
+    fn landings(&self) -> Vec<(f32, f32, Landing)> {
         let (_, b) = self.battle();
-        let target = b.tanks[1 + self.targets.len() / 2].center();
         let base = b.tanks[0].barrel_base();
-        let mut best = (f32::MAX, 45.0, 500.0);
+        let mut grid = Vec::new();
         for angle in (40..=160).map(|a| a as f32 / 2.0) {
             for power in (300..=1000).step_by(5).map(|p| p as f32) {
                 let muzzle = base + direction(angle) * BARREL;
                 let vel = launch_velocity(angle, power);
                 if let Some(landing) = simulate(muzzle, vel, 0.0, b.world(), &b.terrain, &[]) {
-                    let d =
-                        damage_point(WEAPONS[weapon].kind, landing, &b.terrain).distance(target);
-                    if d < best.0 {
-                        best = (d, angle, power);
-                    }
+                    grid.push((angle, power, landing));
                 }
+            }
+        }
+        grid
+    }
+
+    /// The angle and power that put `weapon`'s damage closest to the middle target, and how close that is. For
+    /// MIRV-type weapons this aims the unsplit shell, which the middle warhead follows.
+    fn best_aim(&self, weapon: usize, landings: &[(f32, f32, Landing)]) -> (f32, f32, f32) {
+        let (_, b) = self.battle();
+        let target = b.tanks[1 + self.targets.len() / 2].center();
+        let mut best = (f32::MAX, 45.0, 500.0);
+        for &(angle, power, landing) in landings {
+            let d = damage_point(WEAPONS[weapon].kind, landing, &b.terrain).distance(target);
+            if d < best.0 {
+                best = (d, angle, power);
             }
         }
         (best.1, best.2, best.0)
@@ -834,40 +844,53 @@ impl Scenario {
         let (mut damage, mut kills, mut own) = (0.0, 0, 0.0);
         for _ in 0..shots {
             let (mut players, mut b) = self.battle();
-            let angle = aim.0 + gauss(sigma.0);
+            // Like a bot: aim within what the game allows.
+            let angle = (aim.0 + gauss(sigma.0)).clamp(0.0, 180.0);
+            let power = (aim.1 + gauss(sigma.1)).clamp(0.0, MAX_POWER);
             b.tanks[0].angle = angle;
-            let vel = launch_velocity(angle, aim.1 + gauss(sigma.1));
+            let vel = launch_velocity(angle, power);
             b.projectiles
                 .push(Projectile::new(b.tanks[0].muzzle(), vel, weapon, 0, false));
-            run(&mut b, &mut players);
+            // The whole turn as the game plays it: flight, then falls and death blasts while things settle.
+            b.phase = Phase::Flight;
+            for _ in 0..20_000 {
+                if !matches!(b.phase, Phase::Flight | Phase::Settle) {
+                    break;
+                }
+                b.update(STEP, &mut players);
+            }
+            // A tank can only lose its 100 health: blasts on a tank already at 0 don't count.
+            let lost = |t: &Tank| (100.0 - t.health).clamp(0.0, 100.0);
             let targets = &b.tanks[1..];
-            damage += targets.iter().map(|t| 100.0 - t.health).sum::<f32>();
-            kills += usize::from(targets.iter().any(|t| t.health <= 0.0));
-            own += 100.0 - b.tanks[0].health;
+            damage += targets.iter().map(lost).sum::<f32>();
+            kills += usize::from(targets.iter().any(|t| !t.alive || t.health <= 0.0));
+            own += lost(&b.tanks[0]);
         }
         let n = shots as f32;
         (damage / n, kills as f32 / n, own / n)
     }
 }
 
-/// Balance table: every weapon fired 300 times per aim through the real physics, in each scenario. Prints mean damage
-/// to the targets per shot (perfect, close and rough aim), kills and self-damage with rough aim, and damage per dollar
-/// with close aim. Run by hand: `cargo test --release balance_table -- --ignored --nocapture`.
+/// Balance table: every weapon fired 300 times per aim through the real physics, in each scenario, each shot played
+/// out like a turn (falls and death blasts included, a tank losing at most its 100 health). Prints mean damage to the
+/// targets per shot (perfect, close and rough aim), then kill% and self-damage with rough aim, damage per dollar with
+/// close aim, and how close the best aim gets (miss). Run by hand: `cargo test --release balance_table -- --ignored --nocapture`.
 #[test]
 #[ignore = "prints a table; run by hand when tuning weapons"]
 fn balance_table() {
     const SHOTS: usize = 300;
     for scenario in &SCENARIOS {
         println!("\n{}", scenario.name);
+        let landings = scenario.landings();
         println!(
             "{:<13} {:>6} | {:>7} {:>7} {:>7} | {:>5} {:>5} | {:>6} {:>5}",
-            "weapon", "$/shot", "perfect", "close", "rough", "kill%", "self", "dmg/$", "miss"
+            "weapon", "$/shot", "perfect", "close", "rough", "kill%r", "selfr", "dmg/$", "miss"
         );
         for (w, weapon) in WEAPONS.iter().enumerate() {
             if weapon.kind.is_utility() {
                 continue;
             }
-            let (angle, power, miss) = scenario.best_aim(w);
+            let (angle, power, miss) = scenario.best_aim(w, &landings);
             let mut means = [0.0; 3];
             let (mut kills, mut own) = (0.0, 0.0);
             for (k, &(_, sa, sp)) in AIMS.iter().enumerate() {
