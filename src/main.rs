@@ -50,8 +50,10 @@ const COLORS: [Color; 4] = [
 ];
 const BOT_NAMES: [&str; 3] = ["Alpha", "Bravo", "Charlie"];
 
-// One Screen exists at a time, so the big Battle variant costs nothing.
-#[allow(clippy::large_enum_variant)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "one Screen exists at a time, so the big Battle variant costs nothing"
+)]
 enum Screen {
     /// The dedication, shown briefly at start-up.
     Intro {
@@ -167,7 +169,7 @@ impl Game {
         }
     }
 
-    fn save_run(&mut self, stage: StageOut) {
+    fn save_run(&mut self, stage: StageOut<'_>) {
         save::store_run(&RunOut {
             players: &self.players,
             setup: &self.setup,
@@ -284,6 +286,10 @@ impl Game {
         self.has_saved_run = false;
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the screen state machine: one arm per screen"
+    )]
     fn step(&mut self, screen: Screen) -> Screen {
         match screen {
             Screen::Intro { time } => {
@@ -812,7 +818,7 @@ impl Game {
                     std::path::PathBuf::from(format!("/home/you/.local/share/scorch/crash-{t}.log"))
                 };
                 self.crash = Some(crash::Pending {
-                    paths: vec![report(1793470061), report(1793460000)],
+                    paths: vec![report(1_793_470_061), report(1_793_460_000)],
                     text: String::new(),
                 });
                 Screen::Menu
@@ -1006,6 +1012,11 @@ fn icon() -> miniquad::conf::Icon {
     }
 }
 
+/// `--crash-test`: a deliberate panic, to try the crash report.
+fn crash_test() -> ! {
+    panic!("crash test requested with --crash-test");
+}
+
 fn main() {
     if std::env::args().any(|a| a == "--version" || a == "-V") {
         println!("{}", crash::version_line());
@@ -1017,7 +1028,7 @@ fn main() {
         std::process::exit(update::command_line());
     }
     if std::env::args().any(|a| a == "--crash-test") {
-        panic!("crash test requested with --crash-test");
+        crash_test();
     }
     macroquad::Window::from_config(window_conf(), run());
 }
@@ -1131,8 +1142,12 @@ mod guide_tests {
     fn names(language: Language) -> Vec<String> {
         i18n::set_language(language);
         let mut names: Vec<String> = Vec::new();
-        names.extend(crate::weapons::WEAPONS.iter().map(|w| w.text()));
-        names.extend(crate::items::ITEMS.iter().map(|i| i.text()));
+        names.extend(
+            crate::weapons::WEAPONS
+                .iter()
+                .map(crate::weapons::Weapon::text),
+        );
+        names.extend(crate::items::ITEMS.iter().map(crate::items::Item::text));
         names.extend((0..crate::ai::DIFFICULTIES.len()).map(crate::ai::difficulty_text));
         names.extend(
             crate::ai::PRESETS

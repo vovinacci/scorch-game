@@ -104,6 +104,10 @@ pub fn mouse() -> Vec2 {
 /// order they are drawn, Enter/Space press the focused one, Left/Right change
 /// a focused selector. Moving the mouse over a widget focuses it too.
 #[derive(Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent input flags of one frame"
+)]
 struct Nav {
     focus: usize,
     /// Widgets registered so far this frame.
@@ -168,6 +172,10 @@ pub fn reset_focus() {
     NAV.with_borrow_mut(|nav| nav.focus = 0);
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent input flags of one widget"
+)]
 struct Focus {
     focused: bool,
     activate: bool,
@@ -236,7 +244,7 @@ pub fn button(r: Rect, label: &str, enabled: bool) -> bool {
     text_at(
         label,
         r.x + (r.w - dims.width) / 2.0,
-        r.y + (r.h + dims.offset_y) / 2.0,
+        r.y + f32::midpoint(r.h, dims.offset_y),
         size,
         if enabled { WHITE } else { GRAY },
     );
@@ -258,7 +266,7 @@ pub fn selector(r: Rect, label: &str, values: &[impl AsRef<str>], index: &mut us
     text_at(
         label,
         r.x + 14.0,
-        r.y + (r.h + dims.offset_y) / 2.0,
+        r.y + f32::midpoint(r.h, dims.offset_y),
         size,
         LIGHTGRAY,
     );
@@ -267,7 +275,7 @@ pub fn selector(r: Rect, label: &str, values: &[impl AsRef<str>], index: &mut us
     text_at(
         value,
         value_box.x + (value_box.w - dims.width) / 2.0,
-        r.y + (r.h + dims.offset_y) / 2.0,
+        r.y + f32::midpoint(r.h, dims.offset_y),
         size,
         WHITE,
     );
@@ -278,7 +286,7 @@ pub fn selector(r: Rect, label: &str, values: &[impl AsRef<str>], index: &mut us
             vec2(x - 6.0 * dir, mid - 8.0),
             vec2(x - 6.0 * dir, mid + 8.0),
             GOLD,
-        )
+        );
     };
     arrow(value_box.x + 16.0, -1.0);
     arrow(value_box.x + value_box.w - 16.0, 1.0);
@@ -309,7 +317,7 @@ pub fn choice<T: Choice>(r: Rect, label: &str, value: &mut T) -> bool {
 
 /// On/Off selector.
 pub fn toggle(r: Rect, label: &str, value: &mut bool) -> bool {
-    let mut index = *value as usize;
+    let mut index = usize::from(*value);
     let changed = selector(r, label, &[t!("off"), t!("on")], &mut index);
     *value = index == 1;
     changed

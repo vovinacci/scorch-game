@@ -70,14 +70,14 @@ impl Terrain {
     }
 
     pub fn height_at(&self, x: f32) -> f32 {
-        match self.column(x) {
+        match Self::column(x) {
             Some(c) => self.ground[c],
             None => HEIGHT,
         }
     }
 
     pub fn is_solid(&self, p: Vec2) -> bool {
-        self.column(p.x).is_some_and(|c| p.y >= self.ground[c])
+        Self::column(p.x).is_some_and(|c| p.y >= self.ground[c])
     }
 
     /// Highest ground point under a tank `half` pixels wide each side.
@@ -142,7 +142,7 @@ impl Terrain {
         }
     }
 
-    fn column(&self, x: f32) -> Option<usize> {
+    fn column(x: f32) -> Option<usize> {
         (x >= 0.0 && x < WIDTH as f32).then_some(x as usize)
     }
 

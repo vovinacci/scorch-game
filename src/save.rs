@@ -89,7 +89,7 @@ pub fn run_exists() -> bool {
     path(RUN).is_some_and(|p| p.exists())
 }
 
-pub fn store_run(run: &RunOut) {
+pub fn store_run(run: &RunOut<'_>) {
     store(RUN, run);
 }
 

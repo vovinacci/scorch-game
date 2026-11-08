@@ -85,6 +85,10 @@ impl SuddenDeath {
 
 /// Reads a saved sudden death setting. Settings once counted all turns ("After15", "After25", "After40"); they map
 /// to the closest choice in shots per tank, and anything unknown to the default.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "serde's deserialize_with needs this signature"
+)]
 fn lenient_sudden_death<'de, D: serde::Deserializer<'de>>(d: D) -> Result<SuddenDeath, D::Error> {
     Ok(match String::deserialize(d).unwrap_or_default().as_str() {
         "Off" => SuddenDeath::Off,
@@ -272,14 +276,18 @@ impl Setup {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one screen of widgets, drawn top to bottom"
+)]
 pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> SetupAction {
+    const STEP: f32 = 47.0;
     ui::text_centered(&t!("setup-title"), ui::WIDTH / 2.0, 62.0, 48.0, ORANGE);
 
     // Left: who plays and how.
     let left = Rect::new(50.0, 90.0, 570.0, 520.0);
     ui::panel(left);
     ui::text_at(t!("setup-match"), left.x + 24.0, left.y + 36.0, 26.0, GOLD);
-    const STEP: f32 = 47.0;
     let row = |area: Rect, i: f32| {
         Rect::new(area.x + 20.0, area.y + 52.0 + i * STEP, area.w - 40.0, 41.0)
     };
@@ -388,7 +396,7 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
     ui::choice(row(right, 5.0), &t!("setup-sky"), &mut world.sky);
     draw_preview(
         preview,
-        world,
+        *world,
         Rect::new(
             right.x + 20.0,
             right.y + 52.0 + 6.0 * STEP + 8.0,
@@ -422,7 +430,7 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
     }
 }
 
-fn draw_preview(preview: &mut Preview, world: &World, r: Rect) {
+fn draw_preview(preview: &mut Preview, world: World, r: Rect) {
     if preview.kind != Some(world.terrain) {
         preview.kind = Some(world.terrain);
         preview.terrain = Some(Terrain::generate(world.terrain));

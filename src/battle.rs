@@ -426,7 +426,7 @@ impl Battle {
     /// Raises each player's strongest switched-on shield for this round (uses one up).
     pub fn raise_shields(&mut self, players: &mut [Player]) {
         for (i, player) in players.iter_mut().enumerate() {
-            let Some(item) = shield_to_raise(&player.items, &player.items_on) else {
+            let Some(item) = shield_to_raise(&player.items, player.items_on) else {
                 continue;
             };
             player.items[item] -= 1;
@@ -442,8 +442,8 @@ impl Battle {
         }
     }
 
-    fn world(&self) -> &World {
-        &self.rules.world
+    fn world(&self) -> World {
+        self.rules.world
     }
 
     fn max_power(&self, tank: &Tank) -> f32 {
@@ -540,6 +540,7 @@ impl Battle {
             // Turn the barrel visibly instead of snapping, so humans can follow.
             tank.angle = approach(tank.angle, plan.angle, 90.0 * dt);
             tank.power = approach(tank.power, plan.power, 600.0 * dt);
+            #[expect(clippy::float_cmp, reason = "approach() lands exactly on the target")]
             let ready = tank.angle == plan.angle && tank.power == plan.power;
             if think <= 0.0 && ready {
                 self.fire(players);
@@ -657,13 +658,13 @@ impl Battle {
     }
 
     fn step_projectiles(&mut self, players: &mut [Player]) {
-        let world = *self.world();
+        let world = self.world();
         for mut p in std::mem::take(&mut self.projectiles) {
             let next = match p.motion {
                 Motion::Rolling { dir, time } => self.roll(p, dir, time, players),
                 Motion::Digging { dir, left } => self.dig(p, dir, left),
                 Motion::Flying => {
-                    let flight = step_shell(&mut p.pos, &mut p.vel, self.wind, &world, STEP);
+                    let flight = step_shell(&mut p.pos, &mut p.vel, self.wind, world, STEP);
                     p.trail.push(p.pos);
 
                     if WEAPONS[p.weapon].kind == Kind::Mirv && !p.child && p.vel.y > 0.0 {
@@ -1129,7 +1130,7 @@ impl Battle {
                 players[k].round_stats.kills += 1;
                 players[k].income.kills += economy::KILL_PAY;
                 // Bounty: killing someone who keeps winning pays more.
-                players[k].income.bounty += economy::BOUNTY_PER_WIN * players[i].wins as i32;
+                players[k].income.bounty += economy::BOUNTY_PER_WIN * players[i].wins.cast_signed();
             }
             // Dying tanks explode (bigger with more ammo aboard) and can take
             // neighbours with them; those kills go to whoever caused the death.
@@ -1528,6 +1529,7 @@ impl Battle {
         self.draw_hud(players);
     }
 
+    #[expect(clippy::too_many_lines, reason = "the HUD, drawn left to right")]
     fn draw_hud(&self, players: &[Player]) {
         draw_rectangle(0.0, 0.0, ui::WIDTH, 44.0, ui::PANEL);
         let player = &players[self.current];
@@ -1637,7 +1639,10 @@ impl Battle {
             );
             // The reason isn't saved, so it's unknown right after Continue.
             if !memory.reason.is_empty() {
-                text += &format!(" ({})", t!(&format!("reason-{}", memory.reason)));
+                let reason = t!(&format!("reason-{}", memory.reason));
+                text.push_str(" (");
+                text.push_str(&reason);
+                text.push(')');
             }
             ui::text_centered(&text, ui::WIDTH / 2.0, HEIGHT - 14.0, 20.0, LIGHTGRAY);
         }
@@ -1686,7 +1691,6 @@ pub fn draw_history(battle: &Battle) {
         30.0,
         GOLD,
     );
-    const STEP: f32 = 24.0;
     let top = r.y + 90.0;
     let rows = ((r.h - 160.0) / STEP) as usize;
     if battle.history.is_empty() {
@@ -1783,7 +1787,7 @@ fn simulate(
     mut pos: Vec2,
     mut vel: Vec2,
     wind: f32,
-    world: &World,
+    world: World,
     terrain: &Terrain,
     deflectors: &[Vec2],
 ) -> Option<Landing> {
@@ -1898,6 +1902,10 @@ fn approach(value: f32, target: f32, max_step: f32) -> f32 {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one tank with its bars, labels and shield"
+)]
 fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDisplay) {
     let (x, y) = (tank.pos.x, tank.pos.y);
     let base = tank.barrel_base();
@@ -2198,8 +2206,8 @@ mod tests {
         let world = Setup::default().rules().world;
         let terrain = Terrain::generate(crate::world::TerrainKind::Flat);
         let (pos, vel) = (vec2(200.0, 300.0), vec2(300.0, -200.0));
-        let plain = simulate(pos, vel, 0.0, &world, &terrain, &[]);
-        let bent = simulate(pos, vel, 0.0, &world, &terrain, &[vec2(330.0, 230.0)]);
+        let plain = simulate(pos, vel, 0.0, world, &terrain, &[]);
+        let bent = simulate(pos, vel, 0.0, world, &terrain, &[vec2(330.0, 230.0)]);
         assert_ne!(plain, bent, "the deflector changes where the shell lands");
     }
 
@@ -2423,7 +2431,7 @@ mod tests {
         b.tanks[1].pos = vec2(700.0, 600.0);
         drop(&mut b, weapon("Digger"), 640.0, 100.0);
         let blasts = run(&mut b, &mut players);
-        assert!(blasts.is_empty());
+        assert_eq!(blasts, [] as [Vec2; 0]);
         assert_eq!(b.terrain.height_at(700.0), 600.0 + DIG_DEPTH);
         assert_eq!(
             b.terrain.height_at(640.0 + DIG_LENGTH + 20.0),

@@ -8,8 +8,13 @@
 //! Off without the `self-update` Cargo feature (package managers update the game themselves) and for development
 //! builds (any version with `+` build metadata).
 
-// Without the feature only `enabled()` (false) and the status type are used; the rest is compiled for the feature.
-#![cfg_attr(not(feature = "self-update"), allow(dead_code))]
+#![cfg_attr(
+    not(feature = "self-update"),
+    expect(
+        dead_code,
+        reason = "without the feature only `enabled()` (false) and the status type are used"
+    )
+)]
 
 use std::sync::{Arc, Mutex};
 
@@ -53,10 +58,7 @@ impl Updater {
     }
 
     pub fn status(&self) -> Status {
-        self.status
-            .lock()
-            .map(|s| s.clone())
-            .unwrap_or(Status::Idle)
+        self.status.lock().map_or(Status::Idle, |s| s.clone())
     }
 
     /// Forgets an offered update until the next check ("Later").
@@ -334,9 +336,11 @@ mod net {
     }
 
     pub(super) fn sha256_hex(data: &[u8]) -> String {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
         Sha256::digest(data)
             .iter()
-            .map(|b| format!("{b:02x}"))
+            .flat_map(|b| [HEX[usize::from(b >> 4)], HEX[usize::from(b & 15)]])
+            .map(char::from)
             .collect()
     }
 

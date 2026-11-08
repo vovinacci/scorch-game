@@ -76,7 +76,7 @@ impl AiProfile {
     /// Typical error on shot `n` (1-based), ignoring wobble.
     /// 0.7 is the average of "40% to 100% of E".
     pub fn typical_error(&self, n: u32) -> (f32, f32) {
-        let k = 0.7 * self.learning.powi(n as i32 - 1);
+        let k = 0.7 * self.learning.powi(n.cast_signed() - 1);
         (self.first_angle_error * k, self.first_power_error * k)
     }
 
@@ -292,12 +292,16 @@ pub fn editor(profile: &mut AiProfile) -> bool {
     let max_bar = 40.0f32.max(profile.first_angle_error * 0.7);
     let mut y = 165.0;
     for n in 1..=8 {
-        let (a, p) = profile.typical_error(n);
-        let on_target = a < HIT_ANGLE && p < HIT_POWER;
+        let (angle, power) = profile.typical_error(n);
+        let on_target = angle < HIT_ANGLE && power < HIT_POWER;
         let color = if on_target { GREEN } else { ORANGE };
         ui::text_at(t!("custom-shot", n = n), rx + 20.0, y, 22.0, LIGHTGRAY);
-        draw_rectangle(rx + 140.0, y - 15.0, 180.0 * (a / max_bar), 16.0, color);
-        let miss = t!("custom-miss", angle = format!("{a:.1}"), power = p.round());
+        draw_rectangle(rx + 140.0, y - 15.0, 180.0 * (angle / max_bar), 16.0, color);
+        let miss = t!(
+            "custom-miss",
+            angle = format!("{angle:.1}"),
+            power = power.round()
+        );
         ui::text_at(miss, rx + 340.0, y, 22.0, WHITE);
         y += 34.0;
     }

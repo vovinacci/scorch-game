@@ -239,7 +239,7 @@ fn draw_income(player: &Player, shoots_first: bool) {
         notes.push(t!(
             "income-note-bounty",
             n = player.wins,
-            bounty = economy::BOUNTY_PER_WIN * player.wins as i32
+            bounty = economy::BOUNTY_PER_WIN * player.wins.cast_signed()
         ));
     }
     if shoots_first {

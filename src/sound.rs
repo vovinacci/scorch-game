@@ -244,7 +244,7 @@ impl Chip {
     /// A random 0..1 that stays the same for the whole frame.
     fn frame_random(&mut self, noise: &mut Noise) -> f32 {
         if self.voice == 0 && self.held.is_empty() {
-            self.random = (noise.next() + 1.0) / 2.0;
+            self.random = f32::midpoint(noise.next(), 1.0);
         }
         self.random
     }
@@ -298,7 +298,7 @@ fn wav(samples: &[f32]) -> Vec<u8> {
     out.extend_from_slice(b"data");
     out.extend_from_slice(&data_len.to_le_bytes());
     for s in samples {
-        out.extend_from_slice(&((s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16).to_le_bytes());
+        out.extend_from_slice(&((s.clamp(-1.0, 1.0) * f32::from(i16::MAX)) as i16).to_le_bytes());
     }
     out
 }
@@ -325,7 +325,7 @@ mod tests {
     /// Writes every effect as a WAV file, to listen to while tuning:
     /// `SCORCH_SOUNDS=<dir> cargo test write_sounds -- --ignored`.
     #[test]
-    #[ignore]
+    #[ignore = "writes files; run by hand while tuning"]
     fn write_sounds() {
         let dir = std::env::var("SCORCH_SOUNDS").expect("set SCORCH_SOUNDS to a folder");
         std::fs::create_dir_all(&dir).unwrap();

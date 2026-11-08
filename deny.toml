@@ -1,0 +1,32 @@
+# cargo-deny: checks dependencies for security advisories, licences, duplicates and sources (CI job "Dependencies").
+# Run locally: cargo deny check
+
+[graph]
+all-features = true
+
+[advisories]
+# Every advisory fails, including unmaintained and unsound crates; ignore one here only with a reason.
+ignore = [
+    { id = "RUSTSEC-2025-0035", reason = "macroquad is the game engine and has no fixed version; review again when a new macroquad is out" },
+    { id = "RUSTSEC-2026-0192", reason = "comes with macroquad's text rendering (fontdue) and only reads the bundled font; goes away when macroquad moves on" },
+]
+
+[licenses]
+# Licences compatible with shipping the game under MIT.
+allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib"]
+confidence-threshold = 0.9
+# Allowed for one crate each, not in general.
+exceptions = [
+    # File-level copyleft; used unmodified, which MPL allows in an MIT program.
+    { allow = ["MPL-2.0"], crate = "option-ext" },
+    # Mozilla's root certificates as data (self-update HTTPS).
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" },
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
