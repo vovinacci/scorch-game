@@ -866,6 +866,7 @@ impl Battle {
             self.step_fires(players);
         }
         if self.projectiles.is_empty() && self.explosions.is_empty() && self.fires.is_empty() {
+            self.drop_spent_deflectors(players);
             self.phase = Phase::Settle;
         }
     }
@@ -896,8 +897,9 @@ impl Battle {
                         continue;
                     }
 
-                    self.charge_deflectors(&mut p, players);
-                    deflect(p.pos, &mut p.vel, &self.deflectors(p.owner));
+                    self.charge_deflectors(&mut p);
+                    let pushing = self.deflectors_for(&p);
+                    deflect(p.pos, &mut p.vel, &pushing);
 
                     let hit_tank = self
                         .tanks
@@ -1100,11 +1102,10 @@ impl Battle {
     }
 
     /// Each Mag Deflector pays `DEFLECT_COST` once for a shell entering its field; one that runs out goes down.
-    fn charge_deflectors(&mut self, p: &mut Projectile, players: &[Player]) {
+    fn charge_deflectors(&mut self, p: &mut Projectile) {
         if WEAPONS[p.weapon].kind.is_probe() {
             return;
         }
-        let mut down = Vec::new();
         for (i, tank) in self.tanks.iter_mut().enumerate() {
             let bit = 1u8 << i;
             if i == p.owner
@@ -1114,23 +1115,51 @@ impl Battle {
             {
                 continue;
             }
-            let Some(shield) = tank.shield.as_mut().filter(|s| s.deflects()) else {
+            // A spent deflector takes no new shells, but keeps pushing the ones it was paid for.
+            let Some(shield) = tank
+                .shield
+                .as_mut()
+                .filter(|s| s.deflects() && s.energy > 0.0)
+            else {
                 continue;
             };
             p.charged |= bit;
             shield.energy -= DEFLECT_COST;
             self.sounds.push(Sfx::Shield);
-            if shield.energy <= 0.0 {
+        }
+    }
+
+    /// Centres of the Mag Deflectors pushing shell `p`: every enemy deflector with energy left, plus a spent one this
+    /// shell already paid for (its last push still works).
+    fn deflectors_for(&self, p: &Projectile) -> Vec<Vec2> {
+        self.tanks
+            .iter()
+            .enumerate()
+            .filter(|(i, t)| {
+                let paid = p.charged & (1u8 << i) != 0;
+                *i != p.owner
+                    && t.alive
+                    && t.shield
+                        .is_some_and(|s| s.deflects() && (s.energy > 0.0 || paid))
+            })
+            .map(|(_, t)| t.center())
+            .collect()
+    }
+
+    /// Once the shells are done, Mag Deflectors that ran out of energy go down.
+    fn drop_spent_deflectors(&mut self, players: &[Player]) {
+        let mut down = Vec::new();
+        for (tank, player) in self.tanks.iter_mut().zip(players) {
+            if tank.shield.is_some_and(|s| s.deflects() && s.energy <= 0.0) {
                 tank.shield = None;
-                down.push(i);
+                down.push(t!(
+                    "log-shield-down",
+                    name = player.label(),
+                    you = you(player)
+                ));
             }
         }
-        for i in down {
-            let text = t!(
-                "log-shield-down",
-                name = players[i].label(),
-                you = you(&players[i])
-            );
+        for text in down {
             self.log(text, GRAY);
         }
     }
@@ -1140,7 +1169,9 @@ impl Battle {
         self.tanks
             .iter()
             .enumerate()
-            .filter(|(i, t)| *i != owner && t.alive && t.shield.is_some_and(|s| s.deflects()))
+            .filter(|(i, t)| {
+                *i != owner && t.alive && t.shield.is_some_and(|s| s.deflects() && s.energy > 0.0)
+            })
             .map(|(_, t)| t.center())
             .collect()
     }
