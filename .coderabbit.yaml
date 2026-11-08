@@ -1,0 +1,74 @@
+# CodeRabbit AI review (https://docs.coderabbit.ai/reference/configuration). House rules come from AGENTS.md, which
+# CodeRabbit reads by default; the instructions below point at the parts that matter most per path.
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-GB
+tone_instructions: >-
+  Be brief and concrete: name the file, the problem and the fix. Skip praise and style points the linters already
+  enforce (rustfmt, Clippy pedantic, ruff, shfmt, shellcheck, rumdl).
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  poem: false
+  in_progress_fortune: false
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  suggested_reviewers: false
+  # Labels are curated by hand (planned, idea, an area); don't propose new ones.
+  suggested_labels: false
+  auto_review:
+    enabled: true
+    drafts: false
+    # Release PRs (release-plz) and dependency updates (Dependabot, flake.lock) need no review.
+    labels: ["!release", "!dependencies"]
+  path_filters:
+    - "!Cargo.lock"
+    - "!flake.lock"
+    - "!CHANGELOG.md"
+    - "!requirements*.txt"
+    - "!**/*.png"
+    - "!**/*.ico"
+    - "!assets/fonts/**"
+  path_instructions:
+    - path: "src/**/*.rs"
+      instructions: >-
+        On-screen text must go through t!("key") with the key in both assets/i18n/en-GB.ftl and assets/i18n/uk.ftl.
+        A change players can notice (gameplay, a control, a menu, a setting) must update docs/GUIDE.md and
+        docs/GUIDE.uk.md in the same PR; exact numbers belong in docs/DEVELOPMENT.md. New saved fields need
+        #[serde(default)]. GPU objects (Font, Texture) must never be dropped at exit. Code is ASCII only.
+    - path: "assets/i18n/*.ftl"
+      instructions: >-
+        en-GB.ftl uses British spelling. uk.ftl must be natural Ukrainian, not a word-for-word translation; sentences
+        avoid declining player names. Both files must have the same keys. Text over ~25% longer than English may
+        not fit: check that the code gives it a bounded width.
+    - path: "docs/GUIDE*.md"
+      instructions: >-
+        The player's guide: plain player-facing language, no code, build steps or internals. GUIDE.md and
+        GUIDE.uk.md must say the same thing. No history ("now", "used to", "new in").
+    - path: "tools/*.sh"
+      instructions: >-
+        Shell style is in AGENTS.md ("Shell scripts"): set -euf -o pipefail, LC_ALL, the timed PS4,
+        function kebab-name(), main "$@" and # EOF, braced expansions, errors to stderr.
+    - path: ".github/workflows/*.yml"
+      instructions: >-
+        Every action pinned to a full commit SHA with the version in a comment. Jobs start from no permissions and
+        ask only for what they need; checkouts use persist-credentials: false; release jobs use no caches.
+  tools:
+    # Run in CI with the project's own settings, or replaced by the project's tools (rumdl for Markdown).
+    clippy:
+      enabled: false
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    title:
+      mode: warning
+      requirements: >-
+        A Conventional Commit ("feat(bots): ...", "fix: ...", "docs: ..."): the changelog is generated from PR
+        titles.
+
+chat:
+  art: false

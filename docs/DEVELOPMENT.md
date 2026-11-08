@@ -94,6 +94,8 @@ window (`windows_subsystem`), so command line output only shows in debug builds 
     clippy.
   - On push: the tests.
 - On NixOS, prek and rumdl come from `shell.nix`, and the `make` targets run them inside `nix-shell`.
+- Pull requests get an AI review from [CodeRabbit](https://coderabbit.ai) (`.coderabbit.yaml`): British English, the
+  house rules from `AGENTS.md`, no reviews of release and dependency PRs.
 - Lints live in `[lints]` in `Cargo.toml`, so cargo, editors and CI share them:
   - Clippy's `pedantic` group, except three cast lints (pixel and count conversions are everywhere in game code).
   - `unsafe_code` is forbidden. `rust_2018_idioms` and `unused_qualifications` are on.
