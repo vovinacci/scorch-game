@@ -223,6 +223,7 @@ dirty.
 |---|---|
 | `main.rs` | Screens state machine, menus, intro, About, pause, saving flow, `--screen` |
 | `battle.rs` | Turns, physics, damage, bots' aiming and targeting, battle log |
+| `battle/tests.rs` | The battle's unit tests (other files keep theirs in a `tests` module at the bottom) |
 | `world.rs` | World settings, shell physics (`step_shell`), sky |
 | `terrain.rs` | Heightmap terrain, terrain types, craters |
 | `setup.rs` | New game screen and match rules |
