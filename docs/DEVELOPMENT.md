@@ -152,12 +152,13 @@ The player's guide explains the rules; these are the exact values.
 - The table is `WEAPONS` in `src/weapons.rs`; saves store ammo by index, so new weapons go at the end.
 - Balance: `cargo test --release balance_table -- --ignored --nocapture` fires every weapon 300 times per aim through
   the real physics (perfect aim, about 1 degree / 15 power off, about 3 degrees / 45 off) in three scenarios: one tank
-  700 px away on flat ground, three tanks 60 px apart, one tank at the bottom of a valley. Each shot is played out like
-  a turn (falls and death blasts included) and a tank loses at most its 100 health. It prints mean damage to the
-  targets, kill% and self-damage (rough aim) and damage per dollar (close aim). MIRV-type weapons are aimed with the
-  unsplit shell. Most weapons give 0.3-0.5 damage per $ on one target and about twice that in a crowd; the Missile
-  (about 1.1) is the cheap workhorse. Bots fire their most expensive weapon, so a price change also changes which weapon
-  a bot prefers.
+  700 px away on flat ground, three tanks 60 px apart, one tank at the bottom of a valley. The aim used is the one,
+  among those whose first damage lands within 150 px of the middle target, that does the most damage with close aim.
+  Each shot is played out like a turn (falls and death blasts included) and a tank loses at most its 100 health. It
+  prints mean damage to the targets, kill% and self-damage (rough aim) and damage per dollar (close aim). Most weapons
+  give 0.3-0.5 damage per $ on one target and about twice that in a crowd; the Missile (about 1.1) is the cheap
+  workhorse. Bots fire the weapon with the highest price per shot, so a price change also changes which weapon a bot
+  prefers.
 - Utility weapons do no damage: Dirt Bomb, Digger, Tracer, Riot Bomb. Bots don't buy or fire them, and they don't add to
   the death blast.
 - MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,
@@ -201,9 +202,10 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 - Next error = error x L + wobble, wobble uniform within ±12% of E. Typical miss on shot n = 0.7 x E x L^(n-1); "on
   target" means under 2° and 30 power, which is what the custom bot editor and the guide's table use.
 - Presets: Moron E = 25° / 300, L = 0.8; Shooter 12° / 180, 0.5; Sniper 6° / 90, 0.3.
-- Weapon: 60% chance of its most expensive weapon that isn't a utility one, otherwise a Baby Missile. Shots landing
-  closer to the bot than the weapon's radius + 25 px are ruled out; for MIRV-type weapons add the outer warhead's drift:
-  its sideways speed x the fall time from the top of the arc (landing vertical speed / gravity).
+- Weapon: 60% chance of its weapon with the highest price per shot (`Weapon::shot_price`) that isn't a utility one,
+  otherwise a Baby Missile. Shots landing closer to the bot than the weapon's radius + 25 px are ruled out; for
+  MIRV-type weapons add the outer warhead's drift: its sideways speed x the fall time from the top of the arc (landing
+  vertical speed / gravity).
 - Shop: 8 random picks among the non-utility weapons and the items, each bought if affordable.
 - Target score for a new target: nearness (weight 1.0) + damage taken (0.8) + share of the most wins (0.8) - 0.5 per
   other bot aiming at that tank + random 0-0.3.

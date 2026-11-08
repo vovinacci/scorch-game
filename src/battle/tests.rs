@@ -770,6 +770,9 @@ const SCENARIOS: [Scenario; 3] = [
 ];
 
 /// (label, angle sigma in degrees, power sigma): perfect, a bot a few shots in, a bot's first tries.
+/// Aims are chosen for `AIMS[CLOSE]`; kill% and self-damage are reported for `AIMS[ROUGH]`.
+const CLOSE: usize = 1;
+const ROUGH: usize = 2;
 const AIMS: [(&str, f32, f32); 3] = [
     ("perfect", 0.0, 0.0),
     ("close", 1.0, 15.0),
@@ -793,7 +796,8 @@ impl Scenario {
         (players, b)
     }
 
-    /// Where every (angle, power) on the search grid lands; the same for every weapon, so worked out once.
+    /// Where every (angle, power) on the search grid lands; the same for every weapon, so worked
+    /// out once.
     fn landings(&self) -> Vec<(f32, f32, Landing)> {
         let (_, b) = self.battle();
         let base = b.tanks[0].barrel_base();
@@ -810,23 +814,41 @@ impl Scenario {
         grid
     }
 
-    /// The angle and power that put `weapon`'s damage closest to the middle target, and how close that is. For
-    /// MIRV-type weapons this aims the unsplit shell, which the middle warhead follows.
+    /// The best aim for `weapon` at the middle target: among the aims whose first damage lands
+    /// within 150 px of it, the one that does the most damage when fired with close aim (so a
+    /// Leapfrog can land short and hop on, and bomblets scatter over the target, without picking a
+    /// razor's-edge aim). Also returns how far that aim's first damage lands from the target.
     fn best_aim(&self, weapon: usize, landings: &[(f32, f32, Landing)]) -> (f32, f32, f32) {
+        const NEAR: f32 = 150.0;
+        const CANDIDATES: usize = 30;
+        const TRIES: usize = 20;
         let (_, b) = self.battle();
         let target = b.tanks[1 + self.targets.len() / 2].center();
-        let mut best = (f32::MAX, 45.0, 500.0);
-        for &(angle, power, landing) in landings {
-            let d = damage_point(WEAPONS[weapon].kind, landing, &b.terrain).distance(target);
-            if d < best.0 {
-                best = (d, angle, power);
+        let mut near: Vec<(f32, f32, f32)> = landings
+            .iter()
+            .map(|&(angle, power, landing)| {
+                let point = damage_point(WEAPONS[weapon].kind, landing, &b.terrain);
+                (point.distance(target), angle, power)
+            })
+            .collect();
+        near.sort_by(|a, b| a.0.total_cmp(&b.0));
+        // The closest aim always competes; then a spread of the rest within NEAR.
+        let within = near.iter().take_while(|c| c.0 < NEAR).count().max(1);
+        let step = (within / CANDIDATES).max(1);
+        let mut best = (f32::MIN, near[0]);
+        for &c in near[..within].iter().step_by(step) {
+            let (_, sa, sp) = AIMS[CLOSE];
+            let (damage, _, _) = self.measure(weapon, (c.1, c.2), (sa, sp), TRIES);
+            if damage > best.0 {
+                best = (damage, c);
             }
         }
-        (best.1, best.2, best.0)
+        let (miss, angle, power) = best.1;
+        (angle, power, miss)
     }
 
-    /// Mean damage to all targets per shot, the share of shots that kill at least one target, and the mean damage
-    /// the shooter does to itself.
+    /// Mean damage to all targets per shot, the share of shots that kill at least one target, and
+    /// the mean damage the shooter does to itself.
     fn measure(
         &self,
         weapon: usize,
@@ -844,14 +866,16 @@ impl Scenario {
         let (mut damage, mut kills, mut own) = (0.0, 0, 0.0);
         for _ in 0..shots {
             let (mut players, mut b) = self.battle();
-            // Like a bot: aim within what the game allows.
+            // The shooter's turn, aiming within what the game allows, like a bot.
+            b.current = 0;
             let angle = (aim.0 + gauss(sigma.0)).clamp(0.0, 180.0);
-            let power = (aim.1 + gauss(sigma.1)).clamp(0.0, MAX_POWER);
+            let power = (aim.1 + gauss(sigma.1)).clamp(0.0, b.max_power(&b.tanks[0]));
             b.tanks[0].angle = angle;
             let vel = launch_velocity(angle, power);
             b.projectiles
                 .push(Projectile::new(b.tanks[0].muzzle(), vel, weapon, 0, false));
-            // The whole turn as the game plays it: flight, then falls and death blasts while things settle.
+            // The whole turn as the game plays it: flight, then falls and death blasts as things
+            // settle.
             b.phase = Phase::Flight;
             for _ in 0..20_000 {
                 if !matches!(b.phase, Phase::Flight | Phase::Settle) {
@@ -871,10 +895,12 @@ impl Scenario {
     }
 }
 
-/// Balance table: every weapon fired 300 times per aim through the real physics, in each scenario, each shot played
-/// out like a turn (falls and death blasts included, a tank losing at most its 100 health). Prints mean damage to the
-/// targets per shot (perfect, close and rough aim), then kill% and self-damage with rough aim, damage per dollar with
-/// close aim, and how close the best aim gets (miss). Run by hand: `cargo test --release balance_table -- --ignored --nocapture`.
+/// Balance table: every weapon fired 300 times per aim through the real physics, in each scenario,
+/// each shot played out like a turn (falls and death blasts included, a tank losing at most its 100
+/// health). Prints mean damage to the targets per shot (perfect, close and rough aim), then kill%
+/// and self-damage with rough aim, damage per dollar with close aim, and how far the best aim's first
+/// damage lands from the target (miss). Run by hand:
+/// `cargo test --release balance_table -- --ignored --nocapture`.
 #[test]
 #[ignore = "prints a table; run by hand when tuning weapons"]
 fn balance_table() {
@@ -897,15 +923,13 @@ fn balance_table() {
                 let (damage, kill, self_damage) =
                     scenario.measure(w, (angle, power), (sa, sp), SHOTS);
                 means[k] = damage;
-                (kills, own) = (kill, self_damage);
+                if k == ROUGH {
+                    (kills, own) = (kill, self_damage);
+                }
             }
-            let per_shot = if weapon.bundle == 0 {
-                0.0
-            } else {
-                weapon.price as f32 / weapon.bundle as f32
-            };
+            let per_shot = weapon.shot_price() as f32;
             let per_dollar = if per_shot > 0.0 {
-                means[1] / per_shot
+                means[CLOSE] / per_shot
             } else {
                 f32::INFINITY
             };
