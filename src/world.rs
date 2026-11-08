@@ -67,7 +67,7 @@ impl Default for World {
 
 impl World {
     /// Downward acceleration in pixels per second squared.
-    pub fn gravity(&self) -> f32 {
+    pub fn gravity(self) -> f32 {
         match self.gravity {
             GravityLevel::Low => 180.0,
             GravityLevel::Normal => 300.0,
@@ -76,7 +76,7 @@ impl World {
     }
 
     /// Strongest possible wind (sideways acceleration, pixels per second squared).
-    pub fn max_wind(&self) -> f32 {
+    pub fn max_wind(self) -> f32 {
         match self.wind {
             WindLevel::Off => 0.0,
             WindLevel::Calm => 20.0,
@@ -85,7 +85,7 @@ impl World {
         }
     }
 
-    pub fn first_wind(&self) -> f32 {
+    pub fn first_wind(self) -> f32 {
         let max = self.max_wind() * 0.6;
         if max == 0.0 {
             0.0
@@ -95,7 +95,7 @@ impl World {
     }
 
     /// Wind for the next turn: drifts by up to 35% of the maximum, if it changes at all.
-    pub fn next_wind(&self, wind: f32) -> f32 {
+    pub fn next_wind(self, wind: f32) -> f32 {
         let max = self.max_wind();
         if !self.wind_changes || max == 0.0 {
             return wind;
@@ -114,7 +114,7 @@ pub enum Flight {
 }
 
 /// Moves a shell one physics step of `dt` seconds and applies the walls.
-pub fn step_shell(pos: &mut Vec2, vel: &mut Vec2, wind: f32, world: &World, dt: f32) -> Flight {
+pub fn step_shell(pos: &mut Vec2, vel: &mut Vec2, wind: f32, world: World, dt: f32) -> Flight {
     *vel += vec2(wind, world.gravity()) * dt;
     *pos += *vel * dt;
     if pos.y > HEIGHT {
@@ -201,7 +201,7 @@ mod tests {
         };
         let mut pos = vec2(WIDTH as f32 - 1.0, 300.0);
         let mut vel = vec2(240.0, 0.0);
-        let flight = step_shell(&mut pos, &mut vel, 0.0, &world, 0.1);
+        let flight = step_shell(&mut pos, &mut vel, 0.0, world, 0.1);
         (flight, pos, vel)
     }
 

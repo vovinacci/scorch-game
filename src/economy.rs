@@ -48,7 +48,7 @@ impl Income {
 }
 
 pub fn loss_bonus(streak: u32) -> i32 {
-    LOSS_BONUS * streak.min(LOSS_BONUS_MAX_STREAK) as i32
+    LOSS_BONUS * streak.min(LOSS_BONUS_MAX_STREAK).cast_signed()
 }
 
 /// Pays everyone at the end of a round. Damage, kills and bounties were already
@@ -84,7 +84,7 @@ mod tests {
         let mut ps = players(2);
         for round in 1..=6 {
             end_round(&mut ps, Some(0));
-            let expected = LOSS_BONUS * round.min(LOSS_BONUS_MAX_STREAK) as i32;
+            let expected = LOSS_BONUS * round.min(LOSS_BONUS_MAX_STREAK).cast_signed();
             assert_eq!(ps[1].income.loss_bonus, expected);
             ps[1].income = Income::default();
         }

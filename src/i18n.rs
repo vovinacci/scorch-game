@@ -66,6 +66,10 @@ pub fn detect() -> Language {
 /// Reads a saved language leniently: anything unknown (such as the old
 /// "System") becomes `None`, so it's detected again instead of breaking the
 /// whole profile.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "serde's deserialize_with needs this signature"
+)]
 pub fn lenient<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Language>, D::Error> {
     use serde::Deserialize;
     Ok(
@@ -102,15 +106,21 @@ impl From<&String> for Arg {
 }
 
 macro_rules! number_arg {
-    ($($t:ty),+) => {
+    ($($t:ty),+ ; $($wide:ty),+) => {
         $(impl From<$t> for Arg {
             fn from(v: $t) -> Self {
+                Arg::Number(f64::from(v))
+            }
+        })+
+        // Counts and money, far below 2^53: exact as f64 too.
+        $(impl From<$wide> for Arg {
+            fn from(v: $wide) -> Self {
                 Arg::Number(v as f64)
             }
         })+
     };
 }
-number_arg!(i32, u32, u64, usize, f32, f64);
+number_arg!(i32, u32, f32, f64; u64, usize);
 
 /// Looks up `key` in the current language, falling back to English, then to
 /// the key itself.

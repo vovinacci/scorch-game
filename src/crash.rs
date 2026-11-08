@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Full build version, e.g. `0.1.0+3.gabc1234.dirty` (see `build.rs`).
 pub const VERSION: &str = env!("SCORCH_BUILD");
 
-/// "Scorch 0.1.0+3.gabc1234 (linux x86_64, release)"
+/// `Scorch 0.1.0+3.gabc1234 (linux x86_64, release)`
 pub fn version_line() -> String {
     let profile = if cfg!(debug_assertions) {
         "debug"
@@ -48,26 +48,26 @@ pub fn install() {
     }));
 }
 
-fn message(info: &PanicHookInfo) -> String {
+fn message(info: &PanicHookInfo<'_>) -> String {
     let payload = info.payload();
     payload
         .downcast_ref::<&str>()
-        .map(|s| s.to_string())
+        .map(ToString::to_string)
         .or_else(|| payload.downcast_ref::<String>().cloned())
         .unwrap_or_else(|| "unknown panic".to_string())
 }
 
-fn location(info: &PanicHookInfo) -> String {
-    info.location()
-        .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
-        .unwrap_or_else(|| "unknown".to_string())
+fn location(info: &PanicHookInfo<'_>) -> String {
+    info.location().map_or_else(
+        || "unknown".to_string(),
+        |l| format!("{}:{}:{}", l.file(), l.line(), l.column()),
+    )
 }
 
 fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs())
 }
 
 fn report(message: &str, location: &str, backtrace: &str) -> String {
@@ -120,6 +120,10 @@ pub fn pending() -> Option<Pending> {
     pending_in(&dir()?)
 }
 
+#[expect(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "the game names these files itself, in lower case"
+)]
 fn pending_in(dir: &std::path::Path) -> Option<Pending> {
     let mut paths: Vec<PathBuf> = fs::read_dir(dir)
         .ok()?

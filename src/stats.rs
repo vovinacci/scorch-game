@@ -38,19 +38,19 @@ pub struct Stats {
 impl Stats {
     pub fn add_round(&mut self, round: &RoundStats, won: bool, earned: i32) {
         self.rounds += 1;
-        self.rounds_won += won as u32;
+        self.rounds_won += u32::from(won);
         self.kills += round.kills;
-        self.deaths += round.died as u32;
-        self.flees += round.fled as u32;
+        self.deaths += u32::from(round.died);
+        self.flees += u32::from(round.fled);
         self.shots += round.shots;
-        self.damage += round.damage as f64;
+        self.damage += f64::from(round.damage);
         self.best_hit = self.best_hit.max(round.best_hit);
-        self.money_earned += earned as i64;
+        self.money_earned += i64::from(earned);
     }
 
     pub fn add_game(&mut self, won: bool, round_wins: u32) {
         self.games += 1;
-        self.games_won += won as u32;
+        self.games_won += u32::from(won);
         self.best_game_wins = self.best_game_wins.max(round_wins);
     }
 
@@ -66,7 +66,7 @@ impl Stats {
         let per_shot = if self.shots == 0 {
             "-".to_string()
         } else {
-            format!("{:.1}", self.damage / self.shots as f64)
+            format!("{:.1}", self.damage / f64::from(self.shots))
         };
         vec![
             ("stats-games-played", self.games.to_string()),

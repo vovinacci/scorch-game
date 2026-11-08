@@ -36,7 +36,7 @@ numbers behind the rules, file formats, versioning and the code map.
 make run       # debug build, then play
 make release   # optimised build, then play
 make test      # unit tests
-make lint      # clippy, warnings are errors
+make lint      # clippy on code and tests, warnings are errors
 ```
 
 On NixOS, `make` runs cargo inside `nix-shell` (see `shell.nix`). The window may be any size; all layout uses a 1280x720
@@ -88,6 +88,15 @@ window (`windows_subsystem`), so command line output only shows in debug builds 
     clippy.
   - On push: the tests.
 - On NixOS, prek and rumdl come from `shell.nix`, and the `make` targets run them inside `nix-shell`.
+- Lints live in `[lints]` in `Cargo.toml`, so cargo, editors and CI share them:
+  - Clippy's `pedantic` group, except three cast lints (pixel and count conversions are everywhere in game code).
+  - `unsafe_code` is forbidden. `rust_2018_idioms` and `unused_qualifications` are on.
+  - From the restriction group: no `dbg!`, `todo!` or `unimplemented!`, and every exception is an
+    `#[expect(lint, reason = "...")]`: `#[allow]` is refused, and an `#[expect]` that no longer applies is an error.
+  - `clippy.toml` lists product names that `doc_markdown` should not put in backticks.
+- Dependencies are checked by [cargo-deny](https://embarkstudios.github.io/cargo-deny/) (`deny.toml`, CI job
+  "Dependencies"; locally `cargo deny check`): security advisories, licences (a short allow list, plus per-crate
+  exceptions), duplicate versions (warning) and sources. Ignored advisories are listed there with a reason.
 
 ## Rules in numbers
 

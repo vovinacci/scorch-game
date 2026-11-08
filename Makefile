@@ -28,7 +28,7 @@ test:
 	$(call CARGO,test)
 
 lint:
-	$(call CARGO,clippy -- -D warnings)
+	$(call CARGO,clippy --all-targets -- -D warnings)
 
 fmt: docs       ## Format Rust code and Markdown docs
 	cargo fmt

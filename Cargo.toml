@@ -36,3 +36,22 @@ opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+[lints.rust]
+unsafe_code = "forbid"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused_qualifications = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Game code turns pixels, counts and indices into floats and back all the time; marking every cast adds noise, not
+# safety.
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+# Picked from the restriction group.
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"

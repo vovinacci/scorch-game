@@ -70,7 +70,7 @@ pub const ITEMS: [Item; 4] = [
 pub const ITEM_COUNT: usize = ITEMS.len();
 
 /// Which shield goes up at round start: the strongest one owned and switched on.
-pub fn shield_to_raise(owned: &[u32; ITEM_COUNT], on: &[bool; ITEM_COUNT]) -> Option<usize> {
+pub fn shield_to_raise(owned: &[u32; ITEM_COUNT], on: [bool; ITEM_COUNT]) -> Option<usize> {
     (0..ITEM_COUNT)
         .filter(|&i| owned[i] > 0 && on[i])
         .filter_map(|i| Some((i, ITEMS[i].shield_energy()?)))
@@ -86,20 +86,20 @@ mod tests {
     fn the_strongest_switched_on_shield_goes_up() {
         let owned = [3, 1, 1, 1];
         assert_eq!(
-            shield_to_raise(&owned, &[true; ITEM_COUNT]),
+            shield_to_raise(&owned, [true; ITEM_COUNT]),
             Some(2),
             "Heavy Shield"
         );
         assert_eq!(
-            shield_to_raise(&owned, &[true, true, false, true]),
+            shield_to_raise(&owned, [true, true, false, true]),
             Some(1),
             "Shield beats Deflector"
         );
         assert_eq!(
-            shield_to_raise(&owned, &[true, false, false, false]),
+            shield_to_raise(&owned, [true, false, false, false]),
             None,
             "parachutes aren't shields"
         );
-        assert_eq!(shield_to_raise(&[0; ITEM_COUNT], &[true; ITEM_COUNT]), None);
+        assert_eq!(shield_to_raise(&[0; ITEM_COUNT], [true; ITEM_COUNT]), None);
     }
 }
