@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/vovinacci/scorch-game/compare/v0.4.0...v0.4.1) - 2026-11-08
+
+### Documentation
+
+- roadmap items move to GitHub issues; README shows the custom bot editor ([#53](https://github.com/vovinacci/scorch-game/pull/53))
+- fresh README screenshots and features; --shot keeps only the game area ([#37](https://github.com/vovinacci/scorch-game/pull/37))
+
+### Fixes
+
+- *(ui)* settings over a paused battle leave out the HUD; controls list the weapon keys ([#40](https://github.com/vovinacci/scorch-game/pull/40))
+- *(update)* fall back to the releases page redirect when the API fails ([#31](https://github.com/vovinacci/scorch-game/pull/31))
+
 ## [0.4.0](https://github.com/vovinacci/scorch-game/compare/v0.3.0...v0.4.0) - 2026-11-08
 
 ### Features
