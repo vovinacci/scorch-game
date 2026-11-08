@@ -196,6 +196,40 @@ fn direction(angle: f32) -> Vec2 {
 
 /// Height of the HUD bar along the top.
 const HUD_HEIGHT: f32 = 44.0;
+/// A trail point further sideways than this from the previous one is a shell wrapping around the screen.
+const WRAP_JUMP: f32 = 100.0;
+
+/// Whether the step from `a` to `b` is a wrap-around jump (drawn as a gap, not a line across the screen).
+fn wraps(a: Vec2, b: Vec2) -> bool {
+    (b.x - a.x).abs() > WRAP_JUMP
+}
+
+/// Length of a dash (and of the gap after it) in a Tracer's path.
+const TRACER_DASH: f32 = 6.0;
+
+/// A Tracer's path, kept for the rest of the round: points `TRACER_DASH` apart, so the dashes come out even.
+#[derive(Serialize, Deserialize)]
+struct TracerPath {
+    owner: usize,
+    points: Vec<[f32; 2]>,
+}
+
+impl TracerPath {
+    fn new(owner: usize, trail: &[Vec2]) -> Self {
+        let mut points: Vec<Vec2> = Vec::new();
+        for &p in trail {
+            match points.last() {
+                Some(&last) if !wraps(last, p) && last.distance(p) < TRACER_DASH => {}
+                _ => points.push(p),
+            }
+        }
+        Self {
+            owner,
+            points: points.iter().map(|p| [p.x, p.y]).collect(),
+        }
+    }
+}
+
 /// Power per pixel between the tank and the cursor when aiming with the mouse: 500 px is full power.
 const POWER_PER_PIXEL: f32 = 2.0;
 /// Shift slows aiming down this much, with the keys and with the mouse.
@@ -377,9 +411,9 @@ pub struct Battle {
     /// Index of this turn's "fires" line in `history`, to mark a miss.
     #[serde(skip)]
     shot_line: Option<usize>,
-    /// Paths of the Tracers fired this round, with who fired each. They stay drawn until the round ends.
-    #[serde(skip)]
-    tracers: Vec<(usize, Vec<Vec2>)>,
+    /// Paths of the Tracers fired this round. They stay drawn until the round ends, also after a save.
+    #[serde(default)]
+    tracers: Vec<TracerPath>,
     /// Mouse aiming in progress (left button held after pressing it on the battlefield).
     #[serde(skip)]
     drag: Option<Drag>,
@@ -799,7 +833,7 @@ impl Battle {
             return;
         }
         if WEAPONS[p.weapon].kind.is_probe() {
-            self.tracers.push((p.owner, p.trail));
+            self.tracers.push(TracerPath::new(p.owner, &p.trail));
         } else {
             self.tanks[p.owner].last_trail = p.trail;
         }
@@ -1600,18 +1634,23 @@ impl Battle {
         }
     }
 
-    /// Every Tracer path fired this round, in its shooter's colour, for everyone to see.
+    /// Every Tracer path fired this round, in its shooter's colour over a dark edge (readable on any sky), for
+    /// everyone to see.
     fn draw_tracers(&self, players: &[Player]) {
-        for (owner, path) in &self.tracers {
+        let edge = Color::new(0.0, 0.0, 0.0, 0.45);
+        for path in &self.tracers {
             let color = Color {
-                a: 0.55,
-                ..players[*owner].color
+                a: 0.85,
+                ..players[path.owner].color
             };
-            for w in path.windows(2).step_by(2) {
-                // Skip the jump across the screen when a shell wraps around.
-                if (w[1].x - w[0].x).abs() < 100.0 {
-                    draw_line(w[0].x, w[0].y, w[1].x, w[1].y, 1.5, color);
+            for w in path.points.windows(2).step_by(2) {
+                let (a, b) = (vec2(w[0][0], w[0][1]), vec2(w[1][0], w[1][1]));
+                // Off the top of the screen, or the jump of a shell wrapping around: nothing to draw.
+                if (a.y < 0.0 && b.y < 0.0) || wraps(a, b) {
+                    continue;
                 }
+                draw_line(a.x, a.y, b.x, b.y, 3.5, edge);
+                draw_line(a.x, a.y, b.x, b.y, 1.5, color);
             }
         }
     }
@@ -1640,7 +1679,7 @@ impl Battle {
         for p in &self.projectiles {
             for w in p.trail.windows(2).rev().take(60) {
                 // Skip the jump across the screen when a shell wraps around.
-                if (w[1].x - w[0].x).abs() > 100.0 {
+                if wraps(w[0], w[1]) {
                     continue;
                 }
                 draw_line(
