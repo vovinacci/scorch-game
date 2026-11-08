@@ -14,11 +14,13 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # The oldest macOS the game supports (README, packaging/Info.plist), whatever the runner's version.
+  MACOSX_DEPLOYMENT_TARGET: "15.0"
 
 jobs:
   checks:
     name: Checks
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -41,7 +43,7 @@ jobs:
 
   deny:
     name: Dependencies
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -59,11 +61,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: Linux x86_64, os: ubuntu-22.04 }
-          - { name: Linux ARM64, os: ubuntu-22.04-arm }
-          - { name: Windows x86_64, os: windows-2025 }
+          - { name: Linux x86_64, os: ubuntu-latest }
+          - { name: Linux ARM64, os: ubuntu-24.04-arm }
+          - { name: Windows x86_64, os: windows-latest }
           - { name: Windows ARM64, os: windows-11-arm }
-          - { name: macOS, os: macos-15 }
+          - { name: macOS, os: macos-latest }
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -77,12 +79,17 @@ jobs:
       - name: Install ALSA headers
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      # Linux: linked against a fixed glibc, then checked (tools/build-linux.sh).
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: tools/build-linux.sh
       - name: Build
+        if: runner.os != 'Linux'
         run: cargo build --release --locked
 
   nix:
     name: Nix package
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:

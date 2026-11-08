@@ -22,13 +22,15 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # The oldest macOS the game supports (README, packaging/Info.plist), whatever the runner's version.
+  MACOSX_DEPLOYMENT_TARGET: "15.0"
   APPIMAGETOOL_VERSION: "1.9.1"
 
 jobs:
   release-plz:
     name: Release PR and tag
     if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
@@ -68,7 +70,7 @@ jobs:
     name: Pick the tag
     needs: release-plz
     if: always() && (needs.release-plz.outputs.tag != '' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions: {}
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
@@ -87,10 +89,10 @@ jobs:
       matrix:
         include:
           - arch: x86_64
-            os: ubuntu-22.04
+            os: ubuntu-latest
             appimagetool_sha256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
           - arch: aarch64
-            os: ubuntu-22.04-arm
+            os: ubuntu-24.04-arm
             appimagetool_sha256: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
     runs-on: ${{ matrix.os }}
     permissions:
@@ -117,7 +119,8 @@ jobs:
       # Sound links ALSA.
       - name: Install ALSA headers
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-      - run: cargo build --release --locked
+      # Linked against a fixed glibc, then checked.
+      - run: tools/build-linux.sh
       - name: Package
         env:
           ARCH: ${{ matrix.arch }}
@@ -138,7 +141,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - { arch: x86_64, os: windows-2025 }
+          - { arch: x86_64, os: windows-latest }
           - { arch: aarch64, os: windows-11-arm }
     runs-on: ${{ matrix.os }}
     permissions:
@@ -172,7 +175,7 @@ jobs:
   macos:
     name: macOS (universal)
     needs: plan
-    runs-on: macos-15
+    runs-on: macos-latest
     permissions:
       contents: read
     steps:
@@ -200,7 +203,7 @@ jobs:
   publish:
     name: Attach to the release
     needs: [plan, linux, windows, macos]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:

@@ -9,20 +9,23 @@ numbers behind the rules, file formats, versioning and the code map.
 - **Rust** is pinned with [mise](https://mise.jdx.dev) in `mise.toml` (1.99.1, with rustfmt and clippy). With mise
   installed, entering this folder selects it (`mise trust` once, `mise install` if missing). CI uses the same file.
   Without mise, any Rust 1.88 or newer builds the game.
-- **Python tools** (prek for git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in
-  `requirements.txt`; `make tools` installs them into `.venv`, and the other `make` targets use them from there. CI
-  installs the same file, and Dependabot keeps it current.
-- **NixOS:** `shell.nix` provides ALSA, the graphics libraries the game loads at run time and cocogitto (commit message
-  check); the `make` targets use it automatically. Elsewhere install cocogitto with `cargo install cocogitto`.
+- **Python:** any `python3` works; `shell.nix` brings 3.15 on NixOS, and CI uses the runner's. **Python tools** (prek
+  for git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in `requirements.txt`, and the Linux
+  release build tools (zig, cargo-zigbuild) in `requirements-build.txt`; `make tools` installs them into `.venv`, and
+  the other `make` targets use them from there. CI installs the same file, and Dependabot keeps it current.
+- **NixOS:** `shell.nix` provides ALSA, the graphics libraries the game loads at run time, Python and cocogitto (commit
+  message check); the `make` targets use it automatically. Elsewhere install cocogitto with `cargo install cocogitto`.
 
 ## Binaries
 
 - **Linux:** links glibc (and libgcc) and, for sound, ALSA (`libasound.so.2`; building needs its headers, Debian/Ubuntu
   `libasound2-dev`). miniquad loads `libX11.so.6`, `libXi.so.6`, `libxkbcommon.so.0` and `libGL.so.1` at run time
   (default X11 backend; Wayland desktops use XWayland), so the game uses the player's own GPU driver; a fully static
-  (musl) build couldn't load it. Release builds run on Ubuntu 22.04: glibc 2.35 or newer. On distributions these
-  libraries are part of every desktop (Debian/Ubuntu: `libx11-6 libxi6 libxkbcommon0 libgl1 libasound2`; PipeWire and
-  PulseAudio need ALSA too). Without a working sound device the game runs silently.
+  (musl) build couldn't load it. Release builds need glibc 2.35 or newer, whatever the build machine has:
+  `tools/build-linux.sh` links against glibc 2.35 with cargo-zigbuild and fails if the binary needs anything newer. On
+  distributions these libraries are part of every desktop (Debian/Ubuntu:
+  `libx11-6 libxi6 libxkbcommon0 libgl1 libasound2`; PipeWire and PulseAudio need ALSA too). Without a working sound
+  device the game runs silently.
 - **NixOS:** `flake.nix` packages the game with alsa-lib and wraps it with those four libraries; `nix build` builds it
   (and runs the tests), `nix run .` plays it, players use `nix run github:vovinacci/scorch-game`. The version comes from
   the flake's commit (`SCORCH_BUILD_VERSION`, see `build.rs`). CI builds the flake; a weekly workflow updates

@@ -8,7 +8,7 @@
 # <arch> is x86_64 or aarch64; <version> is the tag, e.g. v0.1.0. Icons come from the PNGs in assets/icon/ (rendered
 # from scorch.svg). Needs appimagetool for the AppImage (APPIMAGETOOL, default "appimagetool"), 7z on Windows, and
 # lipo/iconutil/ditto on macOS.
-set -euo pipefail
+set -eufo pipefail
 
 os=$1
 mkdir -p dist

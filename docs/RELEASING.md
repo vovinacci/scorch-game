@@ -75,7 +75,8 @@ Release files:
 | Linux, Windows (for self-update) | `scorch-vX.Y.Z-linux-<arch>`, `scorch-vX.Y.Z-windows-<arch>.exe` |
 | All | `SHA256SUMS` and its minisign signature `SHA256SUMS.minisig` |
 
-- Linux builds run on an older Ubuntu for wider glibc compatibility; ARM64 on GitHub's ARM runners.
+- Linux builds link against a fixed glibc (2.35, `GLIBC_FLOOR` in `tools/build-linux.sh`) with cargo-zigbuild, and fail
+  if the binary needs a newer one; ARM64 on GitHub's ARM runners. macOS builds set `MACOSX_DEPLOYMENT_TARGET` to 15.0.
 - No code signing with a paid certificate. Windows shows SmartScreen ("More info" > "Run anyway"). The macOS app has an
   ad-hoc signature (Apple Silicon refuses unsigned apps as "damaged"), but Gatekeeper still rejects it, so players
   remove the quarantine mark with `xattr` (README). Opening with a double-click would need an Apple Developer ID and
@@ -84,8 +85,10 @@ Release files:
 ## Supply chain
 
 - Every GitHub Action is pinned to a full commit SHA, with the version in a comment (`# v7.0.1`); Dependabot updates
-  both. Python tools are pinned with hashes in `requirements.txt`; appimagetool is a pinned release checked against its
-  sha256. Runner images are pinned (`ubuntu-24.04`, `windows-2025`, `macos-15`), not `-latest`.
+  both. Python tools are pinned with hashes in `requirements.txt` (and the Linux build tools, zig and cargo-zigbuild, in
+  `requirements-build.txt`); appimagetool is a pinned release checked against its sha256.
+- Runners are `-latest` (ARM ones by version, as GitHub has no `-latest` for them): what the binaries need is fixed in
+  the build instead (glibc floor, macOS deployment target), so a new runner image can't quietly raise it.
 - Workflows start with no permissions and each job asks only for what it needs; checkouts don't keep credentials;
   release jobs don't use caches. The PR title check runs on `pull_request`, not `pull_request_target`.
 - Dependabot waits 7 days after a release before proposing it (`cooldown`).

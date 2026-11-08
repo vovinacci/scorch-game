@@ -1,77 +1,105 @@
 """Builds assets/fonts/ScorchMono.ttf: Terminus TTF with the official dv1
 variant (standard Cyrillic ve and de, U+0432/U+0434), a standard Cyrillic i
 and short i (U+0438/U+0439; Terminus draws them like a Latin u), and a new
-name, as the OFL's Reserved Font Name clause requires for modified versions."""
+name, as the OFL's Reserved Font Name clause requires for modified versions.
+
+    python3 tools/patch_font.py TerminusTTF-4.49.3.ttf ter-u16n.bdf out.ttf [check]
+
+With "check", prints how a redrawn glyph lines up with the font's own and
+writes nothing."""
+
 import sys
-from fontTools.ttLib import TTFont
+from pathlib import Path
+
 from fontTools.pens.ttGlyphPen import TTGlyphPen
+from fontTools.ttLib import TTFont
+from fontTools.ttLib.tables._g_l_y_f import Glyph
 
-src_ttf, bdf_path, out = sys.argv[1:4]
-PX, BASE = 62.5, 20  # units per pixel, baseline y (measured from the TTF)
+PX = 62.5  # font units per pixel
+BASE = 20  # baseline y (measured from the TTF)
 
-def bitmap(code):
-    lines = open(bdf_path).read().split('\n')
-    i = lines.index(f'ENCODING {code}')
-    j = lines.index('BITMAP', i)
-    rows = []
-    for l in lines[j + 1:]:
-        if l == 'ENDCHAR':
-            break
-        rows.append(int(l, 16))
-    return rows  # 16 rows, top first; rows 0..11 above the baseline
+# Standard print U+0438 / U+0439 with a diagonal, 8x16 rows like the BDF (top first).
+BODY = [0x42, 0x42, 0x46, 0x4A, 0x52, 0x62, 0x42]
+OWN = {
+    0x0438: [0, 0, 0, 0, 0, *BODY, 0, 0, 0, 0],
+    0x0439: [0, 0, 0x24, 0x18, 0, *BODY, 0, 0, 0, 0],
+}
+# The dv1 variant's glyphs, taken from the patched BDF.
+FROM_BDF = (0x0432, 0x0434)
 
-def outline(rows):
+NAMES = {
+    1: "Scorch Mono",  # family
+    4: "Scorch Mono",  # full name
+    6: "ScorchMono-Regular",  # PostScript name
+    16: "Scorch Mono",  # typographic family
+    3: "ScorchMono-Regular;based on Terminus (TTF) 4.49.3",  # unique ID
+}
+
+
+def bitmap(bdf: list[str], code: int) -> list[int]:
+    """The 16 rows of one BDF glyph, top first; rows 0..11 are above the baseline."""
+    start = bdf.index("BITMAP", bdf.index(f"ENCODING {code}")) + 1
+    end = bdf.index("ENDCHAR", start)
+    return [int(row, 16) for row in bdf[start:end]]
+
+
+def outline(rows: list[int]) -> Glyph:
+    """One square per lit pixel run, row by row."""
     pen = TTGlyphPen(None)
     for r, bits in enumerate(rows):
         y0 = BASE + (11 - r) * PX
         c = 0
         while c < 8:
-            if bits & (0x80 >> c):
-                start = c
-                while c < 8 and bits & (0x80 >> c):
-                    c += 1
-                x0, x1, y1 = start * PX, c * PX, y0 + PX
-                pen.moveTo((round(x0), round(y0)))
-                pen.lineTo((round(x0), round(y1)))
-                pen.lineTo((round(x1), round(y1)))
-                pen.lineTo((round(x1), round(y0)))
-                pen.closePath()
-            else:
+            if not bits & (0x80 >> c):
                 c += 1
+                continue
+            start = c
+            while c < 8 and bits & (0x80 >> c):
+                c += 1
+            x0, x1, y1 = start * PX, c * PX, y0 + PX
+            pen.moveTo((round(x0), round(y0)))
+            pen.lineTo((round(x0), round(y1)))
+            pen.lineTo((round(x1), round(y1)))
+            pen.lineTo((round(x1), round(y0)))
+            pen.closePath()
     return pen.glyph()
 
-# Standard print U+0438 / U+0439 with a diagonal, 8x16 rows like the BDF (top first).
-BODY = [0x42, 0x42, 0x46, 0x4A, 0x52, 0x62, 0x42]
-OWN = {
-    0x0438: [0, 0, 0, 0, 0] + BODY + [0, 0, 0, 0],
-    0x0439: [0, 0, 0x24, 0x18, 0] + BODY + [0, 0, 0, 0],
-}
 
-font = TTFont(src_ttf)
-cmap = font.getBestCmap()
-glyf = font['glyf']
-if sys.argv[4:] == ['check']:
-    g = outline(bitmap(0x043D))
-    g.recalcBounds(glyf)
-    ref = glyf[cmap[0x043D]]
-    print('U+043D drawn', (g.xMin, g.yMin, g.xMax, g.yMax), 'font', (ref.xMin, ref.yMin, ref.xMax, ref.yMax))
-    sys.exit()
-for code in (0x0432, 0x0434):
-    glyf[cmap[code]] = outline(bitmap(code))
-for code, rows in OWN.items():
-    glyf[cmap[code]] = outline(rows)
-for tag in ('EBDT', 'EBLC', 'BDF '):
-    if tag in font:
-        del font[tag]
-name = font['name']
-for rec in name.names:
-    if rec.nameID in (1, 16):
-        rec.string = 'Scorch Mono'
-    elif rec.nameID == 4:
-        rec.string = 'Scorch Mono'
-    elif rec.nameID == 6:
-        rec.string = 'ScorchMono-Regular'
-    elif rec.nameID == 3:
-        rec.string = 'ScorchMono-Regular;based on Terminus (TTF) 4.49.3'
-font.save(out)
-print('saved', out)
+def main(args: list[str]) -> None:
+    match args:
+        case [src_ttf, bdf_path, out]:
+            check = False
+        case [src_ttf, bdf_path, out, "check"]:
+            check = True
+        case _:
+            sys.exit(__doc__)
+
+    bdf = Path(bdf_path).read_text(encoding="ascii").split("\n")
+    font = TTFont(src_ttf)
+    cmap = font.getBestCmap()
+    glyf = font["glyf"]
+
+    if check:
+        g = outline(bitmap(bdf, 0x043D))
+        g.recalcBounds(glyf)
+        ref = glyf[cmap[0x043D]]
+        print("U+043D drawn", (g.xMin, g.yMin, g.xMax, g.yMax), "font", (ref.xMin, ref.yMin, ref.xMax, ref.yMax))
+        return
+
+    for code in FROM_BDF:
+        glyf[cmap[code]] = outline(bitmap(bdf, code))
+    for code, rows in OWN.items():
+        glyf[cmap[code]] = outline(rows)
+    # Embedded bitmaps would still show the old glyphs at 16 px.
+    for tag in ("EBDT", "EBLC", "BDF "):
+        if tag in font:
+            del font[tag]
+    for rec in font["name"].names:
+        if (new := NAMES.get(rec.nameID)) is not None:
+            rec.string = new
+    font.save(out)
+    print("saved", out)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

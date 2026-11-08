@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # commit-msg hook: the message must be a Conventional Commit (https://www.conventionalcommits.org), checked by
 # cocogitto. On NixOS cog comes from shell.nix; elsewhere install it (cargo install cocogitto).
-set -euo pipefail
+set -eufo pipefail
 file=$1
 if command -v cog >/dev/null; then
     exec cog verify --ignore-merge-commits --ignore-fixup-commits --file "$file"
