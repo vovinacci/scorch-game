@@ -39,7 +39,7 @@ Mother of All Games".
 | | |
 |---|---|
 | ![Main menu](docs/screenshots/menu.png) | ![Shop and inventory between rounds](docs/screenshots/shop.png) |
-| ![New game setup](docs/screenshots/setup.png) | |
+| ![New game setup](docs/screenshots/setup.png) | ![Custom bot editor: how a bot learns to aim](docs/screenshots/custom-bot.png) |
 
 ## Getting started
 
@@ -154,7 +154,8 @@ Ideas, translations and code are welcome too: see [CONTRIBUTING.md](CONTRIBUTING
 ## For developers
 
 Building, tests, the exact rules and numbers, and a map of the code are in the [development notes](docs/DEVELOPMENT.md).
-Plans are in the [roadmap](docs/ROADMAP.md).
+Plans are in the [roadmap](docs/ROADMAP.md) and the [issues](https://github.com/vovinacci/scorch-game/issues); ideas and
+bug reports are welcome there.
 
 ## Credits
 

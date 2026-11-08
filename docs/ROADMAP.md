@@ -1,28 +1,29 @@
 # Scorch roadmap
 
-What's done is described in `GUIDE.md`. This file lists what's next, roughly in order of fun per effort. Move items into
-the guide as they ship.
+What's done is described in `GUIDE.md`. What's next lives in GitHub issues, so each item can be discussed and closed by
+the pull request that ships it:
+[planned work](https://github.com/vovinacci/scorch-game/issues?q=is%3Aissue+is%3Aopen+label%3Aplanned) and
+[ideas](https://github.com/vovinacci/scorch-game/issues?q=is%3Aissue+is%3Aopen+label%3Aidea).
 
-## Next
+## Where it's going
 
-1. **Weapon strip** along the bottom of the battle screen: your weapons and ammo, the selected one highlighted.
-2. **More weapons:** Tracer, Riot Bomb, Death's Head.
-3. **Batteries** (restore health; matters with "Health limits power") and guidance items.
-4. **Tank movement** using fuel.
-5. **More bot types** from the original: Poolshark (bounces shots off walls), Tosser, Chooser, Spoiler, Cyborg.
+Scorch aims to be the original's battles, weapons and bots, with today's comfort: any window size, keyboard or mouse,
+saves, signed updates, two languages. Roughly in order of fun per effort:
 
-## Platforms and releases
+- **More of the original's arsenal and bots:** missing weapons
+  ([#41](https://github.com/vovinacci/scorch-game/issues/41)), batteries and guidance
+  ([#42](https://github.com/vovinacci/scorch-game/issues/42)), tank movement
+  ([#43](https://github.com/vovinacci/scorch-game/issues/43)) and bot types
+  ([#44](https://github.com/vovinacci/scorch-game/issues/44)).
+- **Easier to get and play:** a Windows installer ([#45](https://github.com/vovinacci/scorch-game/issues/45)) and a
+  browser build ([#46](https://github.com/vovinacci/scorch-game/issues/46)).
+- **Bigger ideas from the original**, not yet planned: more players and teams
+  ([#47](https://github.com/vovinacci/scorch-game/issues/47)), simultaneous mode
+  ([#48](https://github.com/vovinacci/scorch-game/issues/48)), speech bubbles
+  ([#49](https://github.com/vovinacci/scorch-game/issues/49)), lightning and meteors
+  ([#50](https://github.com/vovinacci/scorch-game/issues/50)), economy options
+  ([#51](https://github.com/vovinacci/scorch-game/issues/51)) and mouse aiming
+  ([#52](https://github.com/vovinacci/scorch-game/issues/52)).
 
-- **Windows installer:** Start menu entry, uninstaller, installed as `Scorch.exe` (a self-updated download keeps its
-  versioned file name, e.g. `scorch-v0.1.3-windows-x86_64.exe` running 0.1.4).
-- **Browser build:** saves and stats in browser storage instead of files, crash reports to the browser console, replace
-  `SystemTime` (panics in the browser), hide Quit, `make web`.
-
-## Bigger ideas from the original
-
-- More than 4 players (up to 10), teams.
-- Everyone aims at once (simultaneous mode).
-- Speech bubbles when tanks fire or die.
-- Hostile environment: lightning and meteors.
-- Economy options: interest on savings, changing prices, selling items back, scoring modes.
-- Mouse aiming.
+Labels: `planned` (we intend to build it), `idea` (a suggestion, not decided), and an area: `weapons`, `bots`,
+`gameplay`, `platform`.
