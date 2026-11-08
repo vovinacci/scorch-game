@@ -597,3 +597,13 @@ fn a_riot_bomb_leaves_tanks_on_untouched_ground_alone() {
     run(&mut b, &mut players);
     assert_eq!(b.tanks[1].last_hit_by, None, "its ground didn't move");
 }
+
+#[test]
+fn the_weapon_strip_turns_see_through_over_a_tank_in_a_deep_valley() {
+    let (players, mut b) = range(|_| 400.0);
+    let strip = weapon_strip(&players[0]);
+    assert!(!covers_a_tank(&strip, &b.tank_areas()));
+    // Down in a crater at the bottom of the screen, right behind the strip.
+    b.tanks[1].pos = vec2(640.0, 690.0);
+    assert!(covers_a_tank(&strip, &b.tank_areas()));
+}

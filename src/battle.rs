@@ -454,6 +454,15 @@ impl Battle {
         self.rules.world
     }
 
+    /// Where each living tank is drawn, with its health bar and name above it.
+    fn tank_areas(&self) -> Vec<Rect> {
+        self.tanks
+            .iter()
+            .filter(|t| t.alive && !t.fled)
+            .map(|t| Rect::new(t.pos.x - 24.0, t.pos.y - 44.0, 48.0, 46.0))
+            .collect()
+    }
+
     fn max_power(&self, tank: &Tank) -> f32 {
         if self.rules.power_limit {
             (tank.health * POWER_PER_HEALTH).clamp(MIN_POWER_LIMIT, MAX_POWER)
@@ -1595,7 +1604,7 @@ impl Battle {
         let tank = &self.tanks[self.current];
         // Your turn only: on bot turns the bottom of the screen has the skip button.
         if matches!(self.phase, Phase::Aim { .. }) && !player.is_bot() {
-            draw_weapon_strip(player, tank.weapon);
+            draw_weapon_strip(player, tank.weapon, &self.tank_areas());
         }
         let name = player.label();
         ui::text_fit(&name, 16.0, 29.0, 260.0, 24.0, player.color);
@@ -1819,10 +1828,28 @@ fn weapon_strip(player: &Player) -> Vec<(usize, Rect)> {
         .collect()
 }
 
-fn draw_weapon_strip(player: &Player, selected: usize) {
-    for (k, (w, r)) in weapon_strip(player).into_iter().enumerate() {
+/// Whether any box of the strip lies over a tank's area.
+fn covers_a_tank(strip: &[(usize, Rect)], tanks: &[Rect]) -> bool {
+    strip
+        .iter()
+        .any(|(_, r)| tanks.iter().any(|t| t.overlaps(r)))
+}
+
+/// The strip, on your turn. If a tank stands behind it (deep valleys and craters reach down there), the boxes turn
+/// see-through, so the tank stays visible; they still work.
+fn draw_weapon_strip(player: &Player, selected: usize, tanks: &[Rect]) {
+    let strip = weapon_strip(player);
+    let fill = if covers_a_tank(&strip, tanks) {
+        Color {
+            a: 0.25,
+            ..ui::PANEL
+        }
+    } else {
+        ui::PANEL
+    };
+    for (k, (w, r)) in strip.into_iter().enumerate() {
         let on = w == selected;
-        draw_rectangle(r.x, r.y, r.w, r.h, ui::PANEL);
+        draw_rectangle(r.x, r.y, r.w, r.h, fill);
         let border = if on {
             GOLD
         } else {

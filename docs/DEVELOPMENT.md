@@ -142,6 +142,8 @@ The player's guide explains the rules; these are the exact values.
 - Riot Bomb carves a circle of radius 60. Riot Bomb and Digger set the shooter as the last hitter of every enemy tank
   left above the ground they changed, so a deadly fall is the shooter's kill.
 - Weapon strip: up to 7 boxes per row (at most 150 px wide), extra rows above; keys 1-9, 0, -, = for the first 12.
+  Generated ground reaches y 690 and craters go lower, so when any tank's area (48 x 46 px around it, bar and name
+  included) overlaps a box, the boxes are drawn at alpha 0.25 instead of 0.9.
 
 ### Parachutes and shields
 

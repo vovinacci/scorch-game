@@ -49,8 +49,9 @@ on.
 Each tank has its name and a health bar above it. In Settings you can show health as a bar, a number, or both.
 
 Above the bottom line, the **weapon strip** lists every weapon you have ammo for, with how many are left. The selected
-one has a gold frame. With more than 7 weapons it takes two rows. On your turn, click a weapon or press the key in front
-of it (the first 12 have keys; Tab reaches the rest).
+one has a gold frame. With more than 7 weapons it takes two rows. If a tank stands behind the strip (deep down in a
+valley or a crater), the strip turns see-through so you can still see it. On your turn, click a weapon or press the key
+in front of it (the first 12 have keys; Tab reaches the rest).
 
 While a bot aims, the bottom line tells you which tank it's aiming at and why. On your turn, the bottom line lists the
 controls.
