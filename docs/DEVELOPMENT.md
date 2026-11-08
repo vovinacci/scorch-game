@@ -9,10 +9,12 @@ numbers behind the rules, file formats, versioning and the code map.
 - **Rust** is pinned with [mise](https://mise.jdx.dev) in `mise.toml` (1.99.1, with rustfmt and clippy). With mise
   installed, entering this folder selects it (`mise trust` once, `mise install` if missing). CI uses the same file.
   Without mise, any Rust 1.88 or newer builds the game.
-- **Python:** any `python3` works; `shell.nix` brings 3.15 on NixOS, and CI uses the runner's. **Python tools** (prek
-  for git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in `requirements.txt`, and the Linux
-  release build tools (zig, cargo-zigbuild) in `requirements-build.txt`; `make tools` installs them into `.venv`, and
-  the other `make` targets use them from there. CI installs the same file, and Dependabot keeps it current.
+- **Python 3.15** for `tools/patch_font.py` (it uses lazy imports); the other Python tools run on any Python 3. On NixOS
+  `make tools` builds `.venv` with the 3.15 from `shell.nix`; CI only needs the tools, so it uses the runner's.
+  **Python tools** (prek for git hooks, rumdl for Markdown, fonttools for the font) are pinned with hashes in
+  `requirements.txt`, and the Linux release build tools (zig, cargo-zigbuild) in `requirements-build.txt`; `make tools`
+  installs them into `.venv`, and the other `make` targets use them from there. CI installs the same file, and
+  Dependabot keeps it current.
 - **NixOS:** `shell.nix` provides ALSA, the graphics libraries the game loads at run time, Python and cocogitto (commit
   message check); the `make` targets use it automatically. Elsewhere install cocogitto with `cargo install cocogitto`.
 
@@ -88,7 +90,8 @@ window (`windows_subsystem`), so command line output only shows in debug builds 
   - On commit message: it must be a Conventional Commit (cocogitto, `tools/verify_commit.sh`).
   - On commit: ASCII-only code and config (`tools/check_ascii.sh`; docs and translations are UTF-8), whitespace and
     line-ending fixes, merge-conflict markers, large files, TOML/YAML/JSON syntax, Markdown, shell scripts (shfmt and
-    shellcheck; style in AGENTS.md), `cargo fmt --check` and clippy.
+    shellcheck; style in AGENTS.md), Python (ruff, every rule on, exceptions in `ruff.toml`), `cargo fmt --check` and
+    clippy.
   - On push: the tests.
 - On NixOS, prek and rumdl come from `shell.nix`, and the `make` targets run them inside `nix-shell`.
 - Lints live in `[lints]` in `Cargo.toml`, so cargo, editors and CI share them:

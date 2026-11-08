@@ -16,6 +16,10 @@ max_line_length = 100
 [*.md]
 max_line_length = 120
 
+[*.py]
+# ruff.toml
+max_line_length = 120
+
 [*.sh]
 # shfmt -i 2 -ci (make shell).
 indent_size = 2
