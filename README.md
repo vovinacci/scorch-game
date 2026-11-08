@@ -12,21 +12,25 @@ Mother of All Games".
 
 *In memory of Joseph Rivkind (1952–2026), who taught me to never stop learning.*
 
-![A battle: three tanks on rolling hills at night](docs/screenshots/battle.png)
+![A battle: three tanks on rolling hills at night, your weapons along the bottom](docs/screenshots/battle.png)
 
 ## Features
 
 - **Destructible terrain:** every explosion digs a crater, tanks fall into them, and wrecks stay where they land.
 - **Wind and gravity** that change how every shot flies, plus four terrain types (or a random one), four kinds of walls
   and three skies.
-- **Five weapons**, from the free Baby Missile to the Nuke and the MIRV, which splits into five warheads. The Dirt Bomb
-  buries your enemies.
+- **Eleven weapons**, from the free Baby Missile to the Nuke: the MIRV splits into five warheads, the Roller rolls
+  downhill into the next dip, the Leapfrog hops on for three blasts, Napalm's burning fuel runs downhill, the Dirt Bomb
+  buries your enemies and the Digger sinks the ground under them.
+- **Shields and parachutes:** a Shield or Heavy Shield soaks up damage, the Mag Deflector pushes shells away, and a
+  parachute saves you from a long fall.
 - **Chain reactions:** a destroyed tank explodes, and the ammo it carries makes the blast bigger.
 - **Bots that learn to aim like people do:** they miss at first, then close in shot by shot. They take revenge, pick on
   the weak or go after the leader. Three skills, four difficulties, or design your own bot.
 - **A shop between rounds**, with catch-up rules so one bad round doesn't decide the game.
 - **Hotseat:** two players at one keyboard.
 - **Battle log** of every shot, hit and kill, and why each bot picked its target.
+- **8-bit sound effects**, made by the game itself, with a volume setting.
 - **Saves automatically:** close the window any time and continue later.
 - **Updates itself** if you allow it: signed updates from this page, installed with one click.
 - **Languages:** English and Ukrainian.
@@ -35,7 +39,7 @@ Mother of All Games".
 | | |
 |---|---|
 | ![Main menu](docs/screenshots/menu.png) | ![Shop and inventory between rounds](docs/screenshots/shop.png) |
-| ![New game setup in Ukrainian](docs/screenshots/setup-uk.png) | |
+| ![New game setup](docs/screenshots/setup.png) | |
 
 ## Getting started
 
