@@ -121,17 +121,17 @@ without anyone getting a kill.
 |---|---|---|---|---|---|
 | Baby Missile | Explodes | 20 | 30 | free | unlimited |
 | Tracer | Harmless: its path stays on the battlefield until the round ends, in your colour, for everyone to see | - | 0 | $10 | 5 |
-| Missile | Explodes | 35 | 55 | $60 | 3 |
+| Missile | Explodes | 35 | 55 | $60 | 2 |
 | MIRV | Splits into 5 warheads at the top of its arc | 25 each | 35 each | $120 | 1 |
 | Nuke | A huge explosion | 85 | 100 | $200 | 1 |
 | Dirt Bomb | Throws up a mound of earth, no damage | 45 | 0 | $40 | 2 |
 | Digger | Burrows 160 pixels sideways under the ground, which sinks 40 pixels above it; no damage | - | 0 | $40 | 2 |
 | Riot Bomb | Clears away the dirt where it lands; no blast damage, but a tank whose ground is cleared falls | 60 | 0 | $50 | 2 |
-| Roller | Lands, rolls downhill and explodes in the next dip, at a tank or at a slope it can't climb | 30 | 50 | $80 | 2 |
-| Leapfrog | Explodes, then hops on and explodes again, three blasts in all | 25 each | 35 each | $100 | 1 |
+| Roller | Lands, rolls downhill and explodes in the next dip, at a tank or at a slope it can't climb | 30 | 50 | $120 | 2 |
+| Leapfrog | Explodes, then hops on and explodes again, three blasts in all | 25 each | 35 each | $70 | 1 |
 | Napalm | Spills burning fuel that runs downhill and burns for 3 seconds | - | 20 per second | $110 | 1 |
 | Baby Nuke | A big explosion | 55 | 75 | $130 | 1 |
-| Funky Bomb | Explodes and throws 6 bomblets around at random | 22 each | 28 each | $150 | 1 |
+| Funky Bomb | Explodes and throws 6 bomblets around at random | 22 each | 28 each | $120 | 1 |
 | Death's Head | Splits into 9 warheads at the top of its arc, spread wider than the MIRV's | 35 each | 45 each | $250 | 1 |
 
 Everyone starts the game with $100 and 2 Missiles. Weapons and money carry over from round to round. The Dirt Bomb is

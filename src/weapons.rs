@@ -82,7 +82,7 @@ pub const WEAPONS: [Weapon; 14] = [
         radius: 35.0,
         damage: 55.0,
         price: 60,
-        bundle: 3,
+        bundle: 2,
     },
     Weapon {
         name: "MIRV",
@@ -124,7 +124,7 @@ pub const WEAPONS: [Weapon; 14] = [
         kind: Kind::Roller,
         radius: 30.0,
         damage: 50.0,
-        price: 80,
+        price: 120,
         bundle: 2,
     },
     Weapon {
@@ -132,7 +132,7 @@ pub const WEAPONS: [Weapon; 14] = [
         kind: Kind::Leapfrog { hops: 2 },
         radius: 25.0,
         damage: 35.0,
-        price: 100,
+        price: 70,
         bundle: 1,
     },
     Weapon {
@@ -140,7 +140,7 @@ pub const WEAPONS: [Weapon; 14] = [
         kind: Kind::Funky { bomblets: 6 },
         radius: 22.0,
         damage: 28.0,
-        price: 150,
+        price: 120,
         bundle: 1,
     },
     Weapon {
