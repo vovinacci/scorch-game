@@ -496,16 +496,54 @@ fn the_weapon_strip_shows_owned_weapons_on_screen() {
 }
 
 #[test]
-fn a_tracer_hurts_no_one_and_leaves_a_bright_path() {
+fn a_tracer_hurts_no_one_and_its_path_stays() {
     let (mut players, mut b) = range(|_| 600.0);
     b.tanks[1].pos = vec2(645.0, 600.0);
-    drop(&mut b, weapon("Tracer"), 640.0, 50.0);
+    // A real shot first: its path must survive the Tracer.
+    drop(&mut b, 0, 300.0, 50.0);
+    run(&mut b, &mut players);
+    let real = b.tanks[0].last_trail.clone();
+    let ground = |b: &Battle| -> Vec<f32> {
+        (0..128)
+            .map(|k| b.terrain.height_at(k as f32 * 10.0))
+            .collect()
+    };
+    let before = ground(&b);
+    assert!(real.len() > 1, "the real shot left a path");
+    b.explosions.clear();
+
+    // Lobbed at the other tank, so it flies a real arc.
+    b.projectiles.push(Projectile::new(
+        vec2(500.0, 590.0),
+        vec2(60.0, -250.0),
+        weapon("Tracer"),
+        0,
+        false,
+    ));
     let blasts = run(&mut b, &mut players);
     assert_eq!(blasts, []);
     assert_eq!(b.tanks[1].health, 100.0);
-    assert_eq!(b.terrain.height_at(640.0), 600.0, "no crater");
-    let trail = &b.tanks[0].last_trail;
-    assert!(trail.tracer && !trail.points.is_empty());
+    assert_eq!(ground(&b), before, "no new crater anywhere");
+    assert_eq!(b.tracers.len(), 1, "its path stays on the field");
+    assert_eq!(b.tracers[0].owner, 0, "with who fired it");
+    assert!(b.tracers[0].points.len() > 1, "a path to draw");
+    assert_eq!(
+        b.tanks[0].last_trail, real,
+        "the last real shot's path is kept"
+    );
+}
+
+#[test]
+fn a_tracer_path_is_thinned_to_even_dashes() {
+    let trail: Vec<Vec2> = (0..600)
+        .map(|k| vec2(100.0 + k as f32 * 0.5, 300.0))
+        .collect();
+    let path = TracerPath::new(0, &trail);
+    assert!(path.points.len() < trail.len() / 5, "far fewer points");
+    for w in path.points.windows(2) {
+        let d = (w[1][0] - w[0][0]).abs();
+        assert!((TRACER_DASH..TRACER_DASH + 1.0).contains(&d), "{d}");
+    }
 }
 
 #[test]
