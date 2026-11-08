@@ -8,6 +8,9 @@
 //!
 //! Builds without a git checkout that know their commit (the Nix flake) pass the
 //! full version in `SCORCH_BUILD_VERSION` instead.
+//!
+//! On Windows it also puts the game icon into scorch.exe, so Explorer, the taskbar and shortcuts
+//! show it.
 
 use std::process::Command;
 
@@ -19,8 +22,9 @@ fn git(args: &[&str]) -> Option<String> {
 }
 
 fn main() {
+    windows_icon();
     let version = env!("CARGO_PKG_VERSION");
-    for path in ["src", "docs", "Cargo.toml"] {
+    for path in ["src", "docs", "Cargo.toml", "assets/icon/scorch.ico"] {
         println!("cargo:rerun-if-changed={path}");
     }
     if let Some(git_dir) = git(&["rev-parse", "--git-dir"]) {
@@ -58,4 +62,16 @@ fn main() {
         }
     };
     println!("cargo:rustc-env=SCORCH_BUILD={build}");
+}
+
+fn windows_icon() {
+    #[cfg(windows)]
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        winresource::WindowsResource::new()
+            .set_icon("assets/icon/scorch.ico")
+            .set("ProductName", "Scorch")
+            .set("FileDescription", "Scorch")
+            .compile()
+            .expect("Windows resources");
+    }
 }

@@ -69,8 +69,10 @@ XDG_DATA_HOME=/tmp/s scorch --screen shop --shot shop.png
 GitHub Actions check every push and pull request, and release-plz turns Conventional Commits into versions, a changelog
 and GitHub Releases with binaries for Linux, Windows and macOS. Details and the release steps:
 [RELEASING.md](RELEASING.md). `tools/package.sh` packs the release files (tar.gz, AppImage, zip, macOS `.app`); the app
-icon is `assets/icon/scorch.svg`. Windows release builds have no console window (`windows_subsystem`), so command line
-output only shows in debug builds there.
+icon is `assets/icon/scorch.svg`, rendered to the PNGs and `scorch.ico` beside it (after editing the SVG, render them
+again). The game sets its window, taskbar and Dock icon from the 16, 32 and 64 px PNGs (otherwise the OS shows
+miniquad's logo), and `build.rs` embeds `scorch.ico` in the Windows `.exe`. Windows release builds have no console
+window (`windows_subsystem`), so command line output only shows in debug builds there.
 
 ## Code style and git hooks
 
