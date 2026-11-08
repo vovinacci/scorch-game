@@ -969,7 +969,22 @@ fn window_conf() -> Conf {
         window_width: 1280,
         window_height: 720,
         window_resizable: true,
+        icon: Some(icon()),
         ..Default::default()
+    }
+}
+
+/// The window, taskbar and Dock icon. Without it the OS shows miniquad's own logo, even over the
+/// icon of a packaged app.
+fn icon() -> miniquad::conf::Icon {
+    fn rgba<const N: usize>(png: &[u8]) -> [u8; N] {
+        let image = Image::from_file_with_format(png, Some(ImageFormat::Png)).expect("icon PNG");
+        image.bytes.try_into().expect("icon size")
+    }
+    miniquad::conf::Icon {
+        small: rgba(include_bytes!("../assets/icon/scorch-16.png")),
+        medium: rgba(include_bytes!("../assets/icon/scorch-32.png")),
+        big: rgba(include_bytes!("../assets/icon/scorch-64.png")),
     }
 }
 
@@ -1134,5 +1149,13 @@ mod guide_tests {
     #[test]
     fn ukrainian_guide_lists_every_weapon_and_setting_value() {
         assert_in(GUIDE_UK, "docs/GUIDE.uk.md", names(Language::Ukrainian));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn icon_loads() {
+        super::icon();
     }
 }
