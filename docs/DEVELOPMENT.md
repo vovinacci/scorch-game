@@ -87,8 +87,8 @@ window (`windows_subsystem`), so command line output only shows in debug builds 
   git checkout with `make hooks-install`; `make hooks` runs them all by hand.
   - On commit message: it must be a Conventional Commit (cocogitto, `tools/verify_commit.sh`).
   - On commit: ASCII-only code and config (`tools/check_ascii.sh`; docs and translations are UTF-8), whitespace and
-    line-ending fixes, merge-conflict markers, large files, TOML/YAML/JSON syntax, Markdown, `cargo fmt --check` and
-    clippy.
+    line-ending fixes, merge-conflict markers, large files, TOML/YAML/JSON syntax, Markdown, shell scripts (shfmt and
+    shellcheck; style in AGENTS.md), `cargo fmt --check` and clippy.
   - On push: the tests.
 - On NixOS, prek and rumdl come from `shell.nix`, and the `make` targets run them inside `nix-shell`.
 - Lints live in `[lints]` in `Cargo.toml`, so cargo, editors and CI share them:
