@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/vovinacci/scorch-game/compare/v0.4.1...v0.5.0) - 2026-11-08
+
+### Features
+
+- *(setup)* aiming help: coaching after a miss, and a path preview ([#63](https://github.com/vovinacci/scorch-game/pull/63))
+- *(setup)* Random wind, gravity, walls and sky, picked every round ([#59](https://github.com/vovinacci/scorch-game/pull/59))
+- *(weapons)* Tracer paths stay on the field all round ([#60](https://github.com/vovinacci/scorch-game/pull/60))
+- *(controls)* aim with the mouse ([#58](https://github.com/vovinacci/scorch-game/pull/58))
+- *(weapons)* Tracer, Riot Bomb and Death's Head ([#56](https://github.com/vovinacci/scorch-game/pull/56))
+
+### Fixes
+
+- *(items)* a Mag Deflector's last energy still pushes the shell that used it ([#64](https://github.com/vovinacci/scorch-game/pull/64))
+- *(bots)* rank weapons by the price of one shot; sharper balance table ([#62](https://github.com/vovinacci/scorch-game/pull/62))
+- *(weapons)* balance prices from a measured table ([#61](https://github.com/vovinacci/scorch-game/pull/61))
+
 ## [0.4.1](https://github.com/vovinacci/scorch-game/compare/v0.4.0...v0.4.1) - 2026-11-08
 
 ### Documentation
