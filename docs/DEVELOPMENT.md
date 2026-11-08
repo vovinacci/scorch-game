@@ -150,10 +150,11 @@ The player's guide explains the rules; these are the exact values.
 ### Weapons
 
 - The table is `WEAPONS` in `src/weapons.rs`; saves store ammo by index, so new weapons go at the end.
-- Balance: `cargo test --release balance_table -- --ignored --nocapture` fires every weapon 300 times through the real
-  physics at a tank 700 px away on flat ground (perfect aim, about 1 degree / 15 power off, about 3 degrees / 45 off)
-  and prints mean damage, kills, self-damage and damage per dollar. Most weapons sit near 0.4 damage per $ with close
-  aim; the Missile (about 1.2) is the cheap workhorse, Death's Head (0.35) pays for being forgiving.
+- Balance: `cargo test --release balance_table -- --ignored --nocapture` fires every weapon 300 times per aim through
+  the real physics (perfect aim, about 1 degree / 15 power off, about 3 degrees / 45 off) in three scenarios: one tank
+  700 px away on flat ground, three tanks 60 px apart, one tank at the bottom of a valley. It prints mean damage to the
+  targets, kills, self-damage and damage per dollar. Most weapons sit near 0.4 damage per $ with close aim; the Missile
+  (about 1.2) is the cheap workhorse, Death's Head (0.35) pays for being forgiving.
 - Utility weapons do no damage: Dirt Bomb, Digger, Tracer, Riot Bomb. Bots don't buy or fire them, and they don't add to
   the death blast.
 - MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,
