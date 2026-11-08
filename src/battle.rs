@@ -202,6 +202,33 @@ fn direction(angle: f32) -> Vec2 {
     vec2(a.cos(), -a.sin())
 }
 
+/// Height of the HUD bar along the top.
+const HUD_HEIGHT: f32 = 44.0;
+/// Power per pixel between the tank and the cursor when aiming with the mouse: 500 px is full power.
+const POWER_PER_PIXEL: f32 = 2.0;
+/// Shift slows aiming down this much, with the keys and with the mouse.
+const FINE: f32 = 0.2;
+
+/// Mouse aiming: while the left button is held, the barrel points at the cursor and power follows the distance.
+#[derive(Clone, Copy)]
+struct Drag {
+    /// With Shift held: where the cursor and the aim were when Shift went down. Moves then count 5 times less.
+    fine: Option<(Vec2, f32, f32)>,
+}
+
+/// Angle (degrees, 0 = right, 180 = left) and power for a cursor at `cursor`, aiming from `from`. Below the barrel the
+/// angle stops at flat left or right.
+fn point_aim(from: Vec2, cursor: Vec2, max_power: f32) -> (f32, f32) {
+    let d = cursor - from;
+    let angle = (-d.y).atan2(d.x).to_degrees();
+    let angle = if angle < 0.0 {
+        if d.x < 0.0 { 180.0 } else { 0.0 }
+    } else {
+        angle
+    };
+    (angle, (d.length() * POWER_PER_PIXEL).min(max_power))
+}
+
 fn launch_velocity(angle: f32, power: f32) -> Vec2 {
     direction(angle) * power * SPEED_PER_POWER
 }
@@ -358,6 +385,9 @@ pub struct Battle {
     /// Index of this turn's "fires" line in `history`, to mark a miss.
     #[serde(skip)]
     shot_line: Option<usize>,
+    /// Mouse aiming in progress (left button held after pressing it on the battlefield).
+    #[serde(skip)]
+    drag: Option<Drag>,
     /// Firing order this round (tank indices). Empty in battles saved before it existed: player order.
     #[serde(default)]
     order: Vec<usize>,
@@ -430,6 +460,7 @@ impl Battle {
             log: Vec::new(),
             history: Vec::new(),
             shot_line: None,
+            drag: None,
         }
     }
 
@@ -579,12 +610,11 @@ impl Battle {
         }
 
         let player = &players[i];
+        let strip = weapon_strip(player);
+        self.mouse_aim(&strip, max_power);
         let tank = &mut self.tanks[i];
-        let fine = if is_key_down(KeyCode::LeftShift) {
-            0.2
-        } else {
-            1.0
-        };
+        let shift = is_key_down(KeyCode::LeftShift);
+        let fine = if shift { FINE } else { 1.0 };
         if is_key_down(KeyCode::Left) {
             tank.angle += 50.0 * fine * dt;
         }
@@ -597,10 +627,14 @@ impl Battle {
         if is_key_down(KeyCode::Down) {
             tank.power -= 350.0 * fine * dt;
         }
+        // Mouse wheel: fine power.
+        let wheel = mouse_wheel().1;
+        if wheel != 0.0 {
+            tank.power += wheel.signum() * if shift { 1.0 } else { 10.0 };
+        }
         tank.angle = tank.angle.clamp(0.0, 180.0);
         tank.power = tank.power.clamp(0.0, max_power);
         // Weapon strip: click a weapon, or press its key.
-        let strip = weapon_strip(player);
         let clicked = is_mouse_button_pressed(MouseButton::Left).then(ui::mouse);
         for (k, &(w, r)) in strip.iter().enumerate() {
             if STRIP_KEYS
@@ -621,9 +655,42 @@ impl Battle {
                 }
             }
         }
-        if is_key_pressed(KeyCode::Space) {
+        if is_key_pressed(KeyCode::Space) || is_mouse_button_pressed(MouseButton::Right) {
+            self.drag = None;
             self.fire(players);
         }
+    }
+
+    /// Left button pressed on the battlefield (not on the HUD bar or the weapon strip) starts aiming with the
+    /// mouse; while it's held the barrel follows the cursor; letting go keeps the aim.
+    fn mouse_aim(&mut self, strip: &[(usize, Rect)], max_power: f32) {
+        let cursor = ui::mouse();
+        if is_mouse_button_pressed(MouseButton::Left)
+            && cursor.y > HUD_HEIGHT
+            && !strip.iter().any(|(_, r)| r.contains(cursor))
+        {
+            self.drag = Some(Drag { fine: None });
+        }
+        if !is_mouse_button_down(MouseButton::Left) {
+            self.drag = None;
+        }
+        let Some(drag) = &mut self.drag else {
+            return;
+        };
+        let tank = &mut self.tanks[self.current];
+        let from = tank.barrel_base();
+        let (angle, power) = if is_key_down(KeyCode::LeftShift) {
+            let (anchor, angle0, power0) =
+                *drag.fine.get_or_insert((cursor, tank.angle, tank.power));
+            let (a0, p0) = point_aim(from, anchor, f32::MAX);
+            let (a1, p1) = point_aim(from, cursor, f32::MAX);
+            (angle0 + (a1 - a0) * FINE, power0 + (p1 - p0) * FINE)
+        } else {
+            drag.fine = None;
+            point_aim(from, cursor, max_power)
+        };
+        tank.angle = angle.clamp(0.0, 180.0);
+        tank.power = power.clamp(0.0, max_power);
     }
 
     fn fire(&mut self, players: &mut [Player]) {
@@ -1514,9 +1581,21 @@ impl Battle {
         ui::with_shadow(|| self.draw_scene(players, settings));
     }
 
-    fn draw_scene(&self, players: &[Player], settings: &Settings) {
-        self.world().sky.draw();
-        self.terrain.draw();
+    /// While aiming: the dotted mouse-aiming line and the previous shot's path.
+    fn draw_aim_guides(&self, settings: &Settings) {
+        // Mouse aiming: a dotted line from the barrel to the cursor.
+        if self.drag.is_some()
+            && is_mouse_button_down(MouseButton::Left)
+            && matches!(self.phase, Phase::Aim { .. })
+        {
+            let from = self.tanks[self.current].muzzle();
+            let to = ui::mouse();
+            let steps = (from.distance(to) / 8.0) as usize;
+            for k in 0..=steps {
+                let p = from.lerp(to, k as f32 / steps.max(1) as f32);
+                draw_circle(p.x, p.y, 1.5, Color::new(1.0, 1.0, 1.0, 0.5));
+            }
+        }
 
         let trail = &self.tanks[self.current].last_trail;
         if (settings.shot_path || trail.tracer) && matches!(self.phase, Phase::Aim { .. }) {
@@ -1530,6 +1609,13 @@ impl Battle {
                 draw_circle(p.x, p.y, 1.5, color);
             }
         }
+    }
+
+    fn draw_scene(&self, players: &[Player], settings: &Settings) {
+        self.world().sky.draw();
+        self.terrain.draw();
+
+        self.draw_aim_guides(settings);
 
         for (i, tank) in self.tanks.iter().enumerate() {
             if tank.fled {
@@ -1628,7 +1714,7 @@ impl Battle {
 
     #[expect(clippy::too_many_lines, reason = "the HUD, drawn left to right")]
     fn draw_hud(&self, players: &[Player]) {
-        draw_rectangle(0.0, 0.0, ui::WIDTH, 44.0, ui::PANEL);
+        draw_rectangle(0.0, 0.0, ui::WIDTH, HUD_HEIGHT, ui::PANEL);
         let player = &players[self.current];
         let tank = &self.tanks[self.current];
         // Your turn only: on bot turns the bottom of the screen has the skip button.

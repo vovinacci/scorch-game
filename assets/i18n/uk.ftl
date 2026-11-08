@@ -211,6 +211,8 @@ controls-weapon-key = Tab
 controls-weapon = Наступна зброя
 controls-pick-key = 1-9, 0, -, =
 controls-pick = Вибрати зброю (або клацнути)
+controls-mouse-key = Миша: тягнути / права
+controls-mouse = Цілитися / вогонь
 controls-fire-key = Пробіл
 controls-fire = Вогонь
 controls-log-key = L (тримати)

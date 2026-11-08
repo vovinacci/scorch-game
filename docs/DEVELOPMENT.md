@@ -117,6 +117,13 @@ The player's guide explains the rules; these are the exact values.
   changes, it drifts by up to 35% of the maximum each turn.
 - Walls: Open loses a shell 200 px past the edge; Bouncy keeps 80% of the sideways speed.
 
+### Mouse aiming
+
+- Left button pressed on the battlefield (below the 44 px HUD bar, not on a strip box) starts a drag; while held,
+  angle = direction from the barrel base to the cursor (below the barrel: flat 0 or 180) and power = distance x 2,
+  capped at the tank's maximum. With Shift held, changes from where Shift went down count x 0.2. Release keeps the aim.
+- Wheel: power +-10 per notch (+-1 with Shift). Right button fires, like Space.
+
 ### Damage
 
 - A blast hits every tank within `radius + 12` px: full damage at the centre, down to 30% at the edge.
