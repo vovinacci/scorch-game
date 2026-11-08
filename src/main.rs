@@ -1023,7 +1023,7 @@ fn main() {
 }
 
 async fn run() {
-    macroquad::rand::srand((miniquad::date::now() * 1000.0) as u64);
+    rand::srand((miniquad::date::now() * 1000.0) as u64);
     // Closing the window should save first, so handle it ourselves.
     prevent_quit();
 

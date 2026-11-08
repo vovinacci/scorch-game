@@ -17,7 +17,7 @@ pub const PANEL: Color = Color::new(0.05, 0.06, 0.1, 0.9);
 pub const ACCENT: Color = SKYBLUE;
 
 pub fn chance(p: f32) -> bool {
-    macroquad::rand::gen_range(0.0, 1.0) < p
+    rand::gen_range(0.0, 1.0) < p
 }
 
 /// Camera that maps the virtual screen onto the largest centered area of the window
@@ -121,12 +121,12 @@ thread_local! {
 
 /// True once after a button or selector was used.
 pub fn take_click() -> bool {
-    CLICKED.with(|c| c.replace(false))
+    CLICKED.replace(false)
 }
 
 fn note_click(used: bool) -> bool {
     if used {
-        CLICKED.with(|c| c.set(true));
+        CLICKED.set(true);
     }
     used
 }
