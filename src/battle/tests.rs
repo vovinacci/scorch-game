@@ -948,3 +948,47 @@ fn balance_table() {
         }
     }
 }
+
+#[test]
+fn the_aiming_preview_follows_the_real_shot() {
+    let (_, b) = range(|_| 600.0);
+    let (pos, vel) = (vec2(200.0, 580.0), launch_velocity(50.0, 600.0));
+    let path = predict_path(pos, vel, 30.0, b.world(), &b.terrain, &[]);
+    let landing = simulate(pos, vel, 30.0, b.world(), &b.terrain, &[]).unwrap();
+    assert_eq!(
+        *path.last().unwrap(),
+        landing.pos,
+        "ends where the shot lands"
+    );
+    assert!(path.len() > 50);
+    assert_eq!(crate::setup::AimHelp::ShortPath.preview(), 1.0 / 3.0);
+    assert_eq!(crate::setup::AimHelp::Coaching.preview(), 0.0);
+}
+
+#[test]
+fn coaching_says_how_far_short_or_past_a_miss_came_down() {
+    let mut players = bots(2);
+    players[0].bot = None;
+    let mut rules = Setup::default().rules();
+    rules.aim_help = crate::setup::AimHelp::Coaching;
+    let mut b = battle(&players, rules);
+    b.terrain = Terrain::from_fn(|_| 600.0);
+    b.wind = 0.0;
+    b.current = 0;
+    b.tanks[0].pos = vec2(200.0, 600.0);
+    b.tanks[1].pos = vec2(900.0, 600.0);
+    b.shot_line = Some(b.history.len());
+    b.note("fires".to_string(), WHITE);
+    b.last_landing = Some(vec2(780.0, 600.0));
+    b.next_turn(&players);
+    let line = &b.history.last().unwrap().text;
+    assert!(line.contains("120 px short"), "{line}");
+
+    b.current = 0;
+    b.shot_line = Some(b.history.len());
+    b.note("fires".to_string(), WHITE);
+    b.last_landing = Some(vec2(950.0, 600.0));
+    b.next_turn(&players);
+    let line = &b.history.last().unwrap().text;
+    assert!(line.contains("50 px past"), "{line}");
+}

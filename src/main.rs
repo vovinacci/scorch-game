@@ -744,7 +744,7 @@ fn pause_menu(
     );
     setup.draw_summary(
         Rect::new(info.x + 30.0, info.y + 100.0, info.w - 60.0, info.h),
-        34.0,
+        32.0,
         Some(progress),
         Some(round),
     );
@@ -1182,6 +1182,7 @@ mod guide_tests {
         names.extend(texts::<Walls>());
         names.extend(texts::<Sky>());
         names.extend(texts::<crate::setup::TurnOrder>());
+        names.extend(texts::<crate::setup::AimHelp>());
         i18n::set_language(Language::English);
         names
     }

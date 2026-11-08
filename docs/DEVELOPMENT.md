@@ -124,6 +124,16 @@ The player's guide explains the rules; these are the exact values.
   capped at the tank's maximum. With Shift held, changes from where Shift went down count x 0.2. Release keeps the aim.
 - Wheel: power +-10 per notch (+-1 with Shift). Right button fires, like Space.
 
+### Aiming help
+
+- `Setup::aim_help` (saved in `Rules`, so a battle keeps it): Off, Coaching, Short path, Full path. Only human turns get
+  it; "I'm feeling lucky" leaves it as it is.
+- Preview: `predict_path` flies the current aim through the same physics as a shot (wind, walls, enemy Mag Deflectors;
+  tanks ignored) and draws every 4th step as a dot, the first third of the steps (Short) or all (Full).
+- Coaching (any level but Off): on a human's missed shot, `coach` logs the distance from where the shell came down to
+  the nearest enemy, short (between shooter and enemy, or behind the shooter) or past, plus the wind's drift (the same
+  shot without wind) when it is 20 px or more.
+
 ### Random world settings
 
 - Terrain, Wind, Gravity, Walls and Sky can be Random. `Choice::roll` (a value whose key ends in `-Random` becomes a

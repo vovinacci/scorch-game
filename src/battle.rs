@@ -416,6 +416,9 @@ pub struct Battle {
     /// `None` in battles saved before Random existed: nothing was random then.
     #[serde(default)]
     setup_world: Option<World>,
+    /// Where the current turn's shell came down (not warheads or bomblets), for the aiming help's coaching.
+    #[serde(skip)]
+    last_landing: Option<Vec2>,
     /// Paths of the Tracers fired this round. They stay drawn until the round ends, also after a save.
     #[serde(default)]
     tracers: Vec<TracerPath>,
@@ -499,6 +502,7 @@ impl Battle {
             drag: None,
             setup_world: Some(chosen),
             tracers: Vec::new(),
+            last_landing: None,
         };
         let picks = battle.random_picks(true);
         if !picks.is_empty() {
@@ -884,6 +888,7 @@ impl Battle {
         if p.child {
             return;
         }
+        self.last_landing = Some(p.pos);
         if WEAPONS[p.weapon].kind.is_probe() {
             self.tracers.push(TracerPath::new(p.owner, &p.trail));
         } else {
@@ -1385,21 +1390,81 @@ impl Battle {
                 tank.health -= SUDDEN_DEATH_DRAIN;
             }
         } else {
-            self.next_turn();
+            self.next_turn(players);
         }
+    }
+
+    /// Aiming help: after a human's missed shot, says how far it came down from the nearest enemy, short or past,
+    /// and how far the wind moved it.
+    fn coach(&mut self, players: &[Player]) {
+        let me = self.current;
+        let Some(landed) = self.last_landing else {
+            return;
+        };
+        let shooter = &self.tanks[me];
+        let Some((enemy, tank)) = self
+            .tanks
+            .iter()
+            .enumerate()
+            .filter(|&(i, t)| i != me && t.alive && !t.fled)
+            .min_by(|a, b| {
+                let (da, db) = ((a.1.pos.x - landed.x).abs(), (b.1.pos.x - landed.x).abs());
+                da.total_cmp(&db)
+            })
+        else {
+            return;
+        };
+        let (from, to) = (shooter.pos.x, tank.pos.x);
+        let off = (landed.x - to).abs().round();
+        // Short: it came down between the shooter and the enemy (or behind the shooter).
+        let short = (landed.x - from).abs() < (to - from).abs()
+            || (landed.x - from).signum() != (to - from).signum();
+        let name = players[enemy].label();
+        let you = you(&players[enemy]);
+        let mut text = if short {
+            t!("log-coach-short", px = off, name = name, target_you = you)
+        } else {
+            t!("log-coach-long", px = off, name = name, target_you = you)
+        };
+        // How far the wind moved it: the same shot without wind.
+        let vel = launch_velocity(shooter.angle, shooter.power);
+        let still = simulate(
+            shooter.muzzle(),
+            vel,
+            0.0,
+            self.world(),
+            &self.terrain,
+            &self.deflectors(me),
+        );
+        if let Some(still) = still {
+            let drift = (landed.x - still.pos.x).round();
+            if drift.abs() >= 20.0 {
+                let dir = if drift < 0.0 {
+                    t!("coach-left")
+                } else {
+                    t!("coach-right")
+                };
+                text += &t!("log-coach-wind", px = drift.abs(), dir = dir);
+            }
+        }
+        self.note(text, LIGHTGRAY);
     }
 
     fn sudden_death_active(&self) -> bool {
         self.rules.sudden_death.is_some_and(|t| self.turns >= t)
     }
 
-    fn next_turn(&mut self) {
+    fn next_turn(&mut self, players: &[Player]) {
         // Nothing was logged after the shot: it hit nobody.
         if let Some(k) = self.shot_line.take()
             && k + 1 == self.history.len()
         {
             self.history[k].text += &t!("log-miss");
+            if self.rules.aim_help.coaches() && !players[self.current].is_bot() {
+                self.coach(players);
+            }
         }
+        self.last_landing = None;
         let n = self.tanks.len();
         let order: Vec<usize> = if self.order.len() == n {
             self.order.clone()
@@ -1477,7 +1542,7 @@ impl Battle {
         if alive <= 1 || !humans_left {
             self.end_by_health();
         } else {
-            self.next_turn();
+            self.next_turn(players);
         }
     }
 
@@ -1664,7 +1729,29 @@ impl Battle {
     }
 
     /// While aiming: the dotted mouse-aiming line and the previous shot's path.
-    fn draw_aim_guides(&self, settings: &Settings) {
+    fn draw_aim_guides(&self, players: &[Player], settings: &Settings) {
+        // Aiming help: the predicted path (or its first part) while a human aims.
+        let share = self.rules.aim_help.preview();
+        if share > 0.0 && matches!(self.phase, Phase::Aim { .. }) && !players[self.current].is_bot()
+        {
+            let tank = &self.tanks[self.current];
+            let vel = launch_velocity(tank.angle, tank.power);
+            let path = predict_path(
+                tank.muzzle(),
+                vel,
+                self.wind,
+                self.world(),
+                &self.terrain,
+                &self.deflectors(self.current),
+            );
+            let shown = (path.len() as f32 * share).ceil() as usize;
+            for w in path[..shown.min(path.len())].windows(2).step_by(4) {
+                if !wraps(w[0], w[1]) {
+                    draw_circle(w[0].x, w[0].y, 1.5, Color::new(1.0, 0.95, 0.6, 0.6));
+                }
+            }
+        }
+
         // Mouse aiming: a dotted line from the barrel to the cursor.
         if self.drag.is_some()
             && is_mouse_button_down(MouseButton::Left)
@@ -1712,7 +1799,7 @@ impl Battle {
         self.terrain.draw();
 
         self.draw_tracers(players);
-        self.draw_aim_guides(settings);
+        self.draw_aim_guides(players, settings);
 
         for (i, tank) in self.tanks.iter().enumerate() {
             if tank.fled {
@@ -2108,16 +2195,44 @@ pub fn death_blast(player: &Player) -> (f32, f32) {
 /// Returns where it lands and how fast it's going then (`ground` false: it hit a wall), or `None` if it leaves the
 /// world.
 fn simulate(
+    pos: Vec2,
+    vel: Vec2,
+    wind: f32,
+    world: World,
+    terrain: &Terrain,
+    deflectors: &[Vec2],
+) -> Option<Landing> {
+    fly(pos, vel, wind, world, terrain, deflectors, |_| {})
+}
+
+/// The path a shot would take (ignoring tanks), every physics step: the aiming help's preview.
+fn predict_path(
+    pos: Vec2,
+    vel: Vec2,
+    wind: f32,
+    world: World,
+    terrain: &Terrain,
+    deflectors: &[Vec2],
+) -> Vec<Vec2> {
+    let mut path = Vec::new();
+    fly(pos, vel, wind, world, terrain, deflectors, |p| path.push(p));
+    path
+}
+
+/// Flies a shell like `simulate`, telling `each` every position on the way.
+fn fly(
     mut pos: Vec2,
     mut vel: Vec2,
     wind: f32,
     world: World,
     terrain: &Terrain,
     deflectors: &[Vec2],
+    mut each: impl FnMut(Vec2),
 ) -> Option<Landing> {
     for _ in 0..2400 {
         let flight = step_shell(&mut pos, &mut vel, wind, world, STEP);
         deflect(pos, &mut vel, deflectors);
+        each(pos);
         match flight {
             Flight::Wall => {
                 return Some(Landing {
