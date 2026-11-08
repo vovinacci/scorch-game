@@ -323,6 +323,11 @@ pub fn globe(c: Vec2, r: f32, color: Color) {
     draw_line(c.x, c.y - r, c.x, c.y + r, 1.5, color);
 }
 
+/// Darkens the whole screen, for a menu drawn over the battle.
+pub fn dim() {
+    draw_rectangle(0.0, 0.0, WIDTH, HEIGHT, Color::new(0.0, 0.0, 0.0, 0.6));
+}
+
 pub fn panel(r: Rect) {
     draw_rectangle(r.x, r.y, r.w, r.h, PANEL);
     draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, Color { a: 0.5, ..ACCENT });
