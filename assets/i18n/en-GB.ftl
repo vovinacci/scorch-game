@@ -206,6 +206,8 @@ controls-weapon-key = Tab
 controls-weapon = Next weapon
 controls-pick-key = 1-9, 0, -, =
 controls-pick = Pick a weapon (or click it)
+controls-mouse-key = Mouse drag / right
+controls-mouse = Aim / fire
 controls-fire-key = Space
 controls-fire = Fire
 controls-log-key = L (hold)

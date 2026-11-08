@@ -636,3 +636,24 @@ fn dropping_a_tank_is_logged_and_asks_for_revenge() {
         "one line, so the shot isn't logged as a miss"
     );
 }
+
+#[test]
+fn mouse_aiming_points_the_barrel_at_the_cursor() {
+    let from = vec2(600.0, 500.0);
+    let (angle, power) = point_aim(from, from + vec2(100.0, -100.0), 1000.0);
+    assert!((angle - 45.0).abs() < 1e-3);
+    assert!((power - 100.0 * 2.0_f32.sqrt() * POWER_PER_PIXEL).abs() < 1e-3);
+    let (angle, _) = point_aim(from, from + vec2(0.0, -50.0), 1000.0);
+    assert!((angle - 90.0).abs() < 1e-3, "straight up");
+    let (angle, _) = point_aim(from, from + vec2(-80.0, -1.0), 1000.0);
+    assert!(angle > 179.0, "almost flat to the left");
+}
+
+#[test]
+fn mouse_aiming_below_the_barrel_stays_flat_and_power_is_capped() {
+    let from = vec2(600.0, 500.0);
+    assert_eq!(point_aim(from, from + vec2(50.0, 40.0), 1000.0).0, 0.0);
+    assert_eq!(point_aim(from, from + vec2(-50.0, 40.0), 1000.0).0, 180.0);
+    let (_, power) = point_aim(from, from + vec2(0.0, -600.0), 300.0);
+    assert_eq!(power, 300.0, "never above the tank's maximum");
+}

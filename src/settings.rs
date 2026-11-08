@@ -98,12 +98,13 @@ impl Default for Settings {
 }
 
 /// Translation keys: `controls-<name>-key` and `controls-<name>`.
-pub const CONTROLS: [&str; 12] = [
+pub const CONTROLS: [&str; 13] = [
     "aim",
     "power",
     "fine",
     "weapon",
     "pick",
+    "mouse",
     "fire",
     "log",
     "pause",

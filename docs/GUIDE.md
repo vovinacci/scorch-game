@@ -28,8 +28,17 @@ The game is dedicated to the memory of Joseph Rivkind (1952–2026), who taught 
 | Enter | Skip to the end of the round (only bots left) | Choose |
 | L (hold) | Full battle log of this round | |
 | Esc | Pause menu | Back |
+| Mouse: drag (left button) | Aim: the barrel points at the cursor, power grows with the distance | |
+| Mouse wheel | Power, finely (10 a notch, 1 with Shift) | |
+| Mouse: right button | Fire | |
 
 The mouse works everywhere: point at a button to select it, click to choose.
+
+**Aiming with the mouse:** on your turn, press the left button anywhere on the battlefield and drag. The barrel points
+from your tank toward the cursor, and the further away the cursor is, the more power (the full 1000 at about 500 pixels;
+never more than your tank can give). A dotted line shows the aim, and the numbers at the top follow it. Hold Shift while
+dragging to fine-tune: moves count 5 times less. Letting go keeps the aim and doesn't fire; fire with the right button
+or Space. A press on the weapon strip picks a weapon instead of aiming.
 
 ## The battle screen
 
