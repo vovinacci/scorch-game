@@ -155,13 +155,16 @@ The player's guide explains the rules; these are the exact values.
 ### Terrain look
 
 The ground is painted once into a full-screen texture and repainted only when it changes (a crater, a flattened tank
-pad, a landslide). Each terrain type has a palette of grass, topsoil and deep earth:
+pad, a landslide). Each terrain type has a palette of top edge, topsoil and deep earth:
 
-- The top 3 px are grass, except on slopes steeper than 1.3 (bare earth there).
-- Below, topsoil blends into deep earth over 220 px, measured from the surface averaged over 15 px either side, so
-  flattened pads and narrow craters don't leave vertical stripes.
-- Mountains get snow above y 290, up to 7 px thick, thinning out towards that line.
-- The canyon has rock bands 22 px high, in three shades.
+- The top 3 px are grass (a sun-bleached sandstone rim in the canyon), except on slopes steeper than 1.3 (bare earth
+  there).
+- Below, topsoil blends into deep earth by height on screen (y 380 to 720), not by depth, so cliffs and craters cast no
+  dark columns into the earth. The 14 px under the surface are lighter, fading out with depth.
+- Snow caps the mountain peaks: 0.4 px of snow for every pixel the surface rises above a snow line that waves gently
+  around y 290, at most 22 px.
+- The canyon has rock layers built from 9 px slices in five close shades (93% to 105%), so layers come out uneven in
+  thickness; their lines wave gently and tilt slightly across the screen.
 - Every pixel gets a little fixed grain (up to 4% lighter or darker).
 
 The look is saved with the terrain, so a resumed game looks the same. Older saves show as Rolling hills.

@@ -46,6 +46,16 @@ fn grain(x: usize, y: usize) -> f32 {
     (n & 0xFFFF) as f32 / 32_768.0 - 1.0
 }
 
+/// Sandstone strata at (`x`, `y`): a brightness factor for gently wavy, slightly tilted rock layers of uneven
+/// thickness, low contrast so they read as rock, not stripes.
+fn strata(x: f32, y: f32) -> f32 {
+    let wave = 7.0 * (x * 0.006 + 1.3).sin() + 3.0 * (x * 0.017).sin() + 0.015 * x;
+    let layer = ((y + wave) / 9.0).floor() as i32;
+    // Layers are 9 px slices; neighbouring slices often share a shade, so layers come out 9 to 40 px thick.
+    let pick = grain(layer.rem_euclid(1 << 16) as usize, 7) * 0.5 + 0.5;
+    [0.93, 1.0, 1.0, 1.05, 0.97][((pick * 5.0) as usize).min(4)]
+}
+
 /// Blends `a` to `b` by `t` (0..1).
 fn mix(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
     let t = t.clamp(0.0, 1.0);
@@ -71,50 +81,42 @@ impl Look {
                 [124.0, 114.0, 104.0],
                 [74.0, 70.0, 66.0],
             ),
+            // No grass in the canyon: a sun-bleached sandstone rim instead.
             Look::Canyon => (
-                [156.0, 146.0, 84.0],
+                [214.0, 156.0, 106.0],
                 [196.0, 120.0, 76.0],
                 [126.0, 70.0, 48.0],
             ),
         }
     }
 
-    /// The colour of the ground `depth` px below its surface (`shade_depth` below the smoothed surface, at screen `y`,
-    /// surface at `surface`).
-    fn color(
-        self,
-        depth: f32,
-        shade_depth: f32,
-        y: f32,
-        surface: f32,
-        steep: bool,
-        grain: f32,
-    ) -> [u8; 4] {
+    /// The colour of the ground at screen (`x`, `y`) where the surface is at `surface`, `steep` if the slope there
+    /// is too steep for grass.
+    fn color(self, x: usize, y: usize, surface: f32, steep: bool) -> [u8; 4] {
         let (grass, topsoil, deep) = self.palette();
-        // Snow on the highest mountain peaks, thinning out towards the snow line.
-        let snow = if self == Look::Mountains {
-            ((SNOW_LINE - surface) / 8.0).clamp(0.0, 7.0)
+        let (fx, fy) = (x as f32, y as f32);
+        let depth = fy - surface;
+        // Snow caps the mountain peaks: up to 22 px deep, thinning out towards a gently wavy snow line.
+        let line = SNOW_LINE + 8.0 * (fx * 0.013).sin() + 4.0 * (fx * 0.037 + 2.0).sin();
+        let snow = self == Look::Mountains
+            && depth < ((line - surface) * 0.4).min(22.0) + 2.0 * (fx * 0.09).sin();
+        let mut c = if snow {
+            [236.0, 240.0, 245.0]
+        } else if depth < 3.0 && !steep {
+            grass
         } else {
-            0.0
-        };
-        let mut c = if depth < snow || (depth < 3.0 && !steep) {
-            if depth < snow {
-                [236.0, 240.0, 245.0]
-            } else {
-                grass
-            }
-        } else {
-            let mut c = mix(topsoil, deep, (shade_depth - 10.0) / 220.0);
+            // Darker further down the screen. Going by screen height, not depth, keeps cliffs and craters from
+            // casting shadows into the earth; only a thin band under the surface is lighter.
+            let mut c = mix(topsoil, deep, (fy - 380.0) / 340.0);
+            c = mix(c, topsoil, 0.5 * (1.0 - depth / 14.0));
             if self == Look::Canyon {
-                // Sandstone strata: lighter and darker horizontal bands.
-                let band = (y / 22.0).floor() as i32 % 3;
-                let shade = [1.0, 0.9, 1.08][band.rem_euclid(3) as usize];
+                let shade = strata(fx, fy);
                 c = [c[0] * shade, c[1] * shade, c[2] * shade];
             }
             c
         };
         // A just visible grain.
-        let g = 1.0 + 0.04 * grain;
+        let g = 1.0 + 0.04 * grain(x, y);
         c = [c[0] * g, c[1] * g, c[2] * g];
         [
             c[0].clamp(0.0, 255.0) as u8,
@@ -290,28 +292,13 @@ impl Terrain {
     fn paint(&self) -> Image {
         let h = HEIGHT as usize;
         let mut bytes = vec![0u8; WIDTH * h * 4];
-        // Depth shading follows a smoothed surface, so small steps (a tank's flattened spot, a crater edge) don't
-        // leave vertical stripes in the earth.
-        let smooth: Vec<f32> = (0..WIDTH)
-            .map(|x| {
-                let (a, b) = (x.saturating_sub(15), (x + 15).min(WIDTH - 1));
-                self.ground[a..=b].iter().sum::<f32>() / (b - a + 1) as f32
-            })
-            .collect();
         for (x, &g) in self.ground.iter().enumerate() {
             let left = self.ground[x.saturating_sub(1)];
             let right = self.ground[(x + 1).min(WIDTH - 1)];
             let steep = (right - left).abs() / 2.0 > 1.3;
             let top = g.max(0.0) as usize;
             for y in top..h {
-                let c = self.look.color(
-                    y as f32 - g,
-                    y as f32 - smooth[x],
-                    y as f32,
-                    g,
-                    steep,
-                    grain(x, y),
-                );
+                let c = self.look.color(x, y, g, steep);
                 let k = (y * WIDTH + x) * 4;
                 bytes[k..k + 4].copy_from_slice(&c);
             }
