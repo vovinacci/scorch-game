@@ -404,6 +404,27 @@ fn a_roller_stops_at_a_tank() {
 }
 
 #[test]
+fn a_buried_roller_explodes_under_the_dirt() {
+    let (mut players, mut b) = range(valley);
+    // Fired from 30 px under the surface: it must not pop up and roll away.
+    let start = vec2(500.0, valley(500.0) + 30.0);
+    b.projectiles.push(Projectile::new(
+        start,
+        vec2(0.0, -200.0),
+        weapon("Roller"),
+        0,
+        false,
+    ));
+    let blasts = run(&mut b, &mut players);
+    assert_eq!(blasts.len(), 1);
+    assert!(
+        blasts[0].distance(start) < 5.0,
+        "explodes where it is: {}",
+        blasts[0]
+    );
+}
+
+#[test]
 fn a_leapfrog_explodes_three_times_moving_on() {
     let (mut players, mut b) = range(|_| 600.0);
     drop(&mut b, weapon("Leapfrog"), 300.0, 150.0);

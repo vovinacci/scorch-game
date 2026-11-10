@@ -137,12 +137,13 @@ without anyone getting a kill.
 Everyone starts the game with $100 and 2 Missiles. Weapons and money carry over from round to round. The Dirt Bomb is
 for burying an enemy or building a wall in front of yourself; the Digger digs a buried tank out, or drops an enemy into
 a trench (the fall hurts); the Riot Bomb clears a mound away, digs out a buried tank or opens a path through a hill. A
-Tracer is a look before your real shot: fire it, see where that aim comes down in this turn's wind, then adjust and fire
-for real (after a Tracer your weapon goes back to the one you fired last). Only one per turn. Every Tracer path stays as
-a dashed line until the round ends, for everyone to see, and your last real shot's path (with "Last shot path" on) stays
-as it was. At 25 dollars a look it pays off before a big shot, not before every one. A Tracer doesn't count as a shot in
-your accuracy and doesn't drain a Mag Deflector. Rollers and Napalm find the low ground, so they're best against a tank
-in a valley. Napalm burns any tank close to the fire, yours too, and shields soak up the burn like any other damage.
+Roller fired by a buried tank explodes in the dirt around it: it can't roll out. A Tracer is a look before your real
+shot: fire it, see where that aim comes down in this turn's wind, then adjust and fire for real (after a Tracer your
+weapon goes back to the one you fired last). Only one per turn. Every Tracer path stays as a dashed line until the round
+ends, for everyone to see, and your last real shot's path (with "Last shot path" on) stays as it was. At 25 dollars a
+look it pays off before a big shot, not before every one. A Tracer doesn't count as a shot in your accuracy and doesn't
+drain a Mag Deflector. Rollers and Napalm find the low ground, so they're best against a tank in a valley. Napalm burns
+any tank close to the fire, yours too, and shields soak up the burn like any other damage.
 
 ## Parachutes and shields
 

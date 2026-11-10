@@ -1001,8 +1001,11 @@ impl Battle {
         ground: bool,
         players: &mut [Player],
     ) -> Option<Projectile> {
+        // A shell fired from under the dirt (a buried tank) never got out of the ground.
+        let buried = p.trail.iter().all(|&q| self.terrain.is_solid(q));
         match WEAPONS[p.weapon].kind {
-            Kind::Roller if ground => {
+            // A Roller only rolls on the surface: under the dirt it explodes where it is.
+            Kind::Roller if ground && !buried => {
                 p.pos.y = self.terrain.height_at(p.pos.x) - 3.0;
                 let dir = downhill(&self.terrain, p.pos.x).unwrap_or(sign(p.vel.x));
                 p.motion = Motion::Rolling { dir, time: 0.0 };
