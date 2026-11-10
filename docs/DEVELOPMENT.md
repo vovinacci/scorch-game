@@ -135,7 +135,8 @@ The player's guide explains the rules; these are the exact values.
   for a MIRV, the first touch for a Roller, Digger or Leapfrog), with and without wind, on the terrain as it is then. If
   the shot hurts no enemy, `coach` logs the distance from that point to the nearest enemy, short (before reaching it
   along the line of fire) or past, plus the wind's drift when it is 20 px or more; with wrap-around walls distances go
-  the short way round. A shot that leaves the field says so.
+  the short way round. A shot that leaves the field says so. The line goes into the feed and the log, and is kept on the
+  shooter's tank (`Tank::coaching`) to show centred above the weapon strip through its next turn, until it fires.
 - A shot is a miss when it hurts no enemy and drops none (`shot_hit`), whatever else gets logged that turn.
 
 ### Random world settings
