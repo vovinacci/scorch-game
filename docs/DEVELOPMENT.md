@@ -57,6 +57,7 @@ Command line options:
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
 | `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, battle, pause, over (a round just won), defence (every tank with a shield), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit |
+| `--keys <keys>` | With `--screen`: press menu keys before the screenshot, one every 4 frames: a comma-separated list of up, down, left, right, enter (`--screen shop --keys down,down,right --shot shop.png`) |
 
 Self-update is off in development builds (`make run`, versions with `+`), so its question, setting and About button are
 hidden there. To see them, build with a release-style version: `SCORCH_BUILD_VERSION=0.1.0 make run`. Don't press Update
@@ -119,12 +120,20 @@ The player's guide explains the rules; these are the exact values.
 
 ### Menu keys
 
-The arrow keys move the focus to the nearest widget on screen that way. A widget counts as "that way" only if its near
-edge is past the middle of the focused one (a wide button below isn't to the right). Of those, the one with the smallest
-distance that way plus 3 times the gap across (0 for widgets in the same row or column) wins. Up and Down go to the next
-or previous widget in drawing order when nothing is that way. On a setting (a selector), Left and Right change its value
-instead. Greyed-out buttons never take the focus: the keys skip them, hovering doesn't focus them, and if the focused
-one greys out the focus goes to the nearest working one the way the keys last moved, or else to the closest working one.
+The arrow keys move the focus along rows and columns of widgets. A widget is "that way" only if its near edge is past
+the middle of the focused one (a wide button below isn't to the right), and "in line" if the two overlap across the way.
+Greyed-out buttons are skipped. A section is a panel: widgets drawn inside the same `ui::panel` belong together. In
+order, the focus goes to:
+
+1. the nearest widget that way, in line, in the same section;
+2. Up/Down only: the nearest widget that way in the same section (distance plus 3 times the gap across);
+3. the nearest widget that way, in line, in another section;
+4. Up/Down only: around to the far end of the column;
+5. Up/Down only: the next or previous widget in drawing order.
+
+Left/Right never leave the row. On a setting (a selector) they change its value instead. A new screen starts on its
+first widget that works. Hovering doesn't focus a greyed-out button, but a focused button that greys out (bought, and
+now too dear) keeps the focus until you move away; it just can't be pressed.
 
 ### Mouse aiming
 

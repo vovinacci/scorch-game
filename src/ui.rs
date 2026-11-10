@@ -100,10 +100,10 @@ pub fn mouse() -> Vec2 {
     camera().screen_to_world(vec2(x, y))
 }
 
-/// Keyboard navigation for menus: the arrow keys move focus to the nearest widget
-/// on screen in that direction (Up/Down wrap around in drawing order when there
-/// is none), Enter/Space press the focused one, Left/Right change a focused
-/// selector instead of moving. Moving the mouse over a widget focuses it too.
+/// Keyboard navigation for menus: the arrow keys move focus along rows and columns
+/// of widgets, inside the panel first (see `step`), Enter/Space press the focused
+/// one, Left/Right change a focused selector instead of moving. Moving the mouse
+/// over a widget focuses it too.
 #[derive(Default)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -117,8 +117,10 @@ struct Nav {
     places: Vec<Place>,
     /// The same for the frame before, to move focus by.
     last_places: Vec<Place>,
-    /// The way the arrow keys last moved the focus.
-    last_dir: Vec2,
+    /// Panels drawn so far this frame: a widget inside one belongs to that section of the screen.
+    panels: Vec<Rect>,
+    /// A new screen: the focus has yet to settle on its first widget that works.
+    fresh: bool,
     enabled: bool,
     activate: bool,
     left: bool,
@@ -131,8 +133,10 @@ struct Place {
     rect: Rect,
     /// Left/Right change its value instead of moving.
     selector: bool,
-    /// A greyed-out button can't take the focus.
+    /// The arrow keys skip a greyed-out button, and hovering doesn't focus it.
     enabled: bool,
+    /// Which panel it is in (0: none): the arrow keys stay inside a section while they can.
+    section: usize,
 }
 
 thread_local! {
@@ -154,6 +158,18 @@ fn note_click(used: bool) -> bool {
 
 thread_local! {
     static NAV: RefCell<Nav> = RefCell::new(Nav::default());
+    /// A menu key pressed for this frame by `--keys` (a developer aid), as if on the keyboard.
+    static SCRIPTED: Cell<Option<KeyCode>> = const { Cell::new(None) };
+}
+
+/// Presses `key` in the menus for the frame about to start (`--keys`).
+pub fn script_key(key: Option<KeyCode>) {
+    SCRIPTED.set(key);
+}
+
+/// A menu key went down this frame, on the keyboard or from `--keys`.
+fn pressed(key: KeyCode) -> bool {
+    is_key_pressed(key) || SCRIPTED.get() == Some(key)
 }
 
 /// Call once per frame, before any widget. `keyboard` is false during
@@ -163,6 +179,7 @@ pub fn begin_frame(keyboard: bool) {
         let widgets = nav.count;
         nav.count = 0;
         nav.last_places = std::mem::take(&mut nav.places);
+        nav.panels.clear();
         nav.enabled = keyboard && widgets > 0;
         nav.activate = false;
         nav.left = false;
@@ -170,60 +187,46 @@ pub fn begin_frame(keyboard: bool) {
         if !nav.enabled {
             return;
         }
-        let usable = |nav: &Nav, i: usize| nav.last_places.get(i).is_none_or(|p| p.enabled);
         if nav.focus >= widgets {
             nav.focus = 0;
         }
-        if !usable(nav, nav.focus) {
-            // Off a greyed-out widget: on the way the focus was going, or else to the closest one that works.
-            let from = nav.last_places[nav.focus].rect;
-            let places = &nav.last_places;
-            nav.focus = nearest(places, from, nav.last_dir)
-                .or_else(|| closest(places, from))
-                .unwrap_or(nav.focus);
+        if nav.fresh {
+            nav.fresh = false;
+            nav.focus = nav.last_places.iter().position(|p| p.enabled).unwrap_or(0);
         }
+        // A focused button that greys out (bought, and now too dear) keeps the focus, so it doesn't jump away
+        // under the player's hand; it just can't be pressed.
         let selector = nav.last_places.get(nav.focus).is_some_and(|p| p.selector);
-        let (left, right) = (
-            is_key_pressed(KeyCode::Left),
-            is_key_pressed(KeyCode::Right),
-        );
-        // Where to go, and where Up/Down wrap to when nothing is that way.
-        // The next usable widget in drawing order, `by` 1 or `widgets - 1` (back) at a time.
-        let wrap = |by: usize| {
-            (1..widgets)
-                .map(|k| (nav.focus + k * by) % widgets)
-                .find(|&i| usable(nav, i))
-        };
-        let step = if is_key_pressed(KeyCode::Down) {
-            Some((vec2(0.0, 1.0), wrap(1)))
-        } else if is_key_pressed(KeyCode::Up) {
-            Some((vec2(0.0, -1.0), wrap(widgets - 1)))
+        let (left, right) = (pressed(KeyCode::Left), pressed(KeyCode::Right));
+        let dir = if pressed(KeyCode::Down) {
+            Some(vec2(0.0, 1.0))
+        } else if pressed(KeyCode::Up) {
+            Some(vec2(0.0, -1.0))
         } else if left && !selector {
-            Some((vec2(-1.0, 0.0), None))
+            Some(vec2(-1.0, 0.0))
         } else if right && !selector {
-            Some((vec2(1.0, 0.0), None))
+            Some(vec2(1.0, 0.0))
         } else {
             None
         };
-        if let Some((dir, wrap)) = step {
-            nav.last_dir = dir;
-            let from = nav.last_places.get(nav.focus).map(|p| p.rect);
-            if let Some(next) = from
-                .and_then(|from| nearest(&nav.last_places, from, dir))
-                .or(wrap)
-            {
-                nav.focus = next;
-            }
+        if let Some(next) = dir.and_then(|dir| step(&nav.last_places, nav.focus, dir)) {
+            nav.focus = next;
         }
-        nav.activate = is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space);
+        nav.activate = pressed(KeyCode::Enter) || pressed(KeyCode::Space);
         nav.left = selector && left;
         nav.right = selector && right;
     });
 }
 
-/// Call when the screen changes, so focus starts at the first widget.
+/// Call when the screen changes, so focus starts at the first widget that works.
 pub fn reset_focus() {
-    NAV.with_borrow_mut(|nav| nav.focus = 0);
+    NAV.with_borrow_mut(|nav| {
+        nav.focus = 0;
+        nav.fresh = true;
+        // The old screen's widgets say nothing about the new one: no keyboard focus until it has been drawn once.
+        nav.count = 0;
+        nav.places.clear();
+    });
 }
 
 #[expect(
@@ -237,51 +240,104 @@ struct Focus {
     right: bool,
 }
 
-/// The usable widget in `places` nearest to `from` in direction `dir` (a unit vector along one axis): mostly by distance
-/// that way, strongly preferring widgets in the same row or column.
-fn nearest(places: &[Place], from: Rect, dir: Vec2) -> Option<usize> {
-    let centre = from.center();
-    places
+/// Where the focus goes from widget `from` when an arrow key points `dir` (a unit vector along one axis), or `None` to
+/// stay. Greyed-out widgets are skipped. In order:
+/// 1. the nearest widget that way in the same row or column, in the same section (panel);
+/// 2. Up/Down only: the nearest widget that way in the same section, wherever it is;
+/// 3. the nearest widget that way in the same row or column in another section;
+/// 4. Up/Down only: around to the far end of the column;
+/// 5. Up/Down only: the next or previous widget in drawing order.
+///
+/// A widget is "that way" only if its near edge is past the middle of `from`, so a wide button below isn't to the
+/// right. Left/Right never leave the row: a jump to another row would land somewhere unexpected.
+fn step(places: &[Place], from: usize, dir: Vec2) -> Option<usize> {
+    /// Another widget, as seen from the focused one.
+    struct Other {
+        index: usize,
+        /// Distance that way, centre to centre (negative: behind).
+        along: f32,
+        /// How far out of line its centre is, and the gap between the two across the way (0: same row or column).
+        across: f32,
+        gap: f32,
+        same_section: bool,
+        ahead: bool,
+        behind: bool,
+    }
+    let me = places.get(from)?;
+    let vertical = dir.y != 0.0;
+    let side = vec2(dir.y.abs(), dir.x.abs());
+    let centre = me.rect.center();
+    let span = |r: Rect, axis: Vec2| {
+        let (a, b) = (r.point().dot(axis), (r.point() + r.size()).dot(axis));
+        (a.min(b), a.max(b))
+    };
+    let (a0, a1) = span(me.rect, side);
+    let others: Vec<Other> = places
         .iter()
         .enumerate()
-        .filter(|(_, p)| p.enabled)
-        .filter_map(|(i, p)| {
-            let r = p.rect;
-            // Only what lies past the middle of `from` that way: a wide button below doesn't count as to the right.
-            let near = r.point().dot(dir).min((r.point() + r.size()).dot(dir));
-            if near < centre.dot(dir) {
-                return None;
-            }
-            let along = (r.center() - centre).dot(dir);
-            // Gap between the two rects across the direction of travel (0 when they overlap).
-            let side = vec2(dir.y.abs(), dir.x.abs());
-            let (a0, a1) = (
-                from.point().dot(side),
-                (from.point() + from.size()).dot(side),
-            );
-            let (b0, b1) = (r.point().dot(side), (r.point() + r.size()).dot(side));
+        .filter(|&(i, p)| i != from && p.enabled)
+        .map(|(index, p)| {
+            let (b0, b1) = span(p.rect, side);
+            let to = p.rect.center() - centre;
             let gap = (b0 - a1).max(a0 - b1).max(0.0);
-            Some((i, along + 3.0 * gap))
+            Other {
+                index,
+                along: to.dot(dir),
+                across: to.dot(side).abs(),
+                gap,
+                same_section: p.section == me.section,
+                ahead: span(p.rect, dir).0 >= centre.dot(dir),
+                behind: span(p.rect, -dir).0 >= centre.dot(-dir),
+            }
         })
-        .min_by(|a, b| a.1.total_cmp(&b.1))
-        .map(|(i, _)| i)
+        .collect();
+    let best = |keep: fn(&Other) -> bool, score: fn(&Other) -> f32| {
+        others
+            .iter()
+            .filter(|o| keep(o))
+            .min_by(|a, b| score(a).total_cmp(&score(b)))
+            .map(|o| o.index)
+    };
+    // Nearest that way; of two equally near, the one more in line.
+    let near: fn(&Other) -> f32 = |o| o.along + 0.01 * o.across;
+    let in_drawing_order = || {
+        let n = places.len();
+        let by = if dir.y > 0.0 { 1 } else { n - 1 };
+        (1..n)
+            .map(|k| (from + k * by) % n)
+            .find(|&i| places[i].enabled)
+    };
+    best(|o| o.ahead && o.gap <= 0.0 && o.same_section, near)
+        .or_else(|| {
+            vertical
+                .then(|| best(|o| o.ahead && o.same_section, |o| o.along + 3.0 * o.gap))
+                .flatten()
+        })
+        .or_else(|| best(|o| o.ahead && o.gap <= 0.0, near))
+        .or_else(|| {
+            vertical
+                .then(|| best(|o| o.behind && o.gap <= 0.0, near))
+                .flatten()
+        })
+        .or_else(|| vertical.then(in_drawing_order).flatten())
 }
 
-/// The usable widget in `places` closest to `from`, any way.
-fn closest(places: &[Place], from: Rect) -> Option<usize> {
-    places
-        .iter()
-        .enumerate()
-        .filter(|(_, p)| p.enabled)
-        .map(|(i, p)| (i, p.rect.center().distance(from.center())))
-        .min_by(|a, b| a.1.total_cmp(&b.1))
-        .map(|(i, _)| i)
-}
-
-fn register(hovered: bool, place: Place) -> Focus {
+fn register(hovered: bool, rect: Rect, selector: bool, enabled: bool) -> Focus {
     NAV.with_borrow_mut(|nav| {
         let id = nav.count;
         nav.count += 1;
+        // The last panel drawn around it (a dialog's panel over the screen's).
+        let section = nav
+            .panels
+            .iter()
+            .rposition(|p| p.contains(rect.center()))
+            .map_or(0, |k| k + 1);
+        let place = Place {
+            rect,
+            selector,
+            enabled,
+            section,
+        };
         nav.places.push(place);
         if hovered && place.enabled && mouse_delta_position() != Vec2::ZERO {
             nav.focus = id;
@@ -333,14 +389,7 @@ pub fn text_fit(text: &str, x: f32, y: f32, max_w: f32, size: f32, color: Color)
 
 pub fn button(r: Rect, label: &str, enabled: bool) -> bool {
     let hovered = r.contains(mouse());
-    let focus = register(
-        hovered,
-        Place {
-            rect: r,
-            selector: false,
-            enabled,
-        },
-    );
+    let focus = register(hovered, r, false, enabled);
     widget_background(r, enabled, hovered || focus.focused, focus.focused);
 
     let (size, dims) = fit(label, 22.0, r.w - 16.0);
@@ -361,14 +410,7 @@ pub fn button(r: Rect, label: &str, enabled: bool) -> bool {
 /// Returns `true` when the value changed.
 pub fn selector(r: Rect, label: &str, values: &[impl AsRef<str>], index: &mut usize) -> bool {
     let hovered = r.contains(mouse());
-    let focus = register(
-        hovered,
-        Place {
-            rect: r,
-            selector: true,
-            enabled: true,
-        },
-    );
+    let focus = register(hovered, r, true, true);
     widget_background(r, true, hovered || focus.focused, focus.focused);
 
     let value_box = Rect::new(r.x + r.w * 0.5, r.y, r.w * 0.5, r.h);
@@ -447,6 +489,7 @@ pub fn dim() {
 }
 
 pub fn panel(r: Rect) {
+    NAV.with_borrow_mut(|nav| nav.panels.push(r));
     draw_rectangle(r.x, r.y, r.w, r.h, PANEL);
     draw_rectangle_lines(r.x, r.y, r.w, r.h, 2.0, Color { a: 0.5, ..ACCENT });
 }
@@ -506,53 +549,91 @@ pub fn slider(r: Rect, value: f32, min: f32, max: f32) -> f32 {
 mod tests {
     use super::*;
 
-    fn at(x: f32, y: f32) -> Place {
+    const RIGHT: Vec2 = vec2(1.0, 0.0);
+    const LEFT: Vec2 = vec2(-1.0, 0.0);
+    const DOWN: Vec2 = vec2(0.0, 1.0);
+    const UP: Vec2 = vec2(0.0, -1.0);
+
+    fn at(x: f32, y: f32, w: f32, section: usize) -> Place {
         Place {
-            rect: Rect::new(x, y, 200.0, 50.0),
+            rect: Rect::new(x, y, w, 34.0),
             selector: false,
             enabled: true,
+            section,
         }
     }
 
-    #[test]
-    fn arrows_move_to_the_nearest_widget_that_way() {
-        // Two buttons side by side, a third below the left one.
-        let places = [at(100.0, 600.0), at(500.0, 600.0), at(100.0, 680.0)];
-        let right = nearest(&places, places[0].rect, vec2(1.0, 0.0));
-        assert_eq!(right, Some(1));
-        assert_eq!(nearest(&places, places[1].rect, vec2(-1.0, 0.0)), Some(0));
-        assert_eq!(nearest(&places, places[0].rect, vec2(0.0, 1.0)), Some(2));
-        assert_eq!(nearest(&places, places[0].rect, vec2(-1.0, 0.0)), None);
+    /// The shop: 0-5 three rows of buy buttons in two columns, 6 Done, 7 Save & exit, 8 a wide Abandon game under
+    /// both, all in one panel; 9-10 item switches in the inventory panel to the right, level with rows 2 and 3.
+    fn shop() -> Vec<Place> {
+        let mut places = Vec::new();
+        for row in 0..3 {
+            places.push(at(410.0, 174.0 + 40.0 * row as f32, 225.0, 1));
+            places.push(at(645.0, 174.0 + 40.0 * row as f32, 225.0, 1));
+        }
+        places.push(at(410.0, 300.0, 225.0, 1));
+        places.push(at(645.0, 300.0, 225.0, 1));
+        places.push(at(410.0, 350.0, 460.0, 1));
+        places.push(at(1150.0, 250.0, 80.0, 2));
+        places.push(at(1150.0, 296.0, 80.0, 2));
+        places
     }
 
     #[test]
-    fn a_wide_button_below_is_not_to_the_right() {
-        // The shop: Done and Save & exit side by side, a wide Abandon game under both.
-        let mut places = [at(410.0, 568.0), at(645.0, 568.0), at(410.0, 618.0)];
-        places[2].rect.w = 460.0;
-        assert_eq!(nearest(&places, places[0].rect, vec2(1.0, 0.0)), Some(1));
-        assert_eq!(nearest(&places, places[1].rect, vec2(-1.0, 0.0)), Some(0));
-        assert_eq!(nearest(&places, places[0].rect, vec2(0.0, 1.0)), Some(2));
-        assert_eq!(nearest(&places, places[1].rect, vec2(0.0, 1.0)), Some(2));
+    fn arrows_follow_rows_and_columns() {
+        let shop = shop();
+        assert_eq!(step(&shop, 0, RIGHT), Some(1));
+        assert_eq!(step(&shop, 1, LEFT), Some(0));
+        assert_eq!(step(&shop, 0, DOWN), Some(2));
+        assert_eq!(step(&shop, 3, UP), Some(1));
+        assert_eq!(step(&shop, 0, LEFT), None);
+        // Done and Save & exit are side by side; the wide button under them is below both, not beside.
+        assert_eq!(step(&shop, 6, RIGHT), Some(7));
+        assert_eq!(step(&shop, 7, LEFT), Some(6));
+        assert_eq!(step(&shop, 6, DOWN), Some(8));
+        assert_eq!(step(&shop, 7, DOWN), Some(8));
     }
 
     #[test]
-    fn the_closest_working_button_takes_over() {
-        let mut places = [at(100.0, 100.0), at(100.0, 500.0), at(400.0, 130.0)];
-        places[0].enabled = false;
-        assert_eq!(closest(&places, places[0].rect), Some(2));
+    fn greyed_out_buttons_are_skipped_along_the_column() {
+        let mut shop = shop();
+        shop[2].enabled = false;
+        shop[4].enabled = false;
+        // Down the left column to the next button that works, not across to the right column.
+        assert_eq!(step(&shop, 0, DOWN), Some(6));
+        // The neighbour is greyed out and nothing else is in this row: stay.
+        assert_eq!(step(&shop, 3, LEFT), None);
     }
 
     #[test]
-    fn greyed_out_buttons_are_skipped() {
-        let mut places = [at(100.0, 600.0), at(400.0, 600.0), at(700.0, 600.0)];
-        places[1].enabled = false;
-        assert_eq!(nearest(&places, places[0].rect, vec2(1.0, 0.0)), Some(2));
+    fn another_panel_is_reached_only_along_a_row() {
+        let shop = shop();
+        // Nothing of the inventory is level with the first row.
+        assert_eq!(step(&shop, 1, RIGHT), None);
+        // The third row is level with the first switch, Save & exit with the second.
+        assert_eq!(step(&shop, 5, RIGHT), Some(9));
+        assert_eq!(step(&shop, 7, RIGHT), Some(10));
+        assert_eq!(step(&shop, 10, LEFT), Some(7));
+        // Down from the last switch wraps inside the inventory, not over to the shop's buttons.
+        assert_eq!(step(&shop, 10, DOWN), Some(9));
     }
 
     #[test]
-    fn a_widget_in_the_same_column_wins_over_a_closer_one_aside() {
-        let places = [at(100.0, 100.0), at(400.0, 130.0), at(100.0, 250.0)];
-        assert_eq!(nearest(&places, places[0].rect, vec2(0.0, 1.0)), Some(2));
+    fn up_and_down_wrap_around_the_column() {
+        let shop = shop();
+        assert_eq!(step(&shop, 8, DOWN), Some(0));
+        assert_eq!(step(&shop, 1, UP), Some(8));
+    }
+
+    #[test]
+    fn down_finds_a_button_off_to_the_side_in_the_same_section() {
+        // Three buttons in a row and one at the bottom right, like the custom bot screen.
+        let places = [
+            at(100.0, 400.0, 150.0, 0),
+            at(260.0, 400.0, 150.0, 0),
+            at(900.0, 640.0, 240.0, 0),
+        ];
+        assert_eq!(step(&places, 0, DOWN), Some(2));
+        assert_eq!(step(&places, 2, UP), Some(1));
     }
 }
