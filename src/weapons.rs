@@ -173,8 +173,8 @@ pub const WEAPONS: [Weapon; 14] = [
         kind: Kind::Tracer,
         radius: 0.0,
         damage: 0.0,
-        price: 10,
-        bundle: 5,
+        price: 50,
+        bundle: 2,
     },
     Weapon {
         name: "Riot Bomb",
