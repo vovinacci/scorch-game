@@ -17,9 +17,142 @@ pub const HEIGHT: f32 = 720.0;
 pub struct Terrain {
     /// Screen y of the ground surface for each column (bigger = lower).
     ground: Vec<f32>,
+    /// How the ground looks (the terrain type it was made as; older saves: rolling hills).
+    #[serde(default)]
+    look: Look,
+    /// Which terrain this is and how often it changed, so its picture is only repainted when needed.
+    #[serde(skip, default = "new_id")]
+    id: u64,
+    #[serde(skip)]
+    version: u64,
+}
+
+/// The ground's colours, by terrain type.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum Look {
+    #[default]
+    Rolling,
+    Mountains,
+    Flat,
+    Canyon,
+}
+
+/// A small, fixed variation per pixel (-1..1), so large areas of earth don't look flat.
+fn grain(x: usize, y: usize) -> f32 {
+    let mut n = (x as u32).wrapping_mul(0x9E37_79B1) ^ (y as u32).wrapping_mul(0x85EB_CA77);
+    n ^= n >> 15;
+    n = n.wrapping_mul(0x2C1B_3C6D);
+    n ^= n >> 12;
+    (n & 0xFFFF) as f32 / 32_768.0 - 1.0
+}
+
+/// Blends `a` to `b` by `t` (0..1).
+fn mix(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
+    let t = t.clamp(0.0, 1.0);
+    [
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t,
+    ]
+}
+
+impl Look {
+    /// (grass, topsoil, deep earth) in 0..255.
+    fn palette(self) -> ([f32; 3], [f32; 3], [f32; 3]) {
+        match self {
+            Look::Rolling => ([90.0, 160.0, 70.0], [128.0, 92.0, 56.0], [78.0, 56.0, 36.0]),
+            Look::Flat => (
+                [104.0, 170.0, 74.0],
+                [112.0, 86.0, 54.0],
+                [70.0, 54.0, 36.0],
+            ),
+            Look::Mountains => (
+                [112.0, 138.0, 92.0],
+                [124.0, 114.0, 104.0],
+                [74.0, 70.0, 66.0],
+            ),
+            Look::Canyon => (
+                [156.0, 146.0, 84.0],
+                [196.0, 120.0, 76.0],
+                [126.0, 70.0, 48.0],
+            ),
+        }
+    }
+
+    /// The colour of the ground `depth` px below its surface (`shade_depth` below the smoothed surface, at screen `y`,
+    /// surface at `surface`).
+    fn color(
+        self,
+        depth: f32,
+        shade_depth: f32,
+        y: f32,
+        surface: f32,
+        steep: bool,
+        grain: f32,
+    ) -> [u8; 4] {
+        let (grass, topsoil, deep) = self.palette();
+        // Snow on the highest mountain peaks, thinning out towards the snow line.
+        let snow = if self == Look::Mountains {
+            ((SNOW_LINE - surface) / 8.0).clamp(0.0, 7.0)
+        } else {
+            0.0
+        };
+        let mut c = if depth < snow || (depth < 3.0 && !steep) {
+            if depth < snow {
+                [236.0, 240.0, 245.0]
+            } else {
+                grass
+            }
+        } else {
+            let mut c = mix(topsoil, deep, (shade_depth - 10.0) / 220.0);
+            if self == Look::Canyon {
+                // Sandstone strata: lighter and darker horizontal bands.
+                let band = (y / 22.0).floor() as i32 % 3;
+                let shade = [1.0, 0.9, 1.08][band.rem_euclid(3) as usize];
+                c = [c[0] * shade, c[1] * shade, c[2] * shade];
+            }
+            c
+        };
+        // A just visible grain.
+        let g = 1.0 + 0.04 * grain;
+        c = [c[0] * g, c[1] * g, c[2] * g];
+        [
+            c[0].clamp(0.0, 255.0) as u8,
+            c[1].clamp(0.0, 255.0) as u8,
+            c[2].clamp(0.0, 255.0) as u8,
+            255,
+        ]
+    }
+
+    fn of(kind: TerrainKind) -> Self {
+        match kind {
+            TerrainKind::Mountains => Look::Mountains,
+            TerrainKind::Flat => Look::Flat,
+            TerrainKind::Canyon => Look::Canyon,
+            TerrainKind::Rolling | TerrainKind::Random => Look::Rolling,
+        }
+    }
+}
+
+/// Mountain ground higher than this (smaller screen y) gets snow.
+const SNOW_LINE: f32 = 290.0;
+
+fn new_id() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
 impl Terrain {
+    fn with(ground: Vec<f32>, look: Look) -> Self {
+        Self {
+            ground,
+            look,
+            id: new_id(),
+            version: 0,
+        }
+    }
+
     pub fn generate(kind: TerrainKind) -> Self {
         let kind = kind.roll();
         // (base height, wave amplitude scale, highest allowed ground)
@@ -55,15 +188,16 @@ impl Terrain {
                 (base + h).clamp(top, HEIGHT - 30.0)
             })
             .collect();
-        Self { ground }
+        Self::with(ground, Look::of(kind))
     }
 
     /// Terrain from a height function, for tests.
     #[cfg(test)]
     pub fn from_fn(height: impl Fn(f32) -> f32) -> Self {
-        Self {
-            ground: (0..WIDTH).map(|x| height(x as f32)).collect(),
-        }
+        Self::with(
+            (0..WIDTH).map(|x| height(x as f32)).collect(),
+            Look::Rolling,
+        )
     }
 
     pub fn height_at(&self, x: f32) -> f32 {
@@ -89,6 +223,7 @@ impl Terrain {
 
     /// Flattens a small pad so tanks start on level ground.
     pub fn flatten(&mut self, x: f32, half: f32) {
+        self.version += 1;
         let level = self.height_at(x);
         let from = (x - half).max(0.0) as usize;
         let to = ((x + half) as usize).min(WIDTH - 1);
@@ -108,6 +243,7 @@ impl Terrain {
     /// Lowers the ground by `depth` in every column from `x0` to `x1` (either order), like dirt sinking into a
     /// tunnel dug underneath.
     pub fn sink(&mut self, x0: f32, x1: f32, depth: f32) {
+        self.version += 1;
         let (a, b) = (x0.min(x1), x0.max(x1));
         let from = a.round().max(0.0) as usize;
         let to = (b.round() as usize).min(WIDTH - 1);
@@ -127,6 +263,7 @@ impl Terrain {
     }
 
     fn for_columns(&mut self, center: Vec2, radius: f32, mut f: impl FnMut(&mut f32, f32, f32)) {
+        self.version += 1;
         let from = (center.x - radius).floor().max(0.0) as usize;
         let to = ((center.x + radius).ceil() as usize).min(WIDTH - 1);
         for x in from..=to {
@@ -143,13 +280,124 @@ impl Terrain {
         (x >= 0.0 && x < WIDTH as f32).then_some(x as usize)
     }
 
+    /// Draws the ground: painted into a picture once, and again only after it changed.
     pub fn draw(&self) {
-        let dirt = Color::from_rgba(120, 85, 50, 255);
-        let grass = Color::from_rgba(90, 160, 70, 255);
+        draw_picture(self);
+    }
+
+    /// The ground as a picture: grass on top where it isn't too steep (bare dirt on cliffs and fresh crater walls),
+    /// a topsoil band, then earth darkening with depth, in the colours of the terrain type, with a faint grain.
+    fn paint(&self) -> Image {
+        let h = HEIGHT as usize;
+        let mut bytes = vec![0u8; WIDTH * h * 4];
+        // Depth shading follows a smoothed surface, so small steps (a tank's flattened spot, a crater edge) don't
+        // leave vertical stripes in the earth.
+        let smooth: Vec<f32> = (0..WIDTH)
+            .map(|x| {
+                let (a, b) = (x.saturating_sub(15), (x + 15).min(WIDTH - 1));
+                self.ground[a..=b].iter().sum::<f32>() / (b - a + 1) as f32
+            })
+            .collect();
         for (x, &g) in self.ground.iter().enumerate() {
-            let x = x as f32;
-            draw_rectangle(x, g, 1.0, HEIGHT - g, dirt);
-            draw_rectangle(x, g, 1.0, 3.0, grass);
+            let left = self.ground[x.saturating_sub(1)];
+            let right = self.ground[(x + 1).min(WIDTH - 1)];
+            let steep = (right - left).abs() / 2.0 > 1.3;
+            let top = g.max(0.0) as usize;
+            for y in top..h {
+                let c = self.look.color(
+                    y as f32 - g,
+                    y as f32 - smooth[x],
+                    y as f32,
+                    g,
+                    steep,
+                    grain(x, y),
+                );
+                let k = (y * WIDTH + x) * 4;
+                bytes[k..k + 4].copy_from_slice(&c);
+            }
         }
+        Image {
+            bytes,
+            width: WIDTH as u16,
+            height: h as u16,
+        }
+    }
+}
+
+/// The ground's picture, kept on the GPU between frames (`Terrain::draw`).
+fn draw_picture(terrain: &Terrain) {
+    thread_local! {
+        // Never dropped: GPU objects freed after the window is gone crash the game (see AGENTS.md).
+        static PICTURE: &'static std::cell::RefCell<Option<(u64, u64, Texture2D)>> =
+            Box::leak(Box::new(std::cell::RefCell::new(None)));
+    }
+    PICTURE.with(|picture| {
+        let mut picture = picture.borrow_mut();
+        let fresh = picture
+            .as_ref()
+            .is_some_and(|(id, version, _)| *id == terrain.id && *version == terrain.version);
+        if !fresh {
+            let image = terrain.paint();
+            if let Some((id, version, texture)) = picture.as_mut() {
+                texture.update(&image);
+                (*id, *version) = (terrain.id, terrain.version);
+            } else {
+                let texture = Texture2D::from_image(&image);
+                texture.set_filter(FilterMode::Nearest);
+                *picture = Some((terrain.id, terrain.version, texture));
+            }
+        }
+        if let Some((_, _, texture)) = picture.as_ref() {
+            draw_texture_ex(
+                texture,
+                0.0,
+                0.0,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(WIDTH as f32, HEIGHT)),
+                    ..Default::default()
+                },
+            );
+        }
+    });
+}
+
+#[cfg(test)]
+mod look_tests {
+    use super::*;
+
+    fn pixel(image: &Image, x: usize, y: usize) -> [u8; 4] {
+        let k = (y * WIDTH + x) * 4;
+        image.bytes[k..k + 4].try_into().unwrap()
+    }
+
+    #[test]
+    fn the_ground_is_painted_in_layers_with_sky_above() {
+        let t = Terrain::from_fn(|_| 500.0);
+        let image = t.paint();
+        assert_eq!(pixel(&image, 300, 400)[3], 0, "sky stays clear");
+        let grass = pixel(&image, 300, 500);
+        let deep = pixel(&image, 300, 715);
+        assert!(grass[1] > grass[0], "green on top: {grass:?}");
+        assert!(
+            deep[0] < 110 && deep[3] == 255,
+            "darker earth below: {deep:?}"
+        );
+    }
+
+    #[test]
+    fn high_mountains_get_snow() {
+        let mut t = Terrain::from_fn(|_| 200.0);
+        t.look = Look::Mountains;
+        let top = pixel(&t.paint(), 640, 201);
+        assert!(top[0] > 220 && top[2] > 220, "white: {top:?}");
+    }
+
+    #[test]
+    fn changing_the_ground_repaints_it() {
+        let mut t = Terrain::from_fn(|_| 500.0);
+        let before = t.version;
+        t.carve(vec2(640.0, 500.0), 30.0);
+        assert!(t.version > before);
     }
 }

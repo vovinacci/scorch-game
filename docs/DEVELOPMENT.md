@@ -152,6 +152,20 @@ The player's guide explains the rules; these are the exact values.
   picked values are blue, with a note under the list.
 - "I'm feeling lucky" sets world options with `Choice::any_real`, never Random.
 
+### Terrain look
+
+The ground is painted once into a full-screen texture and repainted only when it changes (a crater, a flattened tank
+pad, a landslide). Each terrain type has a palette of grass, topsoil and deep earth:
+
+- The top 3 px are grass, except on slopes steeper than 1.3 (bare earth there).
+- Below, topsoil blends into deep earth over 220 px, measured from the surface averaged over 15 px either side, so
+  flattened pads and narrow craters don't leave vertical stripes.
+- Mountains get snow above y 290, up to 7 px thick, thinning out towards that line.
+- The canyon has rock bands 22 px high, in three shades.
+- Every pixel gets a little fixed grain (up to 4% lighter or darker).
+
+The look is saved with the terrain, so a resumed game looks the same. Older saves show as Rolling hills.
+
 ### Damage
 
 - A blast hits every tank within `radius + 12` px: full damage at the centre, down to 30% at the edge.
