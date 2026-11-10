@@ -286,6 +286,12 @@ impl Terrain {
         });
     }
 
+    /// How many burn marks there are.
+    #[cfg(test)]
+    pub fn burn_marks(&self) -> usize {
+        self.scorch.len()
+    }
+
     /// A turn went by: burn marks fade, and the faintest go away.
     pub fn cool(&mut self) {
         if self.scorch.is_empty() {
@@ -315,6 +321,8 @@ impl Terrain {
 
     /// Drops a circle's worth of dirt onto each column.
     pub fn add_dirt(&mut self, center: Vec2, radius: f32) {
+        // Fresh dirt covers the burn marks under it.
+        self.scorch.retain(|s| (s.x - center.x).abs() >= radius);
         self.for_columns(center, radius, |ground, top, bottom| {
             *ground = (*ground - (bottom - top)).max(20.0);
         });
@@ -351,11 +359,12 @@ impl Terrain {
         for (x, &g) in self.ground.iter().enumerate() {
             let left = self.ground[x.saturating_sub(1)];
             let right = self.ground[(x + 1).min(WIDTH - 1)];
-            // No grass on cliffs, nor where a blast burnt it (it grows back when the burn mark is gone).
+            // No grass on cliffs, nor where a blast burnt the surface (it grows back when the burn mark is gone).
+            // A blast high in the air doesn't reach the grass below it.
             let burnt = self
                 .scorch
                 .iter()
-                .any(|s| (x as f32 - s.x).abs() < s.radius + 4.0);
+                .any(|s| (x as f32 - s.x).hypot(g - s.y) < s.radius + 4.0);
             let steep = burnt || (right - left).abs() / 2.0 > 1.3;
             let top = g.max(0.0) as usize;
             for y in top..h {
@@ -493,6 +502,35 @@ mod look_tests {
         assert_eq!(t.scorch.len(), 1, "still faintly there after 5 turns");
         t.cool();
         assert!(t.scorch.is_empty(), "gone after 6 turns");
+    }
+
+    #[test]
+    fn a_blast_in_the_air_leaves_the_grass_below_alone() {
+        let mut t = Terrain::from_fn(|_| 500.0);
+        let grass = pixel(&t.paint(), 640, 501);
+        // Against a wall, 400 px up.
+        t.burn(vec2(640.0, 100.0), 85.0);
+        assert_eq!(pixel(&t.paint(), 640, 501), grass);
+        // On the ground it burns the grass around the crater.
+        t.burn(vec2(640.0, 500.0), 30.0);
+        assert_ne!(pixel(&t.paint(), 665, 501), grass);
+    }
+
+    #[test]
+    fn fresh_dirt_covers_burn_marks() {
+        let mut t = Terrain::from_fn(|_| 500.0);
+        t.carve(vec2(640.0, 500.0), 30.0);
+        t.burn(vec2(640.0, 500.0), 30.0);
+        t.burn(vec2(900.0, 500.0), 30.0);
+        t.add_dirt(vec2(640.0, 500.0), 45.0);
+        assert_eq!(
+            t.scorch.len(),
+            1,
+            "only the mark away from the mound is left"
+        );
+        let top = t.height_at(640.0) as usize;
+        let grass = pixel(&t.paint(), 640, top + 1);
+        assert!(grass[1] > grass[0], "grass on the mound: {grass:?}");
     }
 
     #[test]

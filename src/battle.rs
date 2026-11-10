@@ -70,7 +70,7 @@ const FIRE_FLOW: f32 = 70.0;
 const FIRE_REACH: f32 = 16.0;
 const FIRE_TICK: f32 = 0.5;
 /// Napalm: radius of the burn mark a drop leaves on the ground where it burns out.
-const FIRE_SINGE: f32 = 4.0;
+const FIRE_SINGE: f32 = 8.0;
 /// Digger: how far it burrows sideways (px), how fast (px/s), and how far the ground above it sinks (px).
 const DIG_LENGTH: f32 = 160.0;
 const DIG_SPEED: f32 = 200.0;
