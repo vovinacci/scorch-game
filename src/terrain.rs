@@ -23,15 +23,10 @@ pub struct Terrain {
     /// Burnt earth around recent craters, fading turn by turn.
     #[serde(default)]
     scorch: Vec<Scorch>,
-    /// Which terrain this is and how often it changed, so its picture is only repainted when needed.
-    #[serde(skip, default = "new_id")]
-    id: u64,
-    #[serde(skip)]
-    version: u64,
 }
 
 /// A darker, burnt rim around a crater: `heat` 1 when fresh, fading towards 0.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 struct Scorch {
     x: f32,
     y: f32,
@@ -159,20 +154,12 @@ impl Look {
 /// Mountain ground higher than this (smaller screen y) gets snow.
 const SNOW_LINE: f32 = 290.0;
 
-fn new_id() -> u64 {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static NEXT: AtomicU64 = AtomicU64::new(1);
-    NEXT.fetch_add(1, Ordering::Relaxed)
-}
-
 impl Terrain {
     fn with(ground: Vec<f32>, look: Look) -> Self {
         Self {
             ground,
             look,
             scorch: Vec::new(),
-            id: new_id(),
-            version: 0,
         }
     }
 
@@ -246,7 +233,6 @@ impl Terrain {
 
     /// Flattens a small pad so tanks start on level ground.
     pub fn flatten(&mut self, x: f32, half: f32) {
-        self.version += 1;
         let level = self.height_at(x);
         let from = (x - half).max(0.0) as usize;
         let to = ((x + half) as usize).min(WIDTH - 1);
@@ -265,7 +251,6 @@ impl Terrain {
 
     /// Leaves a burnt rim around a blast at `center`.
     pub fn burn(&mut self, center: Vec2, radius: f32) {
-        self.version += 1;
         // Burning the same spot again (napalm drops running together) makes it fresh, not a new mark.
         if let Some(s) = self
             .scorch
@@ -297,7 +282,6 @@ impl Terrain {
         if self.scorch.is_empty() {
             return;
         }
-        self.version += 1;
         for s in &mut self.scorch {
             s.heat *= SCORCH_KEEP;
         }
@@ -307,7 +291,6 @@ impl Terrain {
     /// Lowers the ground by `depth` in every column from `x0` to `x1` (either order), like dirt sinking into a
     /// tunnel dug underneath.
     pub fn sink(&mut self, x0: f32, x1: f32, depth: f32) {
-        self.version += 1;
         let (a, b) = (x0.min(x1), x0.max(x1));
         let from = a.round().max(0.0) as usize;
         let to = (b.round() as usize).min(WIDTH - 1);
@@ -329,7 +312,6 @@ impl Terrain {
     }
 
     fn for_columns(&mut self, center: Vec2, radius: f32, mut f: impl FnMut(&mut f32, f32, f32)) {
-        self.version += 1;
         let from = (center.x - radius).floor().max(0.0) as usize;
         let to = ((center.x + radius).ceil() as usize).min(WIDTH - 1);
         for x in from..=to {
@@ -346,7 +328,7 @@ impl Terrain {
         (x >= 0.0 && x < WIDTH as f32).then_some(x as usize)
     }
 
-    /// Draws the ground: painted into a picture once, and again only after it changed.
+    /// Draws the ground: painted into a picture once; after that only the columns that changed are painted again.
     pub fn draw(&self) {
         draw_picture(self);
     }
@@ -356,7 +338,21 @@ impl Terrain {
     fn paint(&self) -> Image {
         let h = HEIGHT as usize;
         let mut bytes = vec![0u8; WIDTH * h * 4];
+        self.paint_columns(&mut bytes, &[true; WIDTH]);
+        Image {
+            bytes,
+            width: WIDTH as u16,
+            height: h as u16,
+        }
+    }
+
+    /// Paints the columns marked in `columns` into the picture `bytes`, sky included.
+    fn paint_columns(&self, bytes: &mut [u8], columns: &[bool]) {
+        let h = HEIGHT as usize;
         for (x, &g) in self.ground.iter().enumerate() {
+            if !columns[x] {
+                continue;
+            }
             let left = self.ground[x.saturating_sub(1)];
             let right = self.ground[(x + 1).min(WIDTH - 1)];
             // No grass on cliffs, nor where a blast burnt the surface (it grows back when the burn mark is gone).
@@ -366,35 +362,109 @@ impl Terrain {
                 .iter()
                 .any(|s| (x as f32 - s.x).hypot(g - s.y) < s.radius + 4.0);
             let steep = burnt || (right - left).abs() / 2.0 > 1.3;
-            let top = g.max(0.0) as usize;
-            for y in top..h {
-                let c = self.look.color(x, y, g, steep);
+            let top = (g.max(0.0) as usize).min(h);
+            for y in 0..h {
+                let c = if y < top {
+                    [0; 4]
+                } else {
+                    self.look.color(x, y, g, steep)
+                };
                 let k = (y * WIDTH + x) * 4;
                 bytes[k..k + 4].copy_from_slice(&c);
             }
         }
         for s in &self.scorch {
-            s.darken(&mut bytes);
+            s.darken(bytes, columns);
+        }
+    }
+}
+
+/// The ground's picture and what it was painted from, to paint again only what changed since.
+struct Painted {
+    look: Look,
+    ground: Vec<f32>,
+    scorch: Vec<Scorch>,
+    image: Image,
+}
+
+impl Painted {
+    fn new(terrain: &Terrain) -> Self {
+        Self {
+            look: terrain.look,
+            ground: terrain.ground.clone(),
+            scorch: terrain.scorch.clone(),
+            image: terrain.paint(),
+        }
+    }
+
+    /// Brings the picture up to date with `terrain`. Returns the first and last column painted again, if any.
+    fn update(&mut self, terrain: &Terrain) -> Option<(usize, usize)> {
+        let mut columns = [self.look != terrain.look; WIDTH];
+        let mut mark = |from: f32, to: f32| {
+            let from = from.floor().clamp(0.0, WIDTH as f32 - 1.0) as usize;
+            let to = to.ceil().clamp(0.0, WIDTH as f32 - 1.0) as usize;
+            columns[from..=to].fill(true);
+        };
+        // A column's grass depends on its neighbours' height, so they go along.
+        for (x, (old, new)) in self.ground.iter().zip(&terrain.ground).enumerate() {
+            if old.to_bits() != new.to_bits() {
+                mark(x as f32 - 2.0, x as f32 + 2.0);
+            }
+        }
+        // Burn marks that came, went or faded: everything they reach.
+        let (old, new) = (&self.scorch, &terrain.scorch);
+        let changed = old
+            .iter()
+            .filter(|s| !new.contains(s))
+            .chain(new.iter().filter(|s| !old.contains(s)));
+        for s in changed {
+            mark(s.x - s.reach() - 1.0, s.x + s.reach() + 1.0);
+        }
+        let first = columns.iter().position(|&c| c)?;
+        let last = columns.iter().rposition(|&c| c)?;
+        terrain.paint_columns(&mut self.image.bytes, &columns);
+        self.look = terrain.look;
+        self.ground.clone_from(&terrain.ground);
+        self.scorch.clone_from(&terrain.scorch);
+        Some((first, last))
+    }
+
+    /// The part of the picture from column `first` to `last`, as a picture of its own.
+    fn columns(&self, first: usize, last: usize) -> Image {
+        let h = HEIGHT as usize;
+        let mut bytes = Vec::with_capacity((last - first + 1) * h * 4);
+        for row in self.image.bytes.as_chunks::<{ WIDTH * 4 }>().0 {
+            bytes.extend_from_slice(&row[first * 4..(last + 1) * 4]);
         }
         Image {
             bytes,
-            width: WIDTH as u16,
+            width: (last - first + 1) as u16,
             height: h as u16,
         }
     }
 }
 
 impl Scorch {
-    /// Chars the ground around the crater: most at its edge, fading out over the rim.
-    fn darken(&self, bytes: &mut [u8]) {
-        let rim = 6.0 + 0.5 * self.radius;
-        let reach = self.radius + rim;
+    /// The width of the charred rim outside the crater.
+    fn rim(&self) -> f32 {
+        6.0 + 0.5 * self.radius
+    }
+
+    /// How far from its centre the mark shows.
+    fn reach(&self) -> f32 {
+        self.radius + self.rim()
+    }
+
+    /// Chars the ground around the crater in the marked `columns`: most at its edge, fading out over the rim.
+    fn darken(&self, bytes: &mut [u8], columns: &[bool]) {
+        let (rim, reach) = (self.rim(), self.reach());
         let x0 = (self.x - reach).floor().max(0.0) as usize;
         let x1 = ((self.x + reach).ceil().max(0.0) as usize).min(WIDTH - 1);
         let y0 = (self.y - reach).floor().max(0.0) as usize;
         let y1 = ((self.y + reach).ceil().max(0.0) as usize).min(HEIGHT as usize - 1);
-        for y in y0..=y1 {
-            for x in x0..=x1 {
+        let marked = columns.iter().enumerate().take(x1 + 1).skip(x0);
+        for (x, _) in marked.filter(|&(_, &paint)| paint) {
+            for y in y0..=y1 {
                 let k = (y * WIDTH + x) * 4;
                 if bytes[k + 3] == 0 {
                     continue;
@@ -417,37 +487,32 @@ impl Scorch {
 fn draw_picture(terrain: &Terrain) {
     thread_local! {
         // Never dropped: GPU objects freed after the window is gone crash the game (see AGENTS.md).
-        static PICTURE: &'static std::cell::RefCell<Option<(u64, u64, Texture2D)>> =
+        static PICTURE: &'static std::cell::RefCell<Option<(Painted, Texture2D)>> =
             Box::leak(Box::new(std::cell::RefCell::new(None)));
     }
     PICTURE.with(|picture| {
         let mut picture = picture.borrow_mut();
-        let fresh = picture
-            .as_ref()
-            .is_some_and(|(id, version, _)| *id == terrain.id && *version == terrain.version);
-        if !fresh {
-            let image = terrain.paint();
-            if let Some((id, version, texture)) = picture.as_mut() {
-                texture.update(&image);
-                (*id, *version) = (terrain.id, terrain.version);
-            } else {
-                let texture = Texture2D::from_image(&image);
-                texture.set_filter(FilterMode::Nearest);
-                *picture = Some((terrain.id, terrain.version, texture));
-            }
+        let (painted, texture) = picture.get_or_insert_with(|| {
+            let painted = Painted::new(terrain);
+            let texture = Texture2D::from_image(&painted.image);
+            texture.set_filter(FilterMode::Nearest);
+            (painted, texture)
+        });
+        if let Some((first, last)) = painted.update(terrain) {
+            let part = painted.columns(first, last);
+            let (width, height) = (i32::from(part.width), i32::from(part.height));
+            texture.update_part(&part, i32::try_from(first).unwrap_or(0), 0, width, height);
         }
-        if let Some((_, _, texture)) = picture.as_ref() {
-            draw_texture_ex(
-                texture,
-                0.0,
-                0.0,
-                WHITE,
-                DrawTextureParams {
-                    dest_size: Some(vec2(WIDTH as f32, HEIGHT)),
-                    ..Default::default()
-                },
-            );
-        }
+        draw_texture_ex(
+            texture,
+            0.0,
+            0.0,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(WIDTH as f32, HEIGHT)),
+                ..Default::default()
+            },
+        );
     });
 }
 
@@ -546,10 +611,41 @@ mod look_tests {
     }
 
     #[test]
-    fn changing_the_ground_repaints_it() {
-        let mut t = Terrain::from_fn(|_| 500.0);
-        let before = t.version;
-        t.carve(vec2(640.0, 500.0), 30.0);
-        assert!(t.version > before);
+    fn painting_only_what_changed_gives_the_same_picture() {
+        type Step = (&'static str, fn(&mut Terrain));
+        let mut t = Terrain::from_fn(|x| 420.0 + 60.0 * (x * 0.006).sin());
+        let mut painted = Painted::new(&t);
+        assert_eq!(painted.update(&t), None, "nothing changed");
+        let steps: [Step; 9] = [
+            ("crater", |t| {
+                t.carve(vec2(300.0, 400.0), 40.0);
+                t.burn(vec2(300.0, 400.0), 40.0);
+            }),
+            ("crater at the edge", |t| {
+                t.carve(vec2(3.0, 420.0), 30.0);
+                t.burn(vec2(3.0, 420.0), 30.0);
+            }),
+            ("dirt", |t| t.add_dirt(vec2(320.0, 380.0), 45.0)),
+            ("trench", |t| t.sink(700.0, 860.0, 40.0)),
+            ("pad", |t| t.flatten(1000.0, 14.0)),
+            ("air blast", |t| t.burn(vec2(1270.0, 100.0), 85.0)),
+            ("a turn", Terrain::cool),
+            ("another look", |t| t.look = Look::Canyon),
+            ("five turns", |t| (0..5).for_each(|_| t.cool())),
+        ];
+        for (name, step) in steps {
+            step(&mut t);
+            let (first, last) = painted.update(&t).expect(name);
+            assert!(first <= last && last < WIDTH, "{name}");
+            assert!(painted.image.bytes == t.paint().bytes, "{name}");
+        }
+        // A small change repaints a small part.
+        t.carve(vec2(640.0, 400.0), 20.0);
+        let (first, last) = painted.update(&t).unwrap();
+        assert!(first >= 600 && last <= 680, "{first}..{last}");
+        assert_eq!(
+            painted.columns(first, last).bytes.len(),
+            (last - first + 1) * 720 * 4
+        );
     }
 }

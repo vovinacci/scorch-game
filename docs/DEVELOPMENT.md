@@ -163,8 +163,10 @@ one greys out the focus goes to the nearest working one the way the keys last mo
 
 ### Terrain look
 
-The ground is painted once into a full-screen texture and repainted only when it changes (a crater, a flattened tank
-pad, a landslide). Each terrain type has a palette of top edge, topsoil and deep earth:
+The ground is painted once into a full-screen texture. After that the game compares the ground and the burn marks with
+what the picture was painted from, each frame, and paints and uploads again only the columns that changed (a crater, a
+trench, a mark fading): well under a millisecond for a crater, against 5 to 6 for the whole picture. Each terrain type
+has a palette of top edge, topsoil and deep earth:
 
 - The top 3 px are grass (a sun-bleached sandstone rim in the canyon), except on slopes steeper than 1.3 (bare earth
   there).
