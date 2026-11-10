@@ -19,8 +19,8 @@ The game is dedicated to the memory of Joseph Rivkind (1952–2026), who taught 
 
 | Key | In battle | In menus |
 |---|---|---|
-| Left / Right | Turn the barrel | Change the selected setting |
-| Up / Down | Shot power | Move between options |
+| Left / Right | Turn the barrel | Change the selected setting, or move to the button on that side |
+| Up / Down | Shot power | Move to the option above or below |
 | Shift (hold) | Fine adjustment (5 times slower) | |
 | Tab | Next weapon you have ammo for | |
 | 1-9, 0, -, = | Pick a weapon from the weapon strip (or click it) | |
