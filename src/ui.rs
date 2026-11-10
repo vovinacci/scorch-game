@@ -117,6 +117,8 @@ struct Nav {
     places: Vec<Place>,
     /// The same for the frame before, to move focus by.
     last_places: Vec<Place>,
+    /// The way the arrow keys last moved the focus.
+    last_dir: Vec2,
     enabled: bool,
     activate: bool,
     left: bool,
@@ -169,12 +171,16 @@ pub fn begin_frame(keyboard: bool) {
             return;
         }
         let usable = |nav: &Nav, i: usize| nav.last_places.get(i).is_none_or(|p| p.enabled);
-        if nav.focus >= widgets || !usable(nav, nav.focus) {
-            // Off a greyed-out widget: onto the next one that works (if any).
-            nav.focus = (0..widgets)
-                .map(|k| (nav.focus.min(widgets - 1) + k) % widgets)
-                .find(|&i| usable(nav, i))
-                .unwrap_or(0);
+        if nav.focus >= widgets {
+            nav.focus = 0;
+        }
+        if !usable(nav, nav.focus) {
+            // Off a greyed-out widget: on the way the focus was going, or else to the closest one that works.
+            let from = nav.last_places[nav.focus].rect;
+            let places = &nav.last_places;
+            nav.focus = nearest(places, from, nav.last_dir)
+                .or_else(|| closest(places, from))
+                .unwrap_or(nav.focus);
         }
         let selector = nav.last_places.get(nav.focus).is_some_and(|p| p.selector);
         let (left, right) = (
@@ -200,6 +206,7 @@ pub fn begin_frame(keyboard: bool) {
             None
         };
         if let Some((dir, wrap)) = step {
+            nav.last_dir = dir;
             let from = nav.last_places.get(nav.focus).map(|p| p.rect);
             if let Some(next) = from
                 .and_then(|from| nearest(&nav.last_places, from, dir))
@@ -240,10 +247,12 @@ fn nearest(places: &[Place], from: Rect, dir: Vec2) -> Option<usize> {
         .filter(|(_, p)| p.enabled)
         .filter_map(|(i, p)| {
             let r = p.rect;
-            let along = (r.center() - centre).dot(dir);
-            if along < 1.0 {
+            // Only what lies past the middle of `from` that way: a wide button below doesn't count as to the right.
+            let near = r.point().dot(dir).min((r.point() + r.size()).dot(dir));
+            if near < centre.dot(dir) {
                 return None;
             }
+            let along = (r.center() - centre).dot(dir);
             // Gap between the two rects across the direction of travel (0 when they overlap).
             let side = vec2(dir.y.abs(), dir.x.abs());
             let (a0, a1) = (
@@ -254,6 +263,17 @@ fn nearest(places: &[Place], from: Rect, dir: Vec2) -> Option<usize> {
             let gap = (b0 - a1).max(a0 - b1).max(0.0);
             Some((i, along + 3.0 * gap))
         })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(i, _)| i)
+}
+
+/// The usable widget in `places` closest to `from`, any way.
+fn closest(places: &[Place], from: Rect) -> Option<usize> {
+    places
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.enabled)
+        .map(|(i, p)| (i, p.rect.center().distance(from.center())))
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(i, _)| i)
 }
@@ -503,6 +523,24 @@ mod tests {
         assert_eq!(nearest(&places, places[1].rect, vec2(-1.0, 0.0)), Some(0));
         assert_eq!(nearest(&places, places[0].rect, vec2(0.0, 1.0)), Some(2));
         assert_eq!(nearest(&places, places[0].rect, vec2(-1.0, 0.0)), None);
+    }
+
+    #[test]
+    fn a_wide_button_below_is_not_to_the_right() {
+        // The shop: Done and Save & exit side by side, a wide Abandon game under both.
+        let mut places = [at(410.0, 568.0), at(645.0, 568.0), at(410.0, 618.0)];
+        places[2].rect.w = 460.0;
+        assert_eq!(nearest(&places, places[0].rect, vec2(1.0, 0.0)), Some(1));
+        assert_eq!(nearest(&places, places[1].rect, vec2(-1.0, 0.0)), Some(0));
+        assert_eq!(nearest(&places, places[0].rect, vec2(0.0, 1.0)), Some(2));
+        assert_eq!(nearest(&places, places[1].rect, vec2(0.0, 1.0)), Some(2));
+    }
+
+    #[test]
+    fn the_closest_working_button_takes_over() {
+        let mut places = [at(100.0, 100.0), at(100.0, 500.0), at(400.0, 130.0)];
+        places[0].enabled = false;
+        assert_eq!(closest(&places, places[0].rect), Some(2));
     }
 
     #[test]

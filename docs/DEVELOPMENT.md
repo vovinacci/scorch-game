@@ -119,11 +119,12 @@ The player's guide explains the rules; these are the exact values.
 
 ### Menu keys
 
-The arrow keys move the focus to the nearest widget on screen that way: the one with the smallest distance that way plus
-3 times the gap across (0 for widgets in the same row or column). Up and Down go to the next or previous widget in
-drawing order when nothing is that way. On a setting (a selector), Left and Right change its value instead. Greyed-out
-buttons never take the focus: the keys skip them, hovering doesn't focus them, and if the focused one greys out the
-focus moves on to the next one that works.
+The arrow keys move the focus to the nearest widget on screen that way. A widget counts as "that way" only if its near
+edge is past the middle of the focused one (a wide button below isn't to the right). Of those, the one with the smallest
+distance that way plus 3 times the gap across (0 for widgets in the same row or column) wins. Up and Down go to the next
+or previous widget in drawing order when nothing is that way. On a setting (a selector), Left and Right change its value
+instead. Greyed-out buttons never take the focus: the keys skip them, hovering doesn't focus them, and if the focused
+one greys out the focus goes to the nearest working one the way the keys last moved, or else to the closest working one.
 
 ### Mouse aiming
 
