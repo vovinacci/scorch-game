@@ -216,7 +216,7 @@ rough shot again.
 
 Bots follow "Health limits power" too. They usually fire their most expensive weapon (by the price of one shot),
 otherwise a Baby Missile. They never fire Dirt Bombs or Diggers, and aim Rollers and Napalm at the spot where they roll
-or run to.
+or run to. A buried bot digs itself out with Baby Missiles, which costs it some health and a turn or more.
 
 ### Whom a bot shoots at
 

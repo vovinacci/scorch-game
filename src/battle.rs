@@ -1874,6 +1874,20 @@ impl Battle {
         let target = self.tanks[memory.target].center();
         let max_power = self.max_power(shooter);
 
+        // Buried (no way to point the barrel out of the dirt): any shot goes off around the bot itself, so it digs
+        // out with the weapon that hurts it least, not with its biggest one.
+        let buried = (4..=176).step_by(3).all(|angle| {
+            let muzzle = shooter.barrel_base() + direction(angle as f32) * BARREL;
+            self.terrain.is_solid(muzzle)
+        });
+        if buried {
+            return Shot {
+                angle: 90.0,
+                power: max_power.min(500.0),
+                weapon: 0,
+            };
+        }
+
         // Usually fire the biggest thing in the inventory (the dearest per shot); sometimes save ammo.
         let mut weapon = 0;
         if ui::chance(0.6) {

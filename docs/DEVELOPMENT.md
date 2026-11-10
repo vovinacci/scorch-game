@@ -280,6 +280,9 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   otherwise a Baby Missile. Shots landing closer to the bot than the weapon's radius + 25 px are ruled out; for
   MIRV-type weapons add the outer warhead's drift: its sideways speed x the fall time from the top of the arc (landing
   vertical speed / gravity).
+- Buried (the muzzle is under the ground at every angle the bot tries): it fires a Baby Missile straight up, whatever it
+  carries. That blast costs it about 15 health and clears up to 40 px of dirt above it, so a direct Dirt Bomb hit (90
+  px) takes two shots.
 - Shop: 8 random picks among the non-utility weapons and the items, each bought if affordable.
 - Target score for a new target: nearness (weight 1.0) + damage taken (0.8) + share of the most wins (0.8) - 0.5 per
   other bot aiming at that tank + random 0-0.3.

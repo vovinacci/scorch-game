@@ -425,6 +425,24 @@ fn a_buried_roller_explodes_under_the_dirt() {
 }
 
 #[test]
+fn a_buried_bot_digs_out_with_a_baby_missile() {
+    let (mut players, mut b) = range(|_| 600.0);
+    players[0].ammo[weapon("Nuke")] = 1;
+    // A Dirt Bomb right on the bot.
+    let at = b.tanks[0].pos;
+    b.terrain.add_dirt(at, 45.0);
+    for _ in 0..50 {
+        assert_eq!(b.plan_shot(0, &players).weapon, 0, "never its Nuke");
+    }
+    // With the barrel clear again it goes back to its usual choice.
+    b.terrain.carve(at - vec2(0.0, 40.0), 60.0);
+    let nukes = (0..50)
+        .filter(|_| b.plan_shot(0, &players).weapon == weapon("Nuke"))
+        .count();
+    assert!(nukes > 0);
+}
+
+#[test]
 fn a_leapfrog_explodes_three_times_moving_on() {
     let (mut players, mut b) = range(|_| 600.0);
     drop(&mut b, weapon("Leapfrog"), 300.0, 150.0);
