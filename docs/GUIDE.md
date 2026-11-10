@@ -382,7 +382,7 @@ A saved game continues fine in either language.
 - **Continue** on the main menu picks up where you left off. If you closed the game mid-shot, it continues from the
   start of that turn.
 - **Abandon game** (pause menu or shop, after a confirmation) ends the game for good. Starting a new game while one is
-  saved also abandons it.
+  saved also abandons it: New game asks first.
 - Your saved game, settings and statistics are kept in your user data folder, for example `~/.local/share/scorch/` on
   Linux.
 

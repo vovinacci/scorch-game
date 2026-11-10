@@ -55,7 +55,7 @@ Command line options:
 | `--version`, `-V` | Print the version and exit |
 | `--crash-test` | Crash on purpose, to check crash reports |
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
-| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, battle, pause, over (a round just won), defence (every tank with a shield), arsenal (every tank with every weapon), log, shop, abandon, final. Saving is off. |
+| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, battle, pause, over (a round just won), defence (every tank with a shield), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit |
 
 Self-update is off in development builds (`make run`, versions with `+`), so its question, setting and About button are
