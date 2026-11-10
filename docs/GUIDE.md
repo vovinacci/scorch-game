@@ -306,6 +306,10 @@ Walls decide what happens at the edges of the screen:
 
 A small preview under the World options shows the terrain and sky.
 
+Each terrain has its own look: rolling hills are green over brown earth, mountains are grey rock with snow on the
+highest peaks, flatlands are grassy, and the canyon is red sandstone in layers. The ground gets darker the deeper it
+goes, so craters show what's underneath.
+
 ## When a round drags on
 
 - **Only bots left:** once no human tank is in the round, it plays at the bots-only speed (4x by default) and shows
