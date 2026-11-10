@@ -69,6 +69,8 @@ const FIRE_TIME: f32 = 3.0;
 const FIRE_FLOW: f32 = 70.0;
 const FIRE_REACH: f32 = 16.0;
 const FIRE_TICK: f32 = 0.5;
+/// Napalm: radius of the burn mark a drop leaves on the ground where it burns out.
+const FIRE_SINGE: f32 = 4.0;
 /// Digger: how far it burrows sideways (px), how fast (px/s), and how far the ground above it sinks (px).
 const DIG_LENGTH: f32 = 160.0;
 const DIG_SPEED: f32 = 200.0;
@@ -365,6 +367,9 @@ enum Motion {
 struct Fire {
     x: f32,
     age: f32,
+    /// 0..1, fixed per drop: where its flame stands next to the drop and how it flickers, so drops pooled in one
+    /// dip burn as one wide, ragged fire.
+    seed: f32,
 }
 
 struct LogLine {
@@ -1119,6 +1124,7 @@ impl Battle {
             self.fires.push(Fire {
                 x: (x + gen_range(-14.0, 14.0)).clamp(0.0, WIDTH as f32 - 1.0),
                 age: gen_range(0.0, 0.6),
+                seed: gen_range(0.0, 1.0),
             });
         }
     }
@@ -1131,6 +1137,11 @@ impl Battle {
         for f in &mut self.fires {
             f.age += STEP;
             f.x = flow_step(&self.terrain, f.x);
+        }
+        // Where a drop burns out, the ground stays singed for a while.
+        for f in self.fires.iter().filter(|f| f.age >= FIRE_TIME) {
+            self.terrain
+                .burn(vec2(f.x, self.terrain.height_at(f.x)), FIRE_SINGE);
         }
         self.fires.retain(|f| f.age < FIRE_TIME);
         let dps = WEAPONS
@@ -2083,21 +2094,7 @@ impl Battle {
         }
 
         for f in &self.fires {
-            let ground = self.terrain.height_at(f.x);
-            let life = 1.0 - f.age / FIRE_TIME;
-            let flicker = gen_range(0.7, 1.0);
-            draw_circle(
-                f.x,
-                ground - 3.0,
-                4.0 + 3.0 * life * flicker,
-                Color::new(1.0, 0.45, 0.05, 0.8 * life),
-            );
-            draw_circle(
-                f.x,
-                ground - 4.0,
-                2.0 + 1.5 * life,
-                Color::new(1.0, 0.9, 0.4, life),
-            );
+            draw_flame(f, self.terrain.height_at(f.x));
         }
 
         if settings.battle_log {
@@ -2598,6 +2595,55 @@ fn damage_point(kind: Kind, landing: Landing, terrain: &Terrain) -> Vec2 {
             vec2(x, terrain.height_at(x))
         }
         _ => landing.pos,
+    }
+}
+
+/// A drop of napalm: a glowing patch on the ground and a flickering flame licking up from it, swaying and dying
+/// down as the drop burns out.
+fn draw_flame(f: &Fire, ground: f32) {
+    // Flares up in the first moments, then slowly dies down.
+    let life = (f.age / 0.25).clamp(0.0, 1.0) * (1.0 - f.age / FIRE_TIME);
+    let phase = f.seed * 40.0;
+    let x = f.x + (f.seed - 0.5) * 18.0;
+    let flicker = 0.7 + 0.3 * (f.age * 21.0 + phase).sin() * (f.age * 8.0 + phase * 0.7).cos();
+    let height = (18.0 + 16.0 * flicker) * life;
+    let sway = 3.0 * (f.age * 5.0 + phase).sin() * life;
+    let half = 5.0 + 2.0 * life;
+    draw_rectangle(
+        x - half,
+        ground - 1.5,
+        2.0 * half,
+        3.0,
+        Color::new(0.9, 0.2, 0.0, 0.5 * life),
+    );
+    draw_triangle(
+        vec2(x - half * 1.3, ground),
+        vec2(x + half * 1.3, ground),
+        vec2(x + sway * 1.2, ground - height * 1.1),
+        Color::new(0.85, 0.12, 0.0, 0.75 * life),
+    );
+    draw_triangle(
+        vec2(x - half, ground),
+        vec2(x + half, ground),
+        vec2(x + sway, ground - height * 0.8),
+        Color::new(1.0, 0.5, 0.0, 0.9 * life),
+    );
+    draw_triangle(
+        vec2(x - half * 0.5, ground),
+        vec2(x + half * 0.5, ground),
+        vec2(x + sway * 0.6, ground - height * 0.45),
+        Color::new(1.0, 0.88, 0.25, 0.95 * life),
+    );
+    // A spark now and then, rising off the flame.
+    let rise = (f.age * 1.3 + f.seed).fract();
+    if rise < 0.5 {
+        draw_rectangle(
+            x + sway * 1.5,
+            ground - height - 30.0 * rise,
+            1.5,
+            1.5,
+            Color::new(1.0, 0.75, 0.3, (1.0 - 2.0 * rise) * life),
+        );
     }
 }
 

@@ -309,8 +309,8 @@ A small preview under the World options shows the terrain and sky.
 
 Each terrain has its own look: rolling hills are green over brown earth, mountains are grey rock with snow on the
 highest peaks, flatlands are grassy, and the canyon is red sandstone in layers. The ground gets darker the deeper it
-goes, so craters show what's underneath. Explosions leave burnt, darker earth around their craters; it fades over a few
-turns, and then the grass grows back.
+goes, so craters show what's underneath. Explosions leave burnt, darker earth around their craters, and napalm singes
+the ground where it burns; it fades over a few turns, and then the grass grows back.
 
 Each sky has its own scenery: stars at night, a big low sun at sunset, the sun and a few clouds by day, and faint far
 hills on the horizon. It's only a backdrop: shots fly straight through it.
