@@ -121,7 +121,9 @@ The player's guide explains the rules; these are the exact values.
 
 The arrow keys move the focus to the nearest widget on screen that way: the one with the smallest distance that way plus
 3 times the gap across (0 for widgets in the same row or column). Up and Down go to the next or previous widget in
-drawing order when nothing is that way. On a setting (a selector), Left and Right change its value instead.
+drawing order when nothing is that way. On a setting (a selector), Left and Right change its value instead. Greyed-out
+buttons never take the focus: the keys skip them, hovering doesn't focus them, and if the focused one greys out the
+focus moves on to the next one that works.
 
 ### Mouse aiming
 
