@@ -20,12 +20,32 @@ pub struct Terrain {
     /// How the ground looks (the terrain type it was made as; older saves: rolling hills).
     #[serde(default)]
     look: Look,
+    /// Burnt earth around recent craters, fading turn by turn.
+    #[serde(default)]
+    scorch: Vec<Scorch>,
     /// Which terrain this is and how often it changed, so its picture is only repainted when needed.
     #[serde(skip, default = "new_id")]
     id: u64,
     #[serde(skip)]
     version: u64,
 }
+
+/// A darker, burnt rim around a crater: `heat` 1 when fresh, fading towards 0.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+struct Scorch {
+    x: f32,
+    y: f32,
+    radius: f32,
+    heat: f32,
+}
+
+/// The colour burnt earth goes towards.
+const CHARRED: [f32; 3] = [38.0, 30.0, 26.0];
+/// Burn marks kept at most; the oldest go first.
+const SCORCH_MAX: usize = 60;
+/// How much of its heat a burn mark keeps each turn, and below which heat it's gone (after 6 turns).
+const SCORCH_KEEP: f32 = 0.7;
+const SCORCH_GONE: f32 = 0.15;
 
 /// The ground's colours, by terrain type.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -150,6 +170,7 @@ impl Terrain {
         Self {
             ground,
             look,
+            scorch: Vec::new(),
             id: new_id(),
             version: 0,
         }
@@ -242,6 +263,32 @@ impl Terrain {
         });
     }
 
+    /// Leaves a burnt rim around a blast at `center`.
+    pub fn burn(&mut self, center: Vec2, radius: f32) {
+        self.version += 1;
+        if self.scorch.len() >= SCORCH_MAX {
+            self.scorch.remove(0);
+        }
+        self.scorch.push(Scorch {
+            x: center.x,
+            y: center.y,
+            radius,
+            heat: 1.0,
+        });
+    }
+
+    /// A turn went by: burn marks fade, and the faintest go away.
+    pub fn cool(&mut self) {
+        if self.scorch.is_empty() {
+            return;
+        }
+        self.version += 1;
+        for s in &mut self.scorch {
+            s.heat *= SCORCH_KEEP;
+        }
+        self.scorch.retain(|s| s.heat >= SCORCH_GONE);
+    }
+
     /// Lowers the ground by `depth` in every column from `x0` to `x1` (either order), like dirt sinking into a
     /// tunnel dug underneath.
     pub fn sink(&mut self, x0: f32, x1: f32, depth: f32) {
@@ -295,7 +342,12 @@ impl Terrain {
         for (x, &g) in self.ground.iter().enumerate() {
             let left = self.ground[x.saturating_sub(1)];
             let right = self.ground[(x + 1).min(WIDTH - 1)];
-            let steep = (right - left).abs() / 2.0 > 1.3;
+            // No grass on cliffs, nor where a blast burnt it (it grows back when the burn mark is gone).
+            let burnt = self
+                .scorch
+                .iter()
+                .any(|s| (x as f32 - s.x).abs() < s.radius + 4.0);
+            let steep = burnt || (right - left).abs() / 2.0 > 1.3;
             let top = g.max(0.0) as usize;
             for y in top..h {
                 let c = self.look.color(x, y, g, steep);
@@ -303,10 +355,42 @@ impl Terrain {
                 bytes[k..k + 4].copy_from_slice(&c);
             }
         }
+        for s in &self.scorch {
+            s.darken(&mut bytes);
+        }
         Image {
             bytes,
             width: WIDTH as u16,
             height: h as u16,
+        }
+    }
+}
+
+impl Scorch {
+    /// Chars the ground around the crater: most at its edge, fading out over the rim.
+    fn darken(&self, bytes: &mut [u8]) {
+        let rim = 6.0 + 0.5 * self.radius;
+        let reach = self.radius + rim;
+        let x0 = (self.x - reach).floor().max(0.0) as usize;
+        let x1 = ((self.x + reach).ceil().max(0.0) as usize).min(WIDTH - 1);
+        let y0 = (self.y - reach).floor().max(0.0) as usize;
+        let y1 = ((self.y + reach).ceil().max(0.0) as usize).min(HEIGHT as usize - 1);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let k = (y * WIDTH + x) * 4;
+                if bytes[k + 3] == 0 {
+                    continue;
+                }
+                let d = (x as f32 - self.x).hypot(y as f32 - self.y);
+                let edge = 1.0 - ((d - self.radius) / rim).clamp(0.0, 1.0);
+                // Ragged, not a perfect ring.
+                let burnt = 0.85 * self.heat * edge * (0.85 + 0.15 * grain(x, y + 7));
+                // Towards charred earth, so grass in the rim burns too.
+                for (c, char) in bytes[k..k + 3].iter_mut().zip(CHARRED) {
+                    let v = f32::from(*c);
+                    *c = (v + (char - v) * burnt) as u8;
+                }
+            }
         }
     }
 }
@@ -378,6 +462,28 @@ mod look_tests {
         t.look = Look::Mountains;
         let top = pixel(&t.paint(), 640, 201);
         assert!(top[0] > 220 && top[2] > 220, "white: {top:?}");
+    }
+
+    #[test]
+    fn burn_marks_darken_the_rim_and_fade() {
+        let mut t = Terrain::from_fn(|_| 500.0);
+        t.carve(vec2(640.0, 500.0), 30.0);
+        let plain = pixel(&t.paint(), 640, 535);
+        t.burn(vec2(640.0, 500.0), 30.0);
+        let burnt = pixel(&t.paint(), 640, 535);
+        assert!(
+            f32::from(burnt[0]) < 0.8 * f32::from(plain[0]),
+            "dark under the crater: {burnt:?} vs {plain:?}"
+        );
+        let far = pixel(&t.paint(), 900, 600);
+        assert_eq!(far, pixel(&Terrain::from_fn(|_| 500.0).paint(), 900, 600));
+        for _ in 0..4 {
+            t.cool();
+        }
+        t.cool();
+        assert_eq!(t.scorch.len(), 1, "still faintly there after 5 turns");
+        t.cool();
+        assert!(t.scorch.is_empty(), "gone after 6 turns");
     }
 
     #[test]

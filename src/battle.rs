@@ -1319,6 +1319,7 @@ impl Battle {
             Sfx::Blast
         });
         self.terrain.carve(pos, radius);
+        self.terrain.burn(pos, radius);
         self.explosions.push(Explosion {
             pos,
             radius,
@@ -1651,6 +1652,7 @@ impl Battle {
 
     fn next_turn(&mut self, players: &[Player]) {
         self.tracer = TracerTurn::Unused;
+        self.terrain.cool();
         // A deflector a blast drained to 0 while things settled goes down now.
         self.drop_spent_deflectors(players);
         // The shot hurt no enemy.
