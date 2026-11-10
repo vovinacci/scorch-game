@@ -1155,3 +1155,38 @@ fn coaching_stays_on_screen_until_the_next_shot_and_skips_the_feed() {
         "gone once the next shot is fired"
     );
 }
+
+#[test]
+fn a_tracer_does_not_end_the_turn_and_only_one_is_allowed() {
+    let (mut players, mut b) = coached(|_| 600.0, 0.0);
+    players[0].ammo[weapon("Missile")] = 2;
+    b.tanks[0].last_weapon = weapon("Missile");
+    let turns = b.turns;
+    players[0].ammo[weapon("Tracer")] = 2;
+    fire_and_settle(&mut b, &mut players, weapon("Tracer"), 45.0, 400.0);
+    assert_eq!(b.current, 0, "the same tank aims again");
+    assert_eq!(b.turns, turns, "no new turn");
+    assert!(matches!(b.phase, Phase::Aim { .. }));
+    assert_eq!(
+        b.tanks[0].weapon,
+        weapon("Missile"),
+        "back to the weapon fired last"
+    );
+    assert_eq!(b.tracers.len(), 1);
+
+    // A second Tracer this turn becomes a Baby Missile, which ends the turn.
+    b.tanks[0].weapon = weapon("Tracer");
+    b.fire(&mut players);
+    assert_eq!(
+        players[0].ammo[weapon("Tracer")],
+        1,
+        "the second Tracer wasn't used"
+    );
+    for _ in 0..40_000 {
+        if !matches!(b.phase, Phase::Flight | Phase::Settle) {
+            break;
+        }
+        b.update(STEP, &mut players);
+    }
+    assert_ne!(b.current, 0, "this time the turn passed");
+}

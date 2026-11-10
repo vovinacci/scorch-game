@@ -137,6 +137,9 @@ struct Tank {
     /// Who hit this tank since its last shot. Bots shoot back.
     #[serde(default)]
     revenge: Option<usize>,
+    /// The last weapon this tank fired (not a Tracer), to go back to after a Tracer.
+    #[serde(skip)]
+    last_weapon: usize,
     /// Aiming help: the enemy this tank's last missed shot was meant for, until its next turn.
     #[serde(skip)]
     coach_target: Option<usize>,
@@ -261,6 +264,17 @@ const COACH_LITTLE: f32 = 25.0;
 const COACH_SOME: f32 = 75.0;
 /// Coaching counts a power as reaching the target when it lands this close (px).
 const COACH_REACH: f32 = 40.0;
+
+/// The current turn's Tracer.
+#[derive(Clone, Copy, Default, PartialEq)]
+enum TracerTurn {
+    #[default]
+    Unused,
+    /// In the air: when it's down, the same tank aims again.
+    Flying,
+    /// Fired and landed: no second one this turn.
+    Used,
+}
 
 /// What the aiming preview depends on: whose turn, the aim and the wind.
 #[derive(Clone, Copy, PartialEq)]
@@ -457,6 +471,9 @@ pub struct Battle {
     /// `None` in battles saved before Random existed: nothing was random then.
     #[serde(default)]
     setup_world: Option<World>,
+    /// This turn's Tracer: one per turn, and it doesn't end the turn.
+    #[serde(skip)]
+    tracer: TracerTurn,
     /// The current shot hurt an enemy (or dropped one): not a miss.
     #[serde(skip)]
     shot_hit: bool,
@@ -516,6 +533,7 @@ impl Battle {
                     last_trail: Vec::new(),
                     aim: None,
                     revenge: None,
+                    last_weapon: 0,
                     coaching: None,
                     coach_target: None,
                     shield: None,
@@ -551,6 +569,7 @@ impl Battle {
             drag: None,
             setup_world: Some(chosen),
             tracers: Vec::new(),
+            tracer: TracerTurn::Unused,
             shot_hit: false,
             coach_shot: None,
             preview: std::cell::RefCell::default(),
@@ -749,6 +768,7 @@ impl Battle {
         let player = &players[i];
         let strip = weapon_strip(player);
         self.mouse_aim(&strip, max_power);
+        let tracer_used = self.tracer != TracerTurn::Unused;
         let tank = &mut self.tanks[i];
         let shift = is_key_down(KeyCode::LeftShift);
         let fine = if shift { FINE } else { 1.0 };
@@ -774,10 +794,11 @@ impl Battle {
         // Weapon strip: click a weapon, or press its key.
         let clicked = is_mouse_button_pressed(MouseButton::Left).then(ui::mouse);
         for (k, &(w, r)) in strip.iter().enumerate() {
-            if STRIP_KEYS
+            if (STRIP_KEYS
                 .get(k)
                 .is_some_and(|&(key, _)| is_key_pressed(key))
-                || clicked.is_some_and(|m| r.contains(m))
+                || clicked.is_some_and(|m| r.contains(m)))
+                && !(tracer_used && WEAPONS[w].kind.is_probe())
             {
                 tank.weapon = w;
             }
@@ -786,7 +807,7 @@ impl Battle {
             // Cycle to the next weapon we have ammo for.
             for step in 1..=WEAPONS.len() {
                 let w = (tank.weapon + step) % WEAPONS.len();
-                if player.has(w) {
+                if player.has(w) && !(tracer_used && WEAPONS[w].kind.is_probe()) {
                     tank.weapon = w;
                     break;
                 }
@@ -833,15 +854,27 @@ impl Battle {
     fn fire(&mut self, players: &mut [Player]) {
         let i = self.current;
         let tank = &mut self.tanks[i];
-        let weapon = if players[i].has(tank.weapon) {
+        let mut weapon = if players[i].has(tank.weapon) {
             tank.weapon
         } else {
             0
         };
+        // One Tracer per turn: a second one is a Baby Missile instead (selecting it again is blocked anyway).
+        if WEAPONS[weapon].kind.is_probe() && self.tracer != TracerTurn::Unused {
+            weapon = 0;
+        }
         if weapon != 0 {
             players[i].ammo[weapon] -= 1;
         }
         let probe = WEAPONS[weapon].kind.is_probe();
+        if probe {
+            self.tracer = TracerTurn::Flying;
+            // Back to the weapon fired last, for the real shot.
+            let back = tank.last_weapon;
+            tank.weapon = if players[i].has(back) { back } else { 0 };
+        } else {
+            tank.last_weapon = weapon;
+        }
         if !probe {
             players[i].round_stats.shots += 1;
         }
@@ -1481,11 +1514,24 @@ impl Battle {
         if busy {
             return;
         }
+        self.after_settling(players);
+    }
+
+    /// Everything has come to rest: the round ends, sudden death drains, a Tracer's shooter aims again, or the next
+    /// turn starts.
+    fn after_settling(&mut self, players: &mut [Player]) {
         let alive = self.tanks.iter().filter(|t| t.alive).count();
         if alive <= 1 {
             let winner = self.tanks.iter().position(|t| t.alive);
             self.phase = Phase::Over { timer: 2.5, winner };
             self.sounds.push(Sfx::RoundEnd);
+        } else if self.tracer == TracerTurn::Flying {
+            // A Tracer doesn't end the turn: the same tank aims again (no new turn, no sudden death drain).
+            self.tracer = TracerTurn::Used;
+            self.phase = Phase::Aim {
+                think: 0.0,
+                plan: None,
+            };
         } else if self.sudden_death_active() && !self.drained {
             // Sudden death: everyone loses health, then settle again for any deaths.
             self.drained = true;
@@ -1604,6 +1650,7 @@ impl Battle {
     }
 
     fn next_turn(&mut self, players: &[Player]) {
+        self.tracer = TracerTurn::Unused;
         // A deflector a blast drained to 0 while things settled goes down now.
         self.drop_spent_deflectors(players);
         // The shot hurt no enemy.
@@ -2095,7 +2142,7 @@ impl Battle {
         let tank = &self.tanks[self.current];
         // Your turn only: on bot turns the bottom of the screen has the skip button.
         if matches!(self.phase, Phase::Aim { .. }) && !player.is_bot() {
-            draw_weapon_strip(player, tank.weapon);
+            draw_weapon_strip(player, tank.weapon, self.tracer != TracerTurn::Unused);
             // A tank down in a deep valley or crater behind the strip is drawn again on top of it (without its
             // name, which would run into the strip's text), so it stays in sight.
             let strip = weapon_strip(player);
@@ -2394,10 +2441,11 @@ fn guide_dot(p: Vec2, color: Color) {
     draw_circle(p.x, p.y, 1.5, color);
 }
 
-/// The strip, on your turn.
-fn draw_weapon_strip(player: &Player, selected: usize) {
+/// The strip, on your turn. A Tracer already fired this turn (`tracer_used`) is dimmed: one per turn.
+fn draw_weapon_strip(player: &Player, selected: usize, tracer_used: bool) {
     for (k, (w, r)) in weapon_strip(player).into_iter().enumerate() {
         let on = w == selected;
+        let spent = tracer_used && WEAPONS[w].kind.is_probe();
         // Fully opaque: nothing behind (a tank's name in a deep crater) shows through the text.
         draw_rectangle(
             r.x,
@@ -2417,7 +2465,13 @@ fn draw_weapon_strip(player: &Player, selected: usize) {
         draw_rectangle_lines(r.x, r.y, r.w, r.h, if on { 2.0 } else { 1.0 }, border);
         let key = STRIP_KEYS.get(k).map_or("", |&(_, label)| label);
         let text = format!("{key}{} {}", WEAPONS[w].text(), player.ammo_label(w));
-        let color = if on { WHITE } else { LIGHTGRAY };
+        let color = if spent {
+            GRAY
+        } else if on {
+            WHITE
+        } else {
+            LIGHTGRAY
+        };
         ui::text_centered_fit(&text, r.center().x, r.y + 18.0, r.w - 8.0, 16.0, color);
     }
 }

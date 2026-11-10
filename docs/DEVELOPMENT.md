@@ -180,11 +180,14 @@ The player's guide explains the rules; these are the exact values.
   the death blast.
 - MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,
   centred on the shell's (MIRV 5 x 45 px/s, Death's Head 9 x 30 px/s).
-- Tracer is a probe: no shot in accuracy stats, no "missed" in the log, no Mag Deflector charge. Its path is kept in
-  `Battle::tracers` (saved with the battle) with points thinned to 6 px apart, and drawn every phase until the round
-  ends: every other 6 px segment in the shooter's colour (alpha 0.85, 1.5 px) over a dark edge (3.5 px, alpha 0.45);
-  segments above the screen are skipped. It doesn't replace the shooter's last real shot path (every 6th point in white,
-  alpha 0.3, while aiming).
+- Tracer is a probe: no shot in accuracy stats, no "missed" in the log, no Mag Deflector charge. It doesn't end the turn
+  (`TracerTurn`): once it lands, the same tank aims again with its last real weapon, no turn passes and sudden death
+  doesn't drain; a second one that turn is blocked (fired anyway, it becomes a Baby Missile). Balance: a look turns a
+  rough shot into a close one, worth +15 to +39 damage depending on the weapon (0 for a Roller), against $25. Its path
+  is kept in `Battle::tracers` (saved with the battle) with points thinned to 6 px apart, and drawn every phase until
+  the round ends: every other 6 px segment in the shooter's colour (alpha 0.85, 1.5 px) over a dark edge (3.5 px, alpha
+  0.45); segments above the screen are skipped. It doesn't replace the shooter's last real shot path (every 6th point in
+  white, alpha 0.3, while aiming).
 - Riot Bomb carves a circle of radius 60. When a Riot Bomb lands or a Digger finishes its trench, every enemy tank over
   the changed ground that is no longer held up (the same support test as falling: the highest ground under its 24 px
   width) gets the shooter as last hitter and revenge target, and the log says its ground gave way. So a deadly fall is
