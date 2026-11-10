@@ -1138,3 +1138,21 @@ fn a_spent_deflector_absorbs_nothing_and_adds_nothing() {
     b.drop_spent_deflectors(&players);
     assert!(b.tanks[1].shield.is_none());
 }
+
+#[test]
+fn coaching_stays_on_screen_until_the_next_shot() {
+    let (mut players, mut b) = coached(|_| 600.0, 0.0);
+    fire_and_settle(&mut b, &mut players, 0, 45.0, 300.0);
+    let line = b.tanks[0]
+        .coaching
+        .clone()
+        .expect("a coaching line for the shooter");
+    assert!(line.contains("px short of"), "{line}");
+    assert!(b.log.iter().any(|l| l.text == line), "also in the feed");
+    b.current = 0;
+    b.fire(&mut players);
+    assert!(
+        b.tanks[0].coaching.is_none(),
+        "gone once the next shot is fired"
+    );
+}
