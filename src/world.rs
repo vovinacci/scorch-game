@@ -267,18 +267,19 @@ impl Sky {
             }
             Sky::Day => {
                 draw_sun(
-                    at(1010.0, 150.0),
+                    // Left of the turn panel in the top right corner.
+                    at(820.0, 120.0),
                     26.0 * scale,
                     Color::new(1.0, 0.98, 0.86, 1.0),
                     0.02,
                 );
                 for (cx, cy, w) in [
-                    (210.0, 170.0, 1.0),
-                    (560.0, 115.0, 0.7),
-                    (760.0, 250.0, 0.85),
-                    (1180.0, 300.0, 0.6),
+                    (230.0, 150.0, 1.0),
+                    (520.0, 240.0, 0.8),
+                    (1040.0, 260.0, 0.9),
+                    (380.0, 330.0, 0.6),
                 ] {
-                    draw_cloud(at, scale, cx, cy, w, sky(cy, WHITE, 0.35));
+                    draw_cloud(at, scale, cx, cy, w);
                 }
             }
         }
@@ -307,18 +308,29 @@ impl Sky {
     }
 }
 
-/// A soft cloud of overlapping puffs centred at (`x`, `y`), `size` times the full size.
-fn draw_cloud(at: impl Fn(f32, f32) -> Vec2, scale: f32, x: f32, y: f32, size: f32, color: Color) {
-    let puffs = [
-        (-60.0, 8.0, 26.0),
-        (-25.0, -6.0, 34.0),
-        (15.0, -12.0, 38.0),
-        (55.0, 2.0, 28.0),
-        (85.0, 10.0, 20.0),
+/// A thin, wispy cloud centred at (`x`, `y`), `size` times the full size: a few long, flat streaks, each fading out
+/// towards its edges.
+fn draw_cloud(at: impl Fn(f32, f32) -> Vec2, scale: f32, x: f32, y: f32, size: f32) {
+    // (offset x, offset y, half length, half height)
+    let streaks = [
+        (0.0, 0.0, 110.0, 9.0),
+        (-50.0, 7.0, 70.0, 6.0),
+        (60.0, -6.0, 80.0, 6.0),
+        (20.0, 12.0, 50.0, 4.0),
     ];
-    for (dx, dy, radius) in puffs {
-        let puff = at(x + dx * size, y + dy * size);
-        draw_circle(puff.x, puff.y, radius * size * scale, color);
+    for (dx, dy, w, h) in streaks {
+        let c = at(x + dx * size, y + dy * size);
+        for k in 0..6 {
+            let shrink = 1.0 - k as f32 * 0.14;
+            draw_ellipse(
+                c.x,
+                c.y,
+                w * size * scale * shrink,
+                h * size * scale * shrink,
+                0.0,
+                Color::new(1.0, 1.0, 1.0, 0.05),
+            );
+        }
     }
 }
 

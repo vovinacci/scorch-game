@@ -194,8 +194,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
 
 - Night: 140 stars between y 40 and 460, more of them higher up, fading towards the horizon; one in ten is 2 px.
 - Sunset: a sun of radius 40 at (900, 455), partly behind the far hills.
-- Day: a sun of radius 26 at (1010, 150) and four clouds of five overlapping puffs, a 35% blend of the sky towards
-  white.
+- Day: a sun of radius 26 at (820, 120), left of the turn panel, and four thin wispy clouds: each a few long, flat
+  streaks of white, six nested ellipses at 5% each, so they fade out towards their edges.
 - Suns have a glow out to three times their radius, in 16 faint steps.
 - Two rows of far hills (tops around y 370 to 440 and 445 to 500) in the sky's own colour at their height, 8% and 14%
   darker.
