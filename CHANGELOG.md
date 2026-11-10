@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/vovinacci/scorch-game/compare/v0.5.0...v0.6.0) - 2026-11-10
+
+### Features
+
+- *(weapons)* napalm burns as flickering flames and singes the ground ([#79](https://github.com/vovinacci/scorch-game/pull/79))
+- *(terrain)* blasts leave burnt earth around craters that fades over turns ([#77](https://github.com/vovinacci/scorch-game/pull/77))
+- *(menu)* New game warns that the saved game will be abandoned ([#76](https://github.com/vovinacci/scorch-game/pull/76))
+- *(world)* sky scenery: stars, sun, clouds and far hills ([#75](https://github.com/vovinacci/scorch-game/pull/75))
+- *(terrain)* paint the ground in layers with a palette per terrain type ([#74](https://github.com/vovinacci/scorch-game/pull/74))
+- *(weapons)* a Tracer doesn't end your turn, one per turn, 2 for $50 ([#72](https://github.com/vovinacci/scorch-game/pull/72))
+- *(setup)* coaching gives power advice for your next turn ([#71](https://github.com/vovinacci/scorch-game/pull/71))
+- *(setup)* coaching shows on screen through your next turn ([#69](https://github.com/vovinacci/scorch-game/pull/69))
+
+### Fixes
+
+- *(ui)* arrow keys move to the nearest button that way, skipping greyed-out ones ([#80](https://github.com/vovinacci/scorch-game/pull/80))
+- *(weapons)* a Roller fired by a buried tank explodes in the dirt ([#78](https://github.com/vovinacci/scorch-game/pull/78))
+- *(ui)* text panels only on the day sky, and lighter ([#73](https://github.com/vovinacci/scorch-game/pull/73))
+- *(ui)* battle log rows, readable text on the day sky ([#68](https://github.com/vovinacci/scorch-game/pull/68))
+
 ## [0.5.0](https://github.com/vovinacci/scorch-game/compare/v0.4.1...v0.5.0) - 2026-11-08
 
 ### Features
