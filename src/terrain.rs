@@ -36,6 +36,8 @@ struct Scorch {
 
 /// The colour burnt earth goes towards.
 const CHARRED: [f32; 3] = [38.0, 30.0, 26.0];
+/// A new burn mark this close to one of the same size only makes that one fresh again.
+const SCORCH_MERGE: f32 = 8.0;
 /// Burn marks kept at most; the oldest go first.
 const SCORCH_MAX: usize = 60;
 /// How much of its heat a burn mark keeps each turn, and below which heat it's gone (after 6 turns).
@@ -251,11 +253,13 @@ impl Terrain {
 
     /// Leaves a burnt rim around a blast at `center`.
     pub fn burn(&mut self, center: Vec2, radius: f32) {
-        // Burning the same spot again (napalm drops running together) makes it fresh, not a new mark.
+        // Burning the same spot again (napalm drops running together) makes it fresh, not a new mark. Craters
+        // next to each other each keep their own.
+        let near = radius.min(SCORCH_MERGE);
         if let Some(s) = self
             .scorch
             .iter_mut()
-            .find(|s| (s.radius - radius).abs() < 1.0 && vec2(s.x, s.y).distance(center) < radius)
+            .find(|s| (s.radius - radius).abs() < 1.0 && vec2(s.x, s.y).distance(center) < near)
         {
             s.heat = 1.0;
             return;
@@ -608,6 +612,10 @@ mod look_tests {
         assert!((t.scorch[0].heat - 1.0).abs() < 1e-6);
         t.burn(vec2(330.0, 500.0), 4.0);
         assert_eq!(t.scorch.len(), 2);
+        // Two big craters side by side are two marks, however much they overlap.
+        t.burn(vec2(600.0, 500.0), 85.0);
+        t.burn(vec2(650.0, 500.0), 85.0);
+        assert_eq!(t.scorch.len(), 4);
     }
 
     #[test]
