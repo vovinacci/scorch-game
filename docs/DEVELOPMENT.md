@@ -166,6 +166,11 @@ pad, a landslide). Each terrain type has a palette of top edge, topsoil and deep
 - The canyon has rock layers built from 9 px slices in five close shades (93% to 105%), so layers come out uneven in
   thickness; their lines wave gently and tilt slightly across the screen.
 - Every pixel gets a little fixed grain (up to 4% lighter or darker).
+- Every blast (also a tank blowing up; not Dirt Bomb, Riot Bomb, Digger or napalm) leaves a burn mark: the earth within
+  6 px + half the radius outside the crater blends towards charred brown, up to 85% at the crater's edge and fading out
+  over that rim. Each new turn a mark keeps 70% of its heat, so it's gone after 6 turns; there are at most 60 at a time.
+  There is no grass within the blast radius + 4 px of a mark's centre (left and right) until it's gone. Marks are saved
+  with the terrain.
 
 The look is saved with the terrain, so a resumed game looks the same. Older saves show as Rolling hills.
 
