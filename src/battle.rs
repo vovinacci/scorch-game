@@ -1006,10 +1006,10 @@ impl Battle {
         ground: bool,
         players: &mut [Player],
     ) -> Option<Projectile> {
-        // A shell fired from under the dirt (a buried tank) never got out of the ground.
+        // A shell fired from under the dirt (a buried tank) never got out of the ground. It goes off once, where
+        // it is: nothing rolls, hops, scatters or runs out to the surface.
         let buried = p.trail.iter().all(|&q| self.terrain.is_solid(q));
         match WEAPONS[p.weapon].kind {
-            // A Roller only rolls on the surface: under the dirt it explodes where it is.
             Kind::Roller if ground && !buried => {
                 p.pos.y = self.terrain.height_at(p.pos.x) - 3.0;
                 let dir = downhill(&self.terrain, p.pos.x).unwrap_or(sign(p.vel.x));
@@ -1026,7 +1026,7 @@ impl Battle {
             }
             Kind::Leapfrog { hops } if ground => {
                 self.detonate(p.pos, p.weapon, p.owner, players);
-                if p.hops < hops {
+                if p.hops < hops && !buried {
                     p.hops += 1;
                     // Each hop is a new pass, paying again, except to a deflector this shell spent: that one keeps
                     // pushing it.
@@ -1039,6 +1039,7 @@ impl Battle {
             Kind::Funky { bomblets } if !p.child => {
                 self.detonate(p.pos, p.weapon, p.owner, players);
                 let from = vec2(p.pos.x, p.pos.y.min(self.terrain.height_at(p.pos.x)) - 4.0);
+                let bomblets = if buried { 0 } else { bomblets };
                 for _ in 0..bomblets {
                     let angle = gen_range(200.0_f32, 340.0).to_radians();
                     let speed = gen_range(BOMBLET_SPEED.0, BOMBLET_SPEED.1);
@@ -1046,6 +1047,11 @@ impl Battle {
                     self.projectiles
                         .push(Projectile::new(from, vel, p.weapon, p.owner, true));
                 }
+            }
+            // Fire needs air: under the dirt napalm only smoulders out.
+            Kind::Napalm if buried => {
+                self.dirt_burst(p.pos, 12.0);
+                self.log(t!("log-smothered"), GRAY);
             }
             Kind::Napalm => self.ignite(p.pos.x, p.owner),
             // A Tracer only leaves its path (see `landed`).

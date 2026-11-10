@@ -295,6 +295,7 @@ log-fires = { $you ->
    *[no] { $name } стріляє
 }: { $weapon }, кут { $angle }, сила { $power }
 log-miss = {"  "}- мимо
+log-smothered = Напалм згас під землею
 coach-more-little = { $name }: трохи більше сили
 coach-more = { $name }: більше сили
 coach-more-lot = { $name }: набагато більше сили

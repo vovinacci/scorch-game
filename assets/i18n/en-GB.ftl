@@ -286,6 +286,7 @@ log-fires = { $you ->
    *[no] { $name } fires
 } { $weapon }: angle { $angle }, power { $power }
 log-miss = {"  "}- miss
+log-smothered = The napalm is smothered by the dirt
 coach-more-little = { $name }: a little more power
 coach-more = { $name }: more power
 coach-more-lot = { $name }: a lot more power
