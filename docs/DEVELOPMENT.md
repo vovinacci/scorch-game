@@ -195,8 +195,9 @@ The player's guide explains the rules; these are the exact values.
 - Weapon strip: up to 7 boxes per row (at most 150 px wide), extra rows above; keys 1-9, 0, -, = for the first 12. The
   boxes are opaque. Generated ground reaches y 690 and craters go lower, so a tank whose area (its name's width, 76 px
   tall) overlaps a box is drawn again on top of the strip, body only (`draw_tank_body`).
-- Over the battlefield, the log feed and the top-right lines sit on `backing` (the panel colour at 85%), and aiming dots
-  are `guide_dot`s with a dark edge, so they read on the day sky.
+- Over the battlefield, the log feed, the top-right lines and the coaching line sit on `backing`: the panel colour at
+  40% on the Day sky, nothing on Night and Sunset (`backing_alpha`), where the text outline is enough. Aiming dots are
+  `guide_dot`s with a dark edge.
 
 ### Parachutes and shields
 
