@@ -266,6 +266,15 @@ impl Terrain {
     /// Leaves a burnt rim around a blast at `center`.
     pub fn burn(&mut self, center: Vec2, radius: f32) {
         self.version += 1;
+        // Burning the same spot again (napalm drops running together) makes it fresh, not a new mark.
+        if let Some(s) = self
+            .scorch
+            .iter_mut()
+            .find(|s| (s.radius - radius).abs() < 1.0 && vec2(s.x, s.y).distance(center) < radius)
+        {
+            s.heat = 1.0;
+            return;
+        }
         if self.scorch.len() >= SCORCH_MAX {
             self.scorch.remove(0);
         }
@@ -484,6 +493,18 @@ mod look_tests {
         assert_eq!(t.scorch.len(), 1, "still faintly there after 5 turns");
         t.cool();
         assert!(t.scorch.is_empty(), "gone after 6 turns");
+    }
+
+    #[test]
+    fn burning_the_same_spot_again_refreshes_the_mark() {
+        let mut t = Terrain::from_fn(|_| 500.0);
+        t.burn(vec2(300.0, 500.0), 4.0);
+        t.cool();
+        t.burn(vec2(302.0, 500.0), 4.0);
+        assert_eq!(t.scorch.len(), 1);
+        assert!((t.scorch[0].heat - 1.0).abs() < 1e-6);
+        t.burn(vec2(330.0, 500.0), 4.0);
+        assert_eq!(t.scorch.len(), 2);
     }
 
     #[test]
