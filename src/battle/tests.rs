@@ -1190,3 +1190,10 @@ fn a_tracer_does_not_end_the_turn_and_only_one_is_allowed() {
     }
     assert_ne!(b.current, 0, "this time the turn passed");
 }
+
+#[test]
+fn text_panels_only_on_the_day_sky() {
+    assert!(backing_alpha(Sky::Day) > 0.0 && backing_alpha(Sky::Day) <= 0.5);
+    assert_eq!(backing_alpha(Sky::Night), 0.0);
+    assert_eq!(backing_alpha(Sky::Sunset), 0.0);
+}
