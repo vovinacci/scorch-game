@@ -215,7 +215,129 @@ impl Sky {
                 c,
             );
         }
+        self.draw_details(r, top, bottom);
     }
+
+    /// Stars, the sun, clouds and far hills, all still and faint, drawn in screen coordinates squeezed into `r`.
+    fn draw_details(self, area: Rect, top: Color, bottom: Color) {
+        let scale = area.w / WIDTH as f32;
+        let at = |x: f32, y: f32| vec2(area.x + x * scale, area.y + y * area.h / HEIGHT);
+        // The sky's own colour at screen height `y`, blended `amount` of the way towards `to`.
+        let sky = |y: f32, to: Color, amount: f32| {
+            let frac = (y / HEIGHT).clamp(0.0, 1.0);
+            let blend = |a: f32, b: f32, o: f32| {
+                let v = a + (b - a) * frac;
+                v + (o - v) * amount
+            };
+            Color::new(
+                blend(top.r, bottom.r, to.r),
+                blend(top.g, bottom.g, to.g),
+                blend(top.b, bottom.b, to.b),
+                1.0,
+            )
+        };
+        match self {
+            Sky::Night | Sky::Random => {
+                for i in 0..140 {
+                    let (x, y) = (
+                        hash(i, 1) * WIDTH as f32,
+                        40.0 + hash(i, 2).powf(1.6) * 420.0,
+                    );
+                    // Fewer and fainter stars towards the horizon.
+                    let a = (0.25 + 0.55 * hash(i, 3)) * (1.0 - y / 520.0);
+                    let size = if hash(i, 4) > 0.9 { 2.0 } else { 1.0 };
+                    let p = at(x, y);
+                    draw_rectangle(
+                        p.x,
+                        p.y,
+                        size * scale.max(0.5),
+                        size * scale.max(0.5),
+                        Color::new(1.0, 1.0, 0.95, a),
+                    );
+                }
+            }
+            Sky::Sunset => {
+                // A big low sun, partly behind the far hills, with a soft glow.
+                draw_sun(
+                    at(900.0, 455.0),
+                    40.0 * scale,
+                    Color::new(1.0, 0.8, 0.5, 1.0),
+                    0.03,
+                );
+            }
+            Sky::Day => {
+                draw_sun(
+                    at(1010.0, 150.0),
+                    26.0 * scale,
+                    Color::new(1.0, 0.98, 0.86, 1.0),
+                    0.02,
+                );
+                for (cx, cy, w) in [
+                    (210.0, 170.0, 1.0),
+                    (560.0, 115.0, 0.7),
+                    (760.0, 250.0, 0.85),
+                    (1180.0, 300.0, 0.6),
+                ] {
+                    draw_cloud(at, scale, cx, cy, w, sky(cy, WHITE, 0.35));
+                }
+            }
+        }
+        // Two rows of far hills in the colours of the sky: scenery only, nothing hits them.
+        for (row, (base, height, shade)) in [(440.0, 70.0, 0.08), (500.0, 55.0, 0.14)]
+            .into_iter()
+            .enumerate()
+        {
+            // A touch darker than the sky behind the hilltops, so they stay in the distance.
+            let c = sky(base - height, BLACK, shade);
+            let phase = row as f32 * 2.7;
+            let step = 4.0;
+            let mut x = 0.0;
+            while x < WIDTH as f32 {
+                let y = base
+                    - height
+                        * (0.5
+                            + 0.3 * (x * 0.004 + phase).sin()
+                            + 0.2 * (x * 0.011 + phase * 1.7).sin());
+                let p = at(x, y);
+                let bottom_edge = at(x, HEIGHT);
+                draw_rectangle(p.x, p.y, step * scale + 0.5, bottom_edge.y - p.y, c);
+                x += step;
+            }
+        }
+    }
+}
+
+/// A soft cloud of overlapping puffs centred at (`x`, `y`), `size` times the full size.
+fn draw_cloud(at: impl Fn(f32, f32) -> Vec2, scale: f32, x: f32, y: f32, size: f32, color: Color) {
+    let puffs = [
+        (-60.0, 8.0, 26.0),
+        (-25.0, -6.0, 34.0),
+        (15.0, -12.0, 38.0),
+        (55.0, 2.0, 28.0),
+        (85.0, 10.0, 20.0),
+    ];
+    for (dx, dy, radius) in puffs {
+        let puff = at(x + dx * size, y + dy * size);
+        draw_circle(puff.x, puff.y, radius * size * scale, color);
+    }
+}
+
+/// A sun of `radius` at `p` in `color`, with a glow fading out over twice its size in many faint steps.
+fn draw_sun(p: Vec2, radius: f32, color: Color, glow: f32) {
+    for k in (1..=16).rev() {
+        let c = Color { a: glow, ..color };
+        draw_circle(p.x, p.y, radius * (1.0 + k as f32 / 8.0), c);
+    }
+    draw_circle(p.x, p.y, radius, color);
+}
+
+/// A fixed pseudo-random number in 0..1 for (`i`, `salt`), so the sky looks the same every frame.
+fn hash(i: u32, salt: u32) -> f32 {
+    let mut n = i.wrapping_mul(0x9E37_79B1) ^ salt.wrapping_mul(0x85EB_CA77);
+    n ^= n >> 15;
+    n = n.wrapping_mul(0x2C1B_3C6D);
+    n ^= n >> 12;
+    (n & 0xFFFF) as f32 / 65_536.0
 }
 
 #[cfg(test)]

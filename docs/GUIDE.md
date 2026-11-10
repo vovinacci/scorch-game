@@ -310,6 +310,9 @@ Each terrain has its own look: rolling hills are green over brown earth, mountai
 highest peaks, flatlands are grassy, and the canyon is red sandstone in layers. The ground gets darker the deeper it
 goes, so craters show what's underneath.
 
+Each sky has its own scenery: stars at night, a big low sun at sunset, the sun and a few clouds by day, and faint far
+hills on the horizon. It's only a backdrop: shots fly straight through it.
+
 ## When a round drags on
 
 - **Only bots left:** once no human tank is in the round, it plays at the bots-only speed (4x by default) and shows
