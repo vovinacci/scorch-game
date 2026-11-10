@@ -295,18 +295,17 @@ log-fires = { $you ->
    *[no] { $name } стріляє
 }: { $weapon }, кут { $angle }, сила { $power }
 log-miss = {"  "}- мимо
-log-coach-short = { $target_you ->
-    [yes] Недоліт: { $px } px до вашого танка
-   *[no] Недоліт: { $px } px до танка { $name }
-}
-log-coach-long = { $target_you ->
-    [yes] Переліт: { $px } px за ваш танк
-   *[no] Переліт: { $px } px за танк { $name }
-}
-log-coach-off-field = Вилетів за межі поля
-log-coach-wind = ; вітер зніс на { $px } px { $dir }
-coach-left = ліворуч
-coach-right = праворуч
+coach-more-little = { $name }: трохи більше сили
+coach-more = { $name }: більше сили
+coach-more-lot = { $name }: набагато більше сили
+coach-less-little = { $name }: трохи менше сили
+coach-less = { $name }: менше сили
+coach-less-lot = { $name }: набагато менше сили
+coach-power-right = { $name }: сила приблизно та; перевірте кут
+coach-aim-higher = { $name }: з цим кутом не дістати; цільтеся вище
+coach-aim-lower = { $name }: з цим кутом не дістати; цільтеся нижче
+coach-out-of-reach = { $name }: звідси не дістати
+coach-out-of-reach-health = { $name }: не дістати, бо пошкодження обмежує вашу силу
 log-hit = { $you ->
     [yes] Ви влучаєте
    *[no] { $name } влучає

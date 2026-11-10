@@ -286,18 +286,17 @@ log-fires = { $you ->
    *[no] { $name } fires
 } { $weapon }: angle { $angle }, power { $power }
 log-miss = {"  "}- miss
-log-coach-short = { $target_you ->
-    [yes] Came down { $px } px short of your tank
-   *[no] Came down { $px } px short of { $name }
-}
-log-coach-long = { $target_you ->
-    [yes] Came down { $px } px past your tank
-   *[no] Came down { $px } px past { $name }
-}
-log-coach-off-field = Flew off the field
-log-coach-wind = ; the wind moved it { $px } px { $dir }
-coach-left = left
-coach-right = right
+coach-more-little = { $name }: a little more power
+coach-more = { $name }: more power
+coach-more-lot = { $name }: a lot more power
+coach-less-little = { $name }: a little less power
+coach-less = { $name }: less power
+coach-less-lot = { $name }: a lot less power
+coach-power-right = { $name }: about the right power; check your angle
+coach-aim-higher = { $name }: out of reach at this angle; aim higher
+coach-aim-lower = { $name }: out of reach at this angle; aim lower
+coach-out-of-reach = { $name } is out of reach from here
+coach-out-of-reach-health = { $name } is out of reach: your damage limits your power
 log-hit = { $name } hit { $target }  -{ $dmg }
 log-hit-self = { $you ->
     [yes] You hit yourself

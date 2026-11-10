@@ -132,11 +132,13 @@ The player's guide explains the rules; these are the exact values.
   tanks ignored) and draws every 4th step as a dot, the first third of the steps (Short) or all (Full). The path is kept
   while turn, aim and wind stay the same.
 - Coaching (any level but Off): when a human fires, `fire` works out where the shell first comes down (the unsplit shell
-  for a MIRV, the first touch for a Roller, Digger or Leapfrog), with and without wind, on the terrain as it is then. If
-  the shot hurts no enemy, `coach` logs the distance from that point to the nearest enemy, short (before reaching it
-  along the line of fire) or past, plus the wind's drift when it is 20 px or more; with wrap-around walls distances go
-  the short way round. A shot that leaves the field says so. The line goes into the feed and the log, and is kept on the
-  shooter's tank (`Tank::coaching`) to show centred above the weapon strip through its next turn, until it fires.
+  for a MIRV, the first touch for a Roller, Digger or Leapfrog). If the shot hurts no enemy, `coach` picks the enemy it
+  was meant for: the nearest to that point (the short way round with wrap-around walls; off the field, the farthest that
+  way). At the shooter's next turn, `advise` searches the powers it can use (5 apart) at its current angle in that
+  turn's wind: within 40 px of the enemy, the gap to its power gives "a little" (up to 25), plain (up to 75) or "a lot"
+  more or less, or "about right" under 8; otherwise the angles 10-170 (5 apart) say whether to aim higher or lower, or
+  that nothing within its power reaches (mentioning damage when "Health limits power" cut it). The advice goes into the
+  full log and stays above the weapon strip (`Tank::coaching`) until the tank fires.
 - A shot is a miss when it hurts no enemy and drops none (`shot_hit`), whatever else gets logged that turn.
 
 ### Random world settings
