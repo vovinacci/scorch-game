@@ -38,6 +38,8 @@ const NAME_SIZE: f32 = 16.0;
 const BARREL: f32 = 18.0;
 /// Fixed physics step: the same shot always flies the same way, whatever the frame rate.
 const STEP: f32 = 1.0 / 120.0;
+/// Height of a line in the full battle log.
+const LOG_ROW: f32 = 24.0;
 const FALL_SPEED: f32 = 240.0;
 /// Falls shorter than this are free; every pixel beyond costs `FALL_DAMAGE` HP.
 pub const FALL_SAFE: f32 = 15.0;
@@ -1860,7 +1862,7 @@ impl Battle {
             let shown = (path.len() as f32 * share).ceil() as usize;
             for w in path[..shown.min(path.len())].windows(2).step_by(4) {
                 if !wraps(w[0], w[1]) {
-                    draw_circle(w[0].x, w[0].y, 1.5, Color::new(1.0, 0.95, 0.6, 0.6));
+                    guide_dot(w[0], Color::new(1.0, 0.95, 0.6, 0.8));
                 }
             }
         }
@@ -1875,13 +1877,13 @@ impl Battle {
             let steps = (from.distance(to) / 8.0) as usize;
             for k in 0..=steps {
                 let p = from.lerp(to, k as f32 / steps.max(1) as f32);
-                draw_circle(p.x, p.y, 1.5, Color::new(1.0, 1.0, 1.0, 0.5));
+                guide_dot(p, Color::new(1.0, 1.0, 1.0, 0.7));
             }
         }
 
         if settings.shot_path && matches!(self.phase, Phase::Aim { .. }) {
             for p in self.tanks[self.current].last_trail.iter().step_by(6) {
-                draw_circle(p.x, p.y, 1.5, Color::new(1.0, 1.0, 1.0, 0.3));
+                guide_dot(*p, Color::new(1.0, 1.0, 1.0, 0.45));
             }
         }
     }
@@ -1991,6 +1993,27 @@ impl Battle {
         }
 
         if settings.battle_log {
+            self.draw_feed();
+        }
+    }
+
+    /// Recent events, top left, fading out, on a dark backing.
+    fn draw_feed(&self) {
+        if !self.log.is_empty() {
+            let widest = self
+                .log
+                .iter()
+                .map(|line| ui::measure(&line.text, 18.0).width)
+                .fold(0.0, f32::max);
+            let fade = self
+                .log
+                .iter()
+                .map(|line| ((LOG_TIME - line.age) / 2.0).clamp(0.0, 1.0))
+                .fold(0.0, f32::max);
+            backing_faded(
+                Rect::new(8.0, 52.0, widest + 16.0, 22.0 * self.log.len() as f32 + 8.0),
+                fade,
+            );
             let mut y = 70.0;
             for line in &self.log {
                 let fade = ((LOG_TIME - line.age) / 2.0).clamp(0.0, 1.0);
@@ -2016,7 +2039,21 @@ impl Battle {
         let tank = &self.tanks[self.current];
         // Your turn only: on bot turns the bottom of the screen has the skip button.
         if matches!(self.phase, Phase::Aim { .. }) && !player.is_bot() {
-            draw_weapon_strip(player, tank.weapon, &self.tank_areas(players));
+            draw_weapon_strip(player, tank.weapon);
+            // A tank down in a deep valley or crater behind the strip is drawn again on top of it (without its
+            // name, which would run into the strip's text), so it stays in sight.
+            let strip = weapon_strip(player);
+            let areas = self.tank_areas(players);
+            let shown = self
+                .tanks
+                .iter()
+                .zip(players)
+                .filter(|(t, _)| t.alive && !t.fled);
+            for ((t, p), area) in shown.zip(areas) {
+                if covers_a_tank(&strip, &[area]) {
+                    draw_tank_body(t, p.color);
+                }
+            }
         }
         let name = player.label();
         ui::text_fit(&name, 16.0, 29.0, 260.0, 24.0, player.color);
@@ -2071,20 +2108,12 @@ impl Battle {
             }
             _ => t!("hud-turn", turn = self.turns + 1),
         };
-        let w = ui::measure(&turn, 18.0).width;
-        ui::text_at(&turn, ui::WIDTH - 16.0 - w, 66.0, 18.0, LIGHTGRAY);
-
-        // Random world settings picked for this round, under the turn counter.
-        let mut y = 88.0;
-        // One short line each, right-aligned, so they stay clear of the centred sudden death banner.
+        // Under it, one short line each for the Random picks (clear of the centred sudden death banner), then the
+        // current tank's shield. All right-aligned on a dark backing, readable on any sky.
+        let mut lines = vec![(turn, LIGHTGRAY)];
         for text in self.random_picks(false) {
-            let max = 300.0;
-            let w = ui::measure(&text, 18.0).width.min(max);
-            ui::text_fit(&text, ui::WIDTH - 16.0 - w, y, max, 18.0, SKYBLUE);
-            y += 22.0;
+            lines.push((text, SKYBLUE));
         }
-
-        // The current tank's shield, under that.
         if let Some(shield) = tank.shield_up() {
             let text = t!(
                 "hud-shield",
@@ -2092,8 +2121,23 @@ impl Battle {
                 energy = shield.shown(),
                 full = ITEMS[shield.item].shield_energy().unwrap_or(0.0)
             );
-            let w = ui::measure(&text, 18.0).width;
-            ui::text_at(&text, ui::WIDTH - 16.0 - w, y, 18.0, shield.color());
+            lines.push((text, shield.color()));
+        }
+        let max = 360.0;
+        let widths: Vec<f32> = lines
+            .iter()
+            .map(|(text, _)| ui::measure(text, 18.0).width.min(max))
+            .collect();
+        let widest = widths.iter().copied().fold(0.0, f32::max);
+        backing(Rect::new(
+            ui::WIDTH - 24.0 - widest,
+            50.0,
+            widest + 16.0,
+            22.0 * lines.len() as f32 + 8.0,
+        ));
+        for (k, ((text, color), w)) in lines.iter().zip(&widths).enumerate() {
+            let y = 66.0 + 22.0 * k as f32;
+            ui::text_fit(text, ui::WIDTH - 16.0 - w, y, max, 18.0, *color);
         }
 
         // Sudden death warning or banner.
@@ -2182,14 +2226,14 @@ pub fn draw_history(battle: &Battle) {
         GOLD,
     );
     let top = r.y + 90.0;
-    let rows = ((r.h - 160.0) / STEP) as usize;
+    let rows = ((r.h - 160.0) / LOG_ROW) as usize;
     if battle.history.is_empty() {
         ui::text_centered(&t!("history-empty"), r.center().x, top + 20.0, 20.0, GRAY);
     }
     let start = battle.history.len().saturating_sub(rows);
     let mut last_turn = None;
     for (k, line) in battle.history[start..].iter().enumerate() {
-        let y = top + k as f32 * STEP;
+        let y = top + k as f32 * LOG_ROW;
         // Show the turn number once per turn.
         if last_turn != Some(line.turn) {
             ui::text_at(
@@ -2257,21 +2301,45 @@ fn covers_a_tank(strip: &[(usize, Rect)], tanks: &[Rect]) -> bool {
         .any(|(_, r)| tanks.iter().any(|t| t.overlaps(r)))
 }
 
-/// The strip, on your turn. If a tank stands behind it (deep valleys and craters reach down there), the boxes turn
-/// see-through, so the tank stays visible; they still work.
-fn draw_weapon_strip(player: &Player, selected: usize, tanks: &[Rect]) {
-    let strip = weapon_strip(player);
-    let fill = if covers_a_tank(&strip, tanks) {
+/// A dark translucent panel behind text drawn over the battlefield, so it reads on a light sky too.
+fn backing(r: Rect) {
+    backing_faded(r, 1.0);
+}
+
+fn backing_faded(r: Rect, fade: f32) {
+    draw_rectangle(
+        r.x,
+        r.y,
+        r.w,
+        r.h,
         Color {
-            a: 0.25,
+            a: 0.85 * fade,
             ..ui::PANEL
-        }
-    } else {
-        ui::PANEL
-    };
-    for (k, (w, r)) in strip.into_iter().enumerate() {
+        },
+    );
+}
+
+/// A small dot with a dark edge, for aiming lines: visible on dark and light skies alike.
+fn guide_dot(p: Vec2, color: Color) {
+    draw_circle(p.x, p.y, 2.5, Color::new(0.0, 0.0, 0.0, 0.35 * color.a));
+    draw_circle(p.x, p.y, 1.5, color);
+}
+
+/// The strip, on your turn.
+fn draw_weapon_strip(player: &Player, selected: usize) {
+    for (k, (w, r)) in weapon_strip(player).into_iter().enumerate() {
         let on = w == selected;
-        draw_rectangle(r.x, r.y, r.w, r.h, fill);
+        // Fully opaque: nothing behind (a tank's name in a deep crater) shows through the text.
+        draw_rectangle(
+            r.x,
+            r.y,
+            r.w,
+            r.h,
+            Color {
+                a: 1.0,
+                ..ui::PANEL
+            },
+        );
         let border = if on {
             GOLD
         } else {
@@ -2454,17 +2522,23 @@ fn approach(value: f32, target: f32, max_step: f32) -> f32 {
     }
 }
 
+/// The tank itself: barrel, turret and hull.
+fn draw_tank_body(tank: &Tank, color: Color) {
+    let (x, y) = (tank.pos.x, tank.pos.y);
+    let base = tank.barrel_base();
+    let tip = tank.muzzle();
+    draw_line(base.x, base.y, tip.x, tip.y, 3.0, LIGHTGRAY);
+    draw_circle(x, y - 8.0, 7.0, color);
+    draw_rectangle(x - 12.0, y - 8.0, 24.0, 8.0, color);
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one tank with its bars, labels and shield"
 )]
 fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDisplay) {
     let (x, y) = (tank.pos.x, tank.pos.y);
-    let base = tank.barrel_base();
-    let tip = tank.muzzle();
-    draw_line(base.x, base.y, tip.x, tip.y, 3.0, LIGHTGRAY);
-    draw_circle(x, y - 8.0, 7.0, player.color);
-    draw_rectangle(x - 12.0, y - 8.0, 24.0, 8.0, player.color);
+    draw_tank_body(tank, player.color);
 
     if let Some(shield) = tank.shield_up() {
         let color = shield.color();

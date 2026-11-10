@@ -59,8 +59,8 @@ Each tank has its name and a health bar above it. In Settings you can show healt
 
 Above the bottom line, the **weapon strip** lists every weapon you have ammo for, with how many are left. The selected
 one has a gold frame. With more than 7 weapons it takes two rows. If a tank stands behind the strip (deep down in a
-valley or a crater), the strip turns see-through so you can still see it. On your turn, click a weapon or press the key
-in front of it (the first 12 have keys; Tab reaches the rest).
+valley or a crater), the tank is drawn on top of the strip so you can still see it. On your turn, click a weapon or
+press the key in front of it (the first 12 have keys; Tab reaches the rest).
 
 While a bot aims, the bottom line tells you which tank it's aiming at and why. On your turn, the bottom line lists the
 controls.
@@ -321,7 +321,9 @@ A small preview under the World options shows the terrain and sky.
   shot (weapon, angle, power, and "miss" if it hit nobody), every hit and kill, and each bot's choice of target with the
   reason. It starts empty each round.
 
-All text over the battlefield has a thin dark outline, so it's readable over any sky or ground.
+All text over the battlefield has a thin dark outline, and the lines at the top (the battle log on the left, the turn
+and shield on the right) sit on a dark panel, so they're readable over any sky or ground, the bright day sky included.
+The dots of the aiming lines have a dark edge for the same reason.
 
 ## Menus
 
