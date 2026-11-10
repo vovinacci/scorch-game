@@ -137,6 +137,9 @@ struct Tank {
     /// Who hit this tank since its last shot. Bots shoot back.
     #[serde(default)]
     revenge: Option<usize>,
+    /// Aiming help: what coaching said about this tank's last missed shot, shown on its next turn until it fires.
+    #[serde(skip)]
+    coaching: Option<String>,
     /// The shield raised at round start. A Mag Deflector that has run out stays here (at 0 or below) while the
     /// shells that paid for it fly, then goes down (`drop_spent_deflectors`); any other shield goes at 0.
     #[serde(default)]
@@ -505,6 +508,7 @@ impl Battle {
                     last_trail: Vec::new(),
                     aim: None,
                     revenge: None,
+                    coaching: None,
                     shield: None,
                     parachute: false,
                 }
@@ -849,6 +853,7 @@ impl Battle {
         self.shot_line = (!probe).then_some(self.history.len());
         self.shot_hit = false;
         self.coach_shot = None;
+        self.tanks[i].coaching = None;
         if self.rules.aim_help.coaches() && !players[i].is_bot() && !probe {
             let (world, deflectors) = (self.world(), self.deflectors(i));
             let land =
@@ -1504,7 +1509,7 @@ impl Battle {
     fn coach(&mut self, shot: CoachShot, players: &[Player]) {
         let me = self.current;
         let Some(landed) = shot.landing else {
-            self.note(t!("log-coach-off-field"), LIGHTGRAY);
+            self.say_coaching(t!("log-coach-off-field"));
             return;
         };
         let Some((enemy, to)) = self
@@ -1548,7 +1553,13 @@ impl Battle {
                 text += &t!("log-coach-wind", px = drift.abs(), dir = dir);
             }
         }
-        self.note(text, LIGHTGRAY);
+        self.say_coaching(text);
+    }
+
+    /// Coaching goes in the feed and the log, and stays on screen through the shooter's next turn.
+    fn say_coaching(&mut self, text: String) {
+        self.tanks[self.current].coaching = Some(text.clone());
+        self.log(text, LIGHTGRAY);
     }
 
     fn sudden_death_active(&self) -> bool {
@@ -2053,6 +2064,19 @@ impl Battle {
                 if covers_a_tank(&strip, &[area]) {
                     draw_tank_body(t, p.color);
                 }
+            }
+            // Aiming help: what went wrong with your last shot, just above the strip, until you fire.
+            if let Some(text) = &tank.coaching {
+                let top = strip.iter().map(|(_, r)| r.y).fold(HEIGHT, f32::min);
+                let max = 760.0;
+                let w = ui::measure(text, 18.0).width.min(max);
+                backing(Rect::new(
+                    (ui::WIDTH - w) / 2.0 - 10.0,
+                    top - 32.0,
+                    w + 20.0,
+                    26.0,
+                ));
+                ui::text_centered_fit(text, ui::WIDTH / 2.0, top - 13.0, max, 18.0, LIGHTGRAY);
             }
         }
         let name = player.label();

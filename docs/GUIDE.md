@@ -283,8 +283,9 @@ values, never Random.
 
 **Aiming help** is for learning, and it's the same for every player in the game (bots don't need it):
 
-- **Coaching:** after each of your shots that hits nobody, the battle log says how far from the nearest enemy it first
-  came down, short or past, and how far the wind moved it (or that it flew off the field).
+- **Coaching:** after each of your shots that hits nobody, a line says how far from the nearest enemy it first came
+  down, short or past, and how far the wind moved it (or that it flew off the field). It stays just above the weapon
+  strip through your next turn, until you fire, and goes into the battle log too.
 - **Short path:** coaching, plus a dotted line showing the first third of where your shot will fly, wind included, while
   you aim.
 - **Full path:** coaching, plus the whole path to where the shot comes down. Aiming becomes easy: good for learning or a
