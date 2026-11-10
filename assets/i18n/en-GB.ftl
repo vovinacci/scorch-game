@@ -334,6 +334,8 @@ pause-note-actions = Flee: lost round, tank survives. Self-destruct: big blast, 
 pause-note-mid-shot = Mid-shot: saving keeps the start of this turn.
 abandon-title = Abandon this game?
 abandon-text = This ends the game for good and deletes the save. Rounds already played stay in your stats.
+new-game-title = Start a new game?
+new-game-text = Your saved game will be abandoned when the new one starts. Rounds already played stay in your stats.
 
 ## Between rounds
 

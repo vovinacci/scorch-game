@@ -79,6 +79,8 @@ enum Screen {
     ConfirmAbandon {
         back: Box<Screen>,
     },
+    /// "Your saved game will be abandoned" before New game, when there is one.
+    ConfirmNewGame,
     Final,
     /// Leave the main loop and close the game.
     Exit,
@@ -503,10 +505,21 @@ impl Game {
                 if let Screen::Battle { battle, .. } = back.as_ref() {
                     battle.draw(&self.players, &self.profile.settings);
                 }
-                match confirm_abandon() {
+                match confirm("abandon-title", "abandon-text", "abandon") {
                     None => Screen::ConfirmAbandon { back },
                     Some(true) => self.abandon(),
                     Some(false) => *back,
+                }
+            }
+
+            // The save goes when the new game starts (`start_with`), so backing out of the setup keeps it.
+            Screen::ConfirmNewGame => {
+                // Only the title behind the dialog: the menu's buttons must not take clicks meant for it.
+                logo::title(ui::WIDTH / 2.0, 172.0);
+                match confirm("new-game-title", "new-game-text", "menu-new-game") {
+                    None => Screen::ConfirmNewGame,
+                    Some(true) => Screen::Setup,
+                    Some(false) => Screen::Menu,
                 }
             }
 
@@ -531,7 +544,11 @@ impl Game {
         let next = if self.has_saved_run && item("menu-continue") {
             self.load_run()
         } else if item("menu-new-game") {
-            Screen::Setup
+            if self.has_saved_run {
+                Screen::ConfirmNewGame
+            } else {
+                Screen::Setup
+            }
         } else if item("menu-statistics") {
             Screen::Stats
         } else if item("menu-settings") {
@@ -880,6 +897,10 @@ impl Game {
             "abandon" => Screen::ConfirmAbandon {
                 back: Box::new(game_screen(self, true)),
             },
+            "new-game" => {
+                self.has_saved_run = true;
+                Screen::ConfirmNewGame
+            }
             "final" => {
                 game_screen(self, false);
                 Screen::Final
@@ -950,8 +971,9 @@ fn about(updater: &update::Updater) -> bool {
         || is_key_pressed(KeyCode::Escape)
 }
 
-/// Confirmation dialog. `Some(true)` = abandon, `Some(false)` = cancel.
-fn confirm_abandon() -> Option<bool> {
+/// Confirmation dialog with a `title`, a `text` and a `yes` button (translation keys).
+/// `Some(true)` = yes, `Some(false)` = cancel, `None` = not decided yet.
+fn confirm(title: &str, text: &str, yes: &str) -> Option<bool> {
     draw_rectangle(
         0.0,
         0.0,
@@ -961,15 +983,9 @@ fn confirm_abandon() -> Option<bool> {
     );
     let area = Rect::new(390.0, 220.0, 500.0, 260.0);
     ui::panel(area);
-    ui::text_centered(
-        &t!("abandon-title"),
-        area.center().x,
-        area.y + 55.0,
-        36.0,
-        RED,
-    );
+    ui::text_centered(&t!(title), area.center().x, area.y + 55.0, 36.0, RED);
     ui::text_wrapped(
-        &t!("abandon-text"),
+        &t!(text),
         area.x + 40.0,
         area.y + 100.0,
         area.w - 80.0,
@@ -979,7 +995,7 @@ fn confirm_abandon() -> Option<bool> {
     let half = (area.w - 100.0) / 2.0;
     if ui::button(
         Rect::new(area.x + 40.0, area.y + 180.0, half, 52.0),
-        &t!("abandon"),
+        &t!(yes),
         true,
     ) {
         Some(true)
