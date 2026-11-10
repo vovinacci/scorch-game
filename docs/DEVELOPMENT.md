@@ -293,7 +293,8 @@ The README's screenshots in `docs/screenshots/` come from `--screen <name> --sho
 `arsenal` (saved as `battle.png`), `menu`, `shop`, `setup` and `custom` (saved as `custom-bot.png`). A shot holds only
 the 16:9 game area, whatever the window's shape. Build with `SCORCH_BUILD_VERSION=<release>` so the corner shows a plain
 version (then use a profile with `"check_updates": false`, or the menu asks about updates), regenerate them when screens
-change, and shrink them with `oxipng -o 4 --strip safe`.
+change. Take them fullscreen (`"fullscreen": true` in the profile) on a 4K screen, scale them down to 1920x1080
+(`magick <file> -filter Box -resize 1920x1080 <file>`) and shrink them with `oxipng -o 4 --strip safe`.
 
 ## Font
 
