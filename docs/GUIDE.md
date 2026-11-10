@@ -326,9 +326,9 @@ A small preview under the World options shows the terrain and sky.
   shot (weapon, angle, power, and "miss" if it hit nobody), every hit and kill, and each bot's choice of target with the
   reason. It starts empty each round.
 
-All text over the battlefield has a thin dark outline, and the lines at the top (the battle log on the left, the turn
-and shield on the right) sit on a dark panel, so they're readable over any sky or ground, the bright day sky included.
-The dots of the aiming lines have a dark edge for the same reason.
+All text over the battlefield has a thin dark outline, so it's readable over any sky or ground. On the bright day sky,
+the lines at the top (the battle log on the left, the turn and shield on the right) and the coaching line also sit on a
+light panel. The dots of the aiming lines have a dark edge for the same reason.
 
 ## Menus
 

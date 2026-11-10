@@ -24,7 +24,7 @@ use crate::sound::Sfx;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
 use crate::weapons::{Kind, WEAPONS};
-use crate::world::{Flight, Walls, World, step_shell};
+use crate::world::{Flight, Sky, Walls, World, step_shell};
 
 const SPEED_PER_POWER: f32 = 0.75;
 pub const MAX_POWER: f32 = 1000.0;
@@ -2115,6 +2115,7 @@ impl Battle {
                 .fold(0.0, f32::max);
             backing_faded(
                 Rect::new(8.0, 52.0, widest + 16.0, 22.0 * self.log.len() as f32 + 8.0),
+                self.world().sky,
                 fade,
             );
             let mut y = 70.0;
@@ -2162,12 +2163,10 @@ impl Battle {
                 let top = strip.iter().map(|(_, r)| r.y).fold(HEIGHT, f32::min);
                 let max = 760.0;
                 let w = ui::measure(text, 18.0).width.min(max);
-                backing(Rect::new(
-                    (ui::WIDTH - w) / 2.0 - 10.0,
-                    top - 32.0,
-                    w + 20.0,
-                    26.0,
-                ));
+                backing(
+                    Rect::new((ui::WIDTH - w) / 2.0 - 10.0, top - 32.0, w + 20.0, 26.0),
+                    self.world().sky,
+                );
                 ui::text_centered_fit(text, ui::WIDTH / 2.0, top - 13.0, max, 18.0, LIGHTGRAY);
             }
         }
@@ -2245,12 +2244,15 @@ impl Battle {
             .map(|(text, _)| ui::measure(text, 18.0).width.min(max))
             .collect();
         let widest = widths.iter().copied().fold(0.0, f32::max);
-        backing(Rect::new(
-            ui::WIDTH - 24.0 - widest,
-            50.0,
-            widest + 16.0,
-            22.0 * lines.len() as f32 + 8.0,
-        ));
+        backing(
+            Rect::new(
+                ui::WIDTH - 24.0 - widest,
+                50.0,
+                widest + 16.0,
+                22.0 * lines.len() as f32 + 8.0,
+            ),
+            self.world().sky,
+        );
         for (k, ((text, color), w)) in lines.iter().zip(&widths).enumerate() {
             let y = 66.0 + 22.0 * k as f32;
             ui::text_fit(text, ui::WIDTH - 16.0 - w, y, max, 18.0, *color);
@@ -2417,22 +2419,25 @@ fn covers_a_tank(strip: &[(usize, Rect)], tanks: &[Rect]) -> bool {
         .any(|(_, r)| tanks.iter().any(|t| t.overlaps(r)))
 }
 
-/// A dark translucent panel behind text drawn over the battlefield, so it reads on a light sky too.
-fn backing(r: Rect) {
-    backing_faded(r, 1.0);
+/// How dark the panel behind text over the battlefield is: none on the dark skies, where the text's outline is
+/// enough, and a light one on the bright day sky.
+fn backing_alpha(sky: Sky) -> f32 {
+    match sky {
+        Sky::Day => 0.4,
+        _ => 0.0,
+    }
 }
 
-fn backing_faded(r: Rect, fade: f32) {
-    draw_rectangle(
-        r.x,
-        r.y,
-        r.w,
-        r.h,
-        Color {
-            a: 0.85 * fade,
-            ..ui::PANEL
-        },
-    );
+/// A translucent panel behind text drawn over the battlefield, for the day sky (see `backing_alpha`).
+fn backing(r: Rect, sky: Sky) {
+    backing_faded(r, sky, 1.0);
+}
+
+fn backing_faded(r: Rect, sky: Sky, fade: f32) {
+    let a = backing_alpha(sky) * fade;
+    if a > 0.0 {
+        draw_rectangle(r.x, r.y, r.w, r.h, Color { a, ..ui::PANEL });
+    }
 }
 
 /// A small dot with a dark edge, for aiming lines: visible on dark and light skies alike.
