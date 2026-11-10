@@ -100,9 +100,10 @@ pub fn mouse() -> Vec2 {
     camera().screen_to_world(vec2(x, y))
 }
 
-/// Keyboard navigation for menus: Up/Down move focus between widgets in the
-/// order they are drawn, Enter/Space press the focused one, Left/Right change
-/// a focused selector. Moving the mouse over a widget focuses it too.
+/// Keyboard navigation for menus: the arrow keys move focus to the nearest widget
+/// on screen in that direction (Up/Down wrap around in drawing order when there
+/// is none), Enter/Space press the focused one, Left/Right change a focused
+/// selector instead of moving. Moving the mouse over a widget focuses it too.
 #[derive(Default)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -112,10 +113,26 @@ struct Nav {
     focus: usize,
     /// Widgets registered so far this frame.
     count: usize,
+    /// Where this frame's widgets are and what they are.
+    places: Vec<Place>,
+    /// The same for the frame before, to move focus by.
+    last_places: Vec<Place>,
+    /// The way the arrow keys last moved the focus.
+    last_dir: Vec2,
     enabled: bool,
     activate: bool,
     left: bool,
     right: bool,
+}
+
+/// A widget as keyboard navigation sees it.
+#[derive(Clone, Copy)]
+struct Place {
+    rect: Rect,
+    /// Left/Right change its value instead of moving.
+    selector: bool,
+    /// A greyed-out button can't take the focus.
+    enabled: bool,
 }
 
 thread_local! {
@@ -145,6 +162,7 @@ pub fn begin_frame(keyboard: bool) {
     NAV.with_borrow_mut(|nav| {
         let widgets = nav.count;
         nav.count = 0;
+        nav.last_places = std::mem::take(&mut nav.places);
         nav.enabled = keyboard && widgets > 0;
         nav.activate = false;
         nav.left = false;
@@ -152,18 +170,54 @@ pub fn begin_frame(keyboard: bool) {
         if !nav.enabled {
             return;
         }
+        let usable = |nav: &Nav, i: usize| nav.last_places.get(i).is_none_or(|p| p.enabled);
         if nav.focus >= widgets {
             nav.focus = 0;
         }
-        if is_key_pressed(KeyCode::Down) {
-            nav.focus = (nav.focus + 1) % widgets;
+        if !usable(nav, nav.focus) {
+            // Off a greyed-out widget: on the way the focus was going, or else to the closest one that works.
+            let from = nav.last_places[nav.focus].rect;
+            let places = &nav.last_places;
+            nav.focus = nearest(places, from, nav.last_dir)
+                .or_else(|| closest(places, from))
+                .unwrap_or(nav.focus);
         }
-        if is_key_pressed(KeyCode::Up) {
-            nav.focus = (nav.focus + widgets - 1) % widgets;
+        let selector = nav.last_places.get(nav.focus).is_some_and(|p| p.selector);
+        let (left, right) = (
+            is_key_pressed(KeyCode::Left),
+            is_key_pressed(KeyCode::Right),
+        );
+        // Where to go, and where Up/Down wrap to when nothing is that way.
+        // The next usable widget in drawing order, `by` 1 or `widgets - 1` (back) at a time.
+        let wrap = |by: usize| {
+            (1..widgets)
+                .map(|k| (nav.focus + k * by) % widgets)
+                .find(|&i| usable(nav, i))
+        };
+        let step = if is_key_pressed(KeyCode::Down) {
+            Some((vec2(0.0, 1.0), wrap(1)))
+        } else if is_key_pressed(KeyCode::Up) {
+            Some((vec2(0.0, -1.0), wrap(widgets - 1)))
+        } else if left && !selector {
+            Some((vec2(-1.0, 0.0), None))
+        } else if right && !selector {
+            Some((vec2(1.0, 0.0), None))
+        } else {
+            None
+        };
+        if let Some((dir, wrap)) = step {
+            nav.last_dir = dir;
+            let from = nav.last_places.get(nav.focus).map(|p| p.rect);
+            if let Some(next) = from
+                .and_then(|from| nearest(&nav.last_places, from, dir))
+                .or(wrap)
+            {
+                nav.focus = next;
+            }
         }
         nav.activate = is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space);
-        nav.left = is_key_pressed(KeyCode::Left);
-        nav.right = is_key_pressed(KeyCode::Right);
+        nav.left = selector && left;
+        nav.right = selector && right;
     });
 }
 
@@ -183,11 +237,53 @@ struct Focus {
     right: bool,
 }
 
-fn register(hovered: bool) -> Focus {
+/// The usable widget in `places` nearest to `from` in direction `dir` (a unit vector along one axis): mostly by distance
+/// that way, strongly preferring widgets in the same row or column.
+fn nearest(places: &[Place], from: Rect, dir: Vec2) -> Option<usize> {
+    let centre = from.center();
+    places
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.enabled)
+        .filter_map(|(i, p)| {
+            let r = p.rect;
+            // Only what lies past the middle of `from` that way: a wide button below doesn't count as to the right.
+            let near = r.point().dot(dir).min((r.point() + r.size()).dot(dir));
+            if near < centre.dot(dir) {
+                return None;
+            }
+            let along = (r.center() - centre).dot(dir);
+            // Gap between the two rects across the direction of travel (0 when they overlap).
+            let side = vec2(dir.y.abs(), dir.x.abs());
+            let (a0, a1) = (
+                from.point().dot(side),
+                (from.point() + from.size()).dot(side),
+            );
+            let (b0, b1) = (r.point().dot(side), (r.point() + r.size()).dot(side));
+            let gap = (b0 - a1).max(a0 - b1).max(0.0);
+            Some((i, along + 3.0 * gap))
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(i, _)| i)
+}
+
+/// The usable widget in `places` closest to `from`, any way.
+fn closest(places: &[Place], from: Rect) -> Option<usize> {
+    places
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.enabled)
+        .map(|(i, p)| (i, p.rect.center().distance(from.center())))
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(i, _)| i)
+}
+
+fn register(hovered: bool, place: Place) -> Focus {
     NAV.with_borrow_mut(|nav| {
         let id = nav.count;
         nav.count += 1;
-        if hovered && mouse_delta_position() != Vec2::ZERO {
+        nav.places.push(place);
+        if hovered && place.enabled && mouse_delta_position() != Vec2::ZERO {
             nav.focus = id;
         }
         let focused = nav.enabled && nav.focus == id;
@@ -237,7 +333,14 @@ pub fn text_fit(text: &str, x: f32, y: f32, max_w: f32, size: f32, color: Color)
 
 pub fn button(r: Rect, label: &str, enabled: bool) -> bool {
     let hovered = r.contains(mouse());
-    let focus = register(hovered);
+    let focus = register(
+        hovered,
+        Place {
+            rect: r,
+            selector: false,
+            enabled,
+        },
+    );
     widget_background(r, enabled, hovered || focus.focused, focus.focused);
 
     let (size, dims) = fit(label, 22.0, r.w - 16.0);
@@ -258,7 +361,14 @@ pub fn button(r: Rect, label: &str, enabled: bool) -> bool {
 /// Returns `true` when the value changed.
 pub fn selector(r: Rect, label: &str, values: &[impl AsRef<str>], index: &mut usize) -> bool {
     let hovered = r.contains(mouse());
-    let focus = register(hovered);
+    let focus = register(
+        hovered,
+        Place {
+            rect: r,
+            selector: true,
+            enabled: true,
+        },
+    );
     widget_background(r, true, hovered || focus.focused, focus.focused);
 
     let value_box = Rect::new(r.x + r.w * 0.5, r.y, r.w * 0.5, r.h);
@@ -389,5 +499,60 @@ pub fn slider(r: Rect, value: f32, min: f32, max: f32) -> f32 {
         min + ((mx - r.x) / r.w).clamp(0.0, 1.0) * (max - min)
     } else {
         value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn at(x: f32, y: f32) -> Place {
+        Place {
+            rect: Rect::new(x, y, 200.0, 50.0),
+            selector: false,
+            enabled: true,
+        }
+    }
+
+    #[test]
+    fn arrows_move_to_the_nearest_widget_that_way() {
+        // Two buttons side by side, a third below the left one.
+        let places = [at(100.0, 600.0), at(500.0, 600.0), at(100.0, 680.0)];
+        let right = nearest(&places, places[0].rect, vec2(1.0, 0.0));
+        assert_eq!(right, Some(1));
+        assert_eq!(nearest(&places, places[1].rect, vec2(-1.0, 0.0)), Some(0));
+        assert_eq!(nearest(&places, places[0].rect, vec2(0.0, 1.0)), Some(2));
+        assert_eq!(nearest(&places, places[0].rect, vec2(-1.0, 0.0)), None);
+    }
+
+    #[test]
+    fn a_wide_button_below_is_not_to_the_right() {
+        // The shop: Done and Save & exit side by side, a wide Abandon game under both.
+        let mut places = [at(410.0, 568.0), at(645.0, 568.0), at(410.0, 618.0)];
+        places[2].rect.w = 460.0;
+        assert_eq!(nearest(&places, places[0].rect, vec2(1.0, 0.0)), Some(1));
+        assert_eq!(nearest(&places, places[1].rect, vec2(-1.0, 0.0)), Some(0));
+        assert_eq!(nearest(&places, places[0].rect, vec2(0.0, 1.0)), Some(2));
+        assert_eq!(nearest(&places, places[1].rect, vec2(0.0, 1.0)), Some(2));
+    }
+
+    #[test]
+    fn the_closest_working_button_takes_over() {
+        let mut places = [at(100.0, 100.0), at(100.0, 500.0), at(400.0, 130.0)];
+        places[0].enabled = false;
+        assert_eq!(closest(&places, places[0].rect), Some(2));
+    }
+
+    #[test]
+    fn greyed_out_buttons_are_skipped() {
+        let mut places = [at(100.0, 600.0), at(400.0, 600.0), at(700.0, 600.0)];
+        places[1].enabled = false;
+        assert_eq!(nearest(&places, places[0].rect, vec2(1.0, 0.0)), Some(2));
+    }
+
+    #[test]
+    fn a_widget_in_the_same_column_wins_over_a_closer_one_aside() {
+        let places = [at(100.0, 100.0), at(400.0, 130.0), at(100.0, 250.0)];
+        assert_eq!(nearest(&places, places[0].rect, vec2(0.0, 1.0)), Some(2));
     }
 }
