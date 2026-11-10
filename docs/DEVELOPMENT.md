@@ -169,6 +169,19 @@ pad, a landslide). Each terrain type has a palette of top edge, topsoil and deep
 
 The look is saved with the terrain, so a resumed game looks the same. Older saves show as Rolling hills.
 
+### Sky scenery
+
+Drawn every frame behind the ground, still and in fixed places, so the same sky always looks the same (also in the setup
+preview and, for Night, behind the menus). Nothing in it takes part in the game.
+
+- Night: 140 stars between y 40 and 460, more of them higher up, fading towards the horizon; one in ten is 2 px.
+- Sunset: a sun of radius 40 at (900, 455), partly behind the far hills.
+- Day: a sun of radius 26 at (1010, 150) and four clouds of five overlapping puffs, a 35% blend of the sky towards
+  white.
+- Suns have a glow out to three times their radius, in 16 faint steps.
+- Two rows of far hills (tops around y 370 to 440 and 445 to 500) in the sky's own colour at their height, 8% and 14%
+  darker.
+
 ### Damage
 
 - A blast hits every tank within `radius + 12` px: full damage at the centre, down to 30% at the edge.
@@ -280,7 +293,8 @@ The README's screenshots in `docs/screenshots/` come from `--screen <name> --sho
 `arsenal` (saved as `battle.png`), `menu`, `shop`, `setup` and `custom` (saved as `custom-bot.png`). A shot holds only
 the 16:9 game area, whatever the window's shape. Build with `SCORCH_BUILD_VERSION=<release>` so the corner shows a plain
 version (then use a profile with `"check_updates": false`, or the menu asks about updates), regenerate them when screens
-change, and shrink them with `oxipng -o 4 --strip safe`.
+change. Take them fullscreen (`"fullscreen": true` in the profile) on a 4K screen, scale them down to 1920x1080
+(`magick <file> -filter Box -resize 1920x1080 <file>`) and shrink them with `oxipng -o 4 --strip safe`.
 
 ## Font
 
