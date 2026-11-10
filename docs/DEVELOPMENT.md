@@ -186,9 +186,11 @@ The player's guide explains the rules; these are the exact values.
   the changed ground that is no longer held up (the same support test as falling: the highest ground under its 24 px
   width) gets the shooter as last hitter and revenge target, and the log says its ground gave way. So a deadly fall is
   the shooter's kill, and the shot isn't logged as a miss.
-- Weapon strip: up to 7 boxes per row (at most 150 px wide), extra rows above; keys 1-9, 0, -, = for the first 12.
-  Generated ground reaches y 690 and craters go lower, so when any tank's area (48 x 46 px around it, bar and name
-  included) overlaps a box, the boxes are drawn at alpha 0.25 instead of 0.9.
+- Weapon strip: up to 7 boxes per row (at most 150 px wide), extra rows above; keys 1-9, 0, -, = for the first 12. The
+  boxes are opaque. Generated ground reaches y 690 and craters go lower, so a tank whose area (its name's width, 76 px
+  tall) overlaps a box is drawn again on top of the strip, body only (`draw_tank_body`).
+- Over the battlefield, the log feed and the top-right lines sit on `backing` (the panel colour at 85%), and aiming dots
+  are `guide_dot`s with a dark edge, so they read on the day sky.
 
 ### Parachutes and shields
 
