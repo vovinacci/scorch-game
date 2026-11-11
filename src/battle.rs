@@ -1751,6 +1751,17 @@ impl Battle {
     /// The current tank retreats. It counts as a lost round, but the tank survives
     /// (no kill for anyone). If no human is left, the round ends right away and the
     /// healthiest survivor takes it.
+    /// Developer aid (`--screen buried`): a Dirt Bomb's worth of dirt on every tank.
+    pub fn bury_all(&mut self) {
+        let radius = WEAPONS
+            .iter()
+            .find(|w| w.kind == Kind::Dirt)
+            .map_or(45.0, |w| w.radius);
+        for at in self.tanks.iter().map(|t| t.pos).collect::<Vec<_>>() {
+            self.terrain.add_dirt(at, radius);
+        }
+    }
+
     pub fn flee(&mut self, players: &mut [Player]) {
         let i = self.current;
         self.tanks[i].alive = false;
@@ -2186,6 +2197,13 @@ impl Battle {
         }
     }
 
+    /// A human is aiming with the barrel under the dirt: the shot would go off around their own tank.
+    fn aiming_into_dirt(&self, players: &[Player]) -> bool {
+        matches!(self.phase, Phase::Aim { .. })
+            && !players[self.current].is_bot()
+            && self.terrain.is_solid(self.tanks[self.current].muzzle())
+    }
+
     #[expect(clippy::too_many_lines, reason = "the HUD, drawn left to right")]
     fn draw_hud(&self, players: &[Player]) {
         draw_rectangle(0.0, 0.0, ui::WIDTH, HUD_HEIGHT, ui::PANEL);
@@ -2287,6 +2305,9 @@ impl Battle {
                 full = ITEMS[shield.item].shield_energy().unwrap_or(0.0)
             );
             lines.push((text, shield.color()));
+        }
+        if self.aiming_into_dirt(players) {
+            lines.push((t!("hud-buried"), ORANGE));
         }
         let max = 360.0;
         let widths: Vec<f32> = lines

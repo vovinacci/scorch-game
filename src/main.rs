@@ -818,7 +818,7 @@ fn arg_after(flag: &str) -> Option<String> {
 impl Game {
     /// Developer aid: `scorch --screen <name> [--shot file.png]` opens one
     /// screen directly with a fresh game, to check layouts (for example in
-    /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, pause-settings, stats, crash, arsenal,
+    /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, pause-settings, stats, crash, arsenal, buried,
     /// battle, pause, over, defence, log, shop, abandon, final.
     fn open_screen(&mut self, name: &str) -> Screen {
         self.has_saved_run = false;
@@ -861,6 +861,17 @@ impl Game {
                 screen
             }
             // A battle where every tank has raised a shield (one of each kind).
+            // A Dirt Bomb right on every tank.
+            "buried" => match game_screen(self, false) {
+                Screen::Battle { mut battle, .. } => {
+                    battle.bury_all();
+                    Screen::Battle {
+                        battle,
+                        paused: false,
+                    }
+                }
+                other => other,
+            },
             "defence" => match game_screen(self, false) {
                 Screen::Battle { mut battle, .. } => {
                     for (i, p) in self.players.iter_mut().enumerate() {

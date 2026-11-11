@@ -526,6 +526,27 @@ fn bots_never_fire_utility_weapons_at_enemies() {
     }
 }
 
+#[test]
+fn a_buried_human_is_told_while_the_barrel_is_in_the_dirt() {
+    let (mut players, mut b) = range(|_| 600.0);
+    players[0].bot = None;
+    b.current = 0;
+    b.phase = Phase::Aim {
+        think: 0.0,
+        plan: None,
+    };
+    assert!(!b.aiming_into_dirt(&players));
+    let at = b.tanks[0].pos;
+    b.terrain.add_dirt(at, 45.0);
+    assert!(b.aiming_into_dirt(&players));
+    // Not for a bot, and not once a blast has cleared the barrel.
+    players[0].bot = Some(PRESETS[1]);
+    assert!(!b.aiming_into_dirt(&players));
+    players[0].bot = None;
+    b.terrain.carve(at - vec2(0.0, 40.0), 60.0);
+    assert!(!b.aiming_into_dirt(&players));
+}
+
 /// A bot on flat ground with a Dirt Bomb dropped right on it.
 fn buried_bot() -> (Vec<Player>, Battle) {
     let (players, mut b) = range(|_| 600.0);

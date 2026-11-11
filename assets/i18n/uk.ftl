@@ -264,6 +264,7 @@ hud-wind = ВІТЕР
 hud-wind-off = немає
 hud-round = Раунд { $round }/{ $rounds }
 hud-turn = Хід { $turn }
+hud-buried = Закопано: постріл вибухне довкола вас
 hud-turn-sudden = Хід { $turn }  (раптова смерть з { $start })
 hud-sudden-death = РАПТОВА СМЕРТЬ: кожен танк втрачає { $hp } HP щоходу
 hud-sudden-death-in = Раптова смерть через { $n } { $n ->
