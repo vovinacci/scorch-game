@@ -201,20 +201,36 @@ fn draw_inventory(player: &mut Player) {
 
 /// Last round's earnings, line by line, so the catch-up rules are visible.
 fn draw_income(player: &Player, shoots_first: bool) {
-    let area = Rect::new(30.0, 70.0, 320.0, 420.0);
+    let area = Rect::new(30.0, 70.0, 320.0, 620.0);
     ui::panel(area);
     ui::text_at(t!("income-title"), area.x + 20.0, area.y + 36.0, 28.0, GOLD);
 
+    // Every source of money with what it pays, earned or not: the panel is also where the rules are.
+    let rates = [
+        t!("income-rate-damage", pay = economy::DAMAGE_PAY),
+        t!("income-rate-kills", pay = economy::KILL_PAY),
+        t!("income-rate-bounties", pay = economy::BOUNTY_PER_WIN),
+        t!("income-rate-round-win", pay = economy::WIN_PAY),
+        t!("income-rate-round-pay", pay = economy::ROUND_PAY),
+        t!(
+            "income-rate-loss-bonus",
+            pay = economy::LOSS_BONUS,
+            most = economy::loss_bonus(economy::LOSS_BONUS_MAX_STREAK)
+        ),
+    ];
     let mut y = area.y + 76.0;
-    for (key, amount) in player.income.lines() {
-        if amount == 0 {
-            continue;
-        }
-        ui::text_fit(&t!(key), area.x + 20.0, y, area.w - 130.0, 22.0, LIGHTGRAY);
+    for ((key, amount), rate) in player.income.lines().into_iter().zip(rates) {
+        let (label, money) = if amount == 0 {
+            (GRAY, GRAY)
+        } else {
+            (LIGHTGRAY, WHITE)
+        };
+        ui::text_fit(&t!(key), area.x + 20.0, y, area.w - 130.0, 22.0, label);
         let value = format!("+${amount}");
         let w = ui::measure(&value, 22.0).width;
-        ui::text_at(&value, area.x + area.w - 20.0 - w, y, 22.0, WHITE);
-        y += 30.0;
+        ui::text_at(&value, area.x + area.w - 20.0 - w, y, 22.0, money);
+        ui::text_fit(&rate, area.x + 20.0, y + 18.0, area.w - 40.0, 16.0, GRAY);
+        y += 48.0;
     }
     draw_line(
         area.x + 20.0,
