@@ -259,6 +259,7 @@ hud-wind = WIND
 hud-wind-off = off
 hud-round = Round { $round }/{ $rounds }
 hud-turn = Turn { $turn }
+hud-buried = Buried: your shot goes off around you
 hud-turn-sudden = Turn { $turn }  (sudden death at { $start })
 hud-sudden-death = SUDDEN DEATH: every tank loses { $hp } HP each turn
 hud-sudden-death-in = Sudden death in { $n } { $n ->
