@@ -128,6 +128,8 @@ const PREFER_LEADER: f32 = 0.8;
 /// Penalty per other bot already aiming at a tank: spreads fire, so bots
 /// don't all gang up on the same player.
 const CROWD_PENALTY: f32 = 0.5;
+/// With three bots left: penalty for the tank that already aims at the bot picking a target.
+const FACE_OFF_PENALTY: f32 = 0.5;
 
 #[derive(Serialize, Deserialize)]
 struct Tank {

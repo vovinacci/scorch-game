@@ -4,8 +4,8 @@ use macroquad::prelude::*;
 
 use super::shells::{blast_damage, damage_point, simulate};
 use super::{
-    AimMemory, BARREL, Battle, CROWD_PENALTY, DIG_HEALTH_SHARE, PREFER_LEADER, PREFER_NEAREST,
-    PREFER_WEAKEST, Shot, TANK_RADIUS, direction, launch_velocity, you,
+    AimMemory, BARREL, Battle, CROWD_PENALTY, DIG_HEALTH_SHARE, FACE_OFF_PENALTY, PREFER_LEADER,
+    PREFER_NEAREST, PREFER_WEAKEST, Shot, TANK_RADIUS, direction, launch_velocity, you,
 };
 use crate::ai::AiProfile;
 use crate::i18n::t;
@@ -33,7 +33,9 @@ impl Battle {
         let revenge = self.tanks[me].revenge.take();
         let alive = |j: usize| j != me && self.tanks[j].alive;
         let current = current.filter(|m| alive(m.target));
-        let revenge = revenge.filter(|&j| alive(j));
+        // Three bots left: no revenge on one that the third bot is already after (see `three_bots_left`).
+        let hunted = |j: usize| self.three_bots_left(players) && self.aimed_at(j, me) > 0;
+        let revenge = revenge.filter(|&j| alive(j) && !hunted(j));
 
         let fresh = |target: usize, reason: &'static str| AimMemory {
             target,
@@ -62,6 +64,25 @@ impl Battle {
         memory
     }
 
+    /// How many other tanks (not `me`) aim at tank `j`.
+    fn aimed_at(&self, j: usize, me: usize) -> usize {
+        (0..self.tanks.len())
+            .filter(|&k| k != me && k != j && self.tanks[k].alive)
+            .filter(|&k| self.tanks[k].aim.is_some_and(|m| m.target == j))
+            .count()
+    }
+
+    /// Exactly three tanks are left and all are bots. Then the usual rules are unfair to the bot that fires first:
+    /// the others avoid the tank it aims at, which leaves only itself, and whoever it hits takes revenge on it too,
+    /// so two bots end up on it and none on the third. With three, fire is spread evenly only when each bot has one
+    /// other after it, so a bot then avoids squaring off with the one that aims at it, and leaves revenge to the
+    /// third bot if that one is already on the attacker. With a human in the game bots can't see every aim, and
+    /// with four tanks two pairs are even as well, so these rules stay out of it.
+    fn three_bots_left(&self, players: &[Player]) -> bool {
+        let alive = || (0..self.tanks.len()).filter(|&i| self.tanks[i].alive);
+        alive().count() == 3 && alive().all(|i| players[i].is_bot())
+    }
+
     /// Scores every enemy: closer, weaker and more winning tanks score higher;
     /// tanks other bots already aim at score lower. A little randomness keeps
     /// bots from being predictable.
@@ -77,11 +98,16 @@ impl Battle {
                 PREFER_NEAREST * (1.0 - from.distance(tank.center()) / WIDTH as f32).max(0.0);
             let weak = PREFER_WEAKEST * (1.0 - tank.health / 100.0).clamp(0.0, 1.0);
             let leader = PREFER_LEADER * players[j].wins as f32 / most_wins;
-            let crowd = (0..self.tanks.len())
-                .filter(|&k| k != me && k != j && self.tanks[k].alive)
-                .filter(|&k| self.tanks[k].aim.is_some_and(|m| m.target == j))
-                .count() as f32;
-            let score = near + weak + leader - CROWD_PENALTY * crowd + gen_range(0.0, 0.3);
+            let crowd = self.aimed_at(j, me) as f32;
+            // Three bots left: rather not the one that aims at this bot (see `three_bots_left`).
+            let facing = self.tanks[j].aim.is_some_and(|m| m.target == me);
+            let face_off = if facing && self.three_bots_left(players) {
+                FACE_OFF_PENALTY
+            } else {
+                0.0
+            };
+            let score =
+                near + weak + leader - CROWD_PENALTY * crowd - face_off + gen_range(0.0, 0.3);
             if score > best.2 {
                 let reason = if leader >= near && leader >= weak {
                     "leader"
