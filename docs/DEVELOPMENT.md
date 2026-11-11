@@ -228,15 +228,21 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
 ### Weapons
 
 - The table is `WEAPONS` in `src/weapons.rs`; saves store ammo by index, so new weapons go at the end.
-- Balance: `cargo test --release balance_table -- --ignored --nocapture` fires every weapon 300 times per aim through
-  the real physics (perfect aim, about 1 degree / 15 power off, about 3 degrees / 45 off) in three scenarios: one tank
-  700 px away on flat ground, three tanks 60 px apart, one tank at the bottom of a valley. The aim used is the one,
-  among those whose first damage lands within 150 px of the middle target, that does the most damage with close aim.
-  Each shot is played out like a turn (falls and death blasts included) and a tank loses at most its 100 health. It
-  prints mean damage to the targets, kill% and self-damage (rough aim) and damage per dollar (close aim). Most weapons
-  give 0.3-0.5 damage per $ on one target and about twice that in a crowd; the Missile (about 1.1) is the cheap
-  workhorse. Bots fire the weapon with the highest price per shot, so a price change also changes which weapon a bot
-  prefers.
+- Balance: `make balance` prints four tables (ignored tests in `src/battle/tests/balance.rs`; they assert nothing, and
+  give the same numbers on every run):
+  - `balance_table` fires every weapon 300 times per aim through the real physics (perfect aim, about 1 degree / 15
+    power off, about 3 degrees / 45 off) in three scenarios: one tank 700 px away on flat ground, three tanks 60 px
+    apart, one tank at the bottom of a valley. The aim used is the one, among those whose first damage lands within 150
+    px of the middle target, that does the most damage with close aim. Each shot is played out like a turn (falls and
+    death blasts included) and a tank loses at most its 100 health. It prints mean damage to the targets, kill% and
+    self-damage (rough aim) and damage per dollar (close aim). Most weapons give 0.3-0.5 damage per $ on one target and
+    about twice that in a crowd; the Missile (about 1.1) is the cheap workhorse. Bots fire the weapon with the highest
+    price per shot, so a price change also changes which weapon a bot prefers.
+  - `balance_order` plays 600 rounds of equal bots with the starting weapons for each line: the share of rounds won by
+    firing order, the mean number of turns, and the share of rounds that reached sudden death.
+  - `balance_buried` puts a tank under a direct Dirt Bomb hit and fires each weapon straight up until the barrel is
+    clear: shots taken and health left.
+  - `balance_deflector` sends one Missile at a full Mag Deflector on five paths: energy and health left.
 - Utility weapons do no damage: Dirt Bomb, Digger, Tracer, Riot Bomb. Bots don't buy or fire them, and they don't add to
   the death blast.
 - MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,
