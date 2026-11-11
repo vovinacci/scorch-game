@@ -52,6 +52,8 @@ pub const DEFLECT_RADIUS: f32 = 80.0;
 pub const DEFLECT_FORCE: f32 = 3000.0;
 /// Energy a Mag Deflector spends on each enemy shell that enters its field, so it can't push shells away for ever.
 pub const DEFLECT_COST: f32 = 10.0;
+/// A shell this far (px) outside a Mag Deflector's field has left it: coming back in is a new pass.
+const DEFLECT_CLEAR: f32 = 6.0;
 /// Roller: rolling speed (px/s), the steepest rise it still rolls over (px per px; bumps, not hills), and the
 /// longest roll (s).
 const ROLL_SPEED: f32 = 150.0;
@@ -1030,9 +1032,8 @@ impl Battle {
                 self.detonate(p.pos, p.weapon, p.owner, players);
                 if p.hops < hops && !buried {
                     p.hops += 1;
-                    // Each hop is a new pass, paying again, except to a deflector this shell spent: that one keeps
-                    // pushing it.
-                    p.charged &= self.spent_deflectors();
+                    // Each hop is a new pass through any deflector's field, paid for again.
+                    p.charged = 0;
                     p.vel = vec2(p.vel.x * HOP_KEEP, -HOP_UP);
                     p.pos.y = self.terrain.height_at(p.pos.x) - 4.0;
                     return Some(p);
@@ -1179,22 +1180,24 @@ impl Battle {
         }
     }
 
-    /// Each Mag Deflector with energy left pays `DEFLECT_COST` once for a shell entering its field. One that runs out
-    /// stays up for the shells that paid for it and goes down when the turn's shells are done.
+    /// Each Mag Deflector with energy left pays `DEFLECT_COST` for every pass of a shell through its field: once when
+    /// the shell comes in, and again if it leaves and comes back. One that runs out keeps pushing the shells that
+    /// paid until they leave, and goes down when the turn's shells are done.
     fn charge_deflectors(&mut self, p: &mut Projectile) {
         if WEAPONS[p.weapon].kind.is_probe() {
             return;
         }
         for (i, tank) in self.tanks.iter_mut().enumerate() {
             let bit = 1u8 << i;
-            if i == p.owner
-                || !tank.alive
-                || p.charged & bit != 0
-                || tank.center().distance(p.pos) >= DEFLECT_RADIUS
-            {
+            let distance = tank.center().distance(p.pos);
+            // Well clear of the field: this pass is over.
+            if distance >= DEFLECT_RADIUS + DEFLECT_CLEAR {
+                p.charged &= !bit;
+            }
+            if i == p.owner || !tank.alive || p.charged & bit != 0 || distance >= DEFLECT_RADIUS {
                 continue;
             }
-            // A spent deflector takes no new shells, but keeps pushing the ones it was paid for.
+            // A spent deflector takes no new passes, but keeps pushing the shells that paid until they leave.
             let Some(shield) = tank
                 .shield
                 .as_mut()
@@ -1209,7 +1212,7 @@ impl Battle {
     }
 
     /// Centres of the Mag Deflectors pushing shell `p`: enemy deflectors with energy left, plus a spent one this
-    /// shell paid for (its last push still works).
+    /// shell paid for on its current pass (its last push still works).
     fn deflectors_for(&self, p: &Projectile) -> Vec<Vec2> {
         self.deflectors_paid(p.owner, p.charged)
     }
@@ -1228,15 +1231,6 @@ impl Battle {
             })
             .map(|(_, t)| t.center())
             .collect()
-    }
-
-    /// Bits of the tanks whose Mag Deflector has run out but is still up.
-    fn spent_deflectors(&self) -> u8 {
-        self.tanks
-            .iter()
-            .enumerate()
-            .filter(|(_, t)| t.shield.is_some_and(|s| s.deflects() && s.energy <= 0.0))
-            .fold(0, |bits, (i, _)| bits | 1u8 << i)
     }
 
     /// Once the shells are done, Mag Deflectors that ran out of energy go down.

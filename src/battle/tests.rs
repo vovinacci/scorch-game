@@ -314,6 +314,66 @@ fn a_mag_deflectors_last_energy_still_pushes_the_shell_that_paid_for_it() {
     );
 }
 
+/// A battle on flat ground where tank 1 has a Mag Deflector up with `energy`, and where its centre is.
+fn deflector_with(energy: f32) -> (Vec<Player>, Battle, Vec2) {
+    let mut players = bots(2);
+    players[1].items[3] = 1;
+    let mut rules = Setup::default().rules();
+    rules.world.terrain = crate::world::TerrainKind::Flat;
+    let mut b = battle(&players, rules);
+    b.raise_shields(&mut players);
+    b.tanks[1].shield.as_mut().unwrap().energy = energy;
+    let centre = b.tanks[1].center();
+    (players, b, centre)
+}
+
+#[test]
+fn a_mag_deflector_pays_for_every_pass_of_a_shell() {
+    let (_, mut b, centre) = deflector_with(30.0);
+    let inside = centre + vec2(-60.0, -30.0);
+    let outside = centre + vec2(-200.0, -30.0);
+    let energy = |b: &Battle| b.tanks[1].shield.map(|s| s.energy);
+    let mut p = Projectile::new(inside, vec2(200.0, 0.0), 0, 0, false);
+    b.charge_deflectors(&mut p);
+    b.charge_deflectors(&mut p);
+    assert_eq!(energy(&b), Some(20.0), "once while it stays inside");
+    // Pushed out, it falls back in: a second pass.
+    p.pos = outside;
+    b.charge_deflectors(&mut p);
+    p.pos = inside;
+    b.charge_deflectors(&mut p);
+    assert_eq!(energy(&b), Some(10.0), "again when it comes back");
+    // Just outside the edge isn't out yet: no charge for wobbling on it.
+    p.pos = centre + vec2(-(DEFLECT_RADIUS + 2.0), 0.0);
+    b.charge_deflectors(&mut p);
+    p.pos = inside;
+    b.charge_deflectors(&mut p);
+    assert_eq!(energy(&b), Some(10.0));
+}
+
+#[test]
+fn the_last_charge_pushes_a_shell_through_one_pass_only() {
+    let (_, mut b, centre) = deflector_with(DEFLECT_COST);
+    let inside = centre + vec2(-60.0, -30.0);
+    let mut p = Projectile::new(inside, vec2(200.0, 0.0), 0, 0, false);
+    b.charge_deflectors(&mut p);
+    assert_eq!(
+        b.deflectors_for(&p),
+        vec![centre],
+        "pushed on the pass it paid for"
+    );
+    // It leaves and comes back: nothing is left to pay for a second push.
+    p.pos = centre + vec2(-200.0, -30.0);
+    b.charge_deflectors(&mut p);
+    p.pos = inside;
+    b.charge_deflectors(&mut p);
+    assert!(
+        b.deflectors_for(&p).is_empty(),
+        "the second time it gets through"
+    );
+    assert_eq!(b.tanks[1].shield.map(|s| s.energy), Some(0.0));
+}
+
 #[test]
 fn bots_only_round_always_ends() {
     let mut players = bots(3);
@@ -1271,7 +1331,6 @@ fn a_spent_deflector_absorbs_nothing_and_adds_nothing() {
     b.hurt(&[(1, 30.0)], Some(0), &mut players);
     assert_eq!(b.tanks[1].health, 70.0, "exactly the hit, nothing extra");
     assert!(b.tanks[1].shield_up().is_none(), "not shown while spent");
-    assert_eq!(b.spent_deflectors(), 0b10);
     b.drop_spent_deflectors(&players);
     assert!(b.tanks[1].shield.is_none());
 }

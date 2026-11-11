@@ -158,7 +158,7 @@ Besides weapons, the shop sells items that protect your tank:
 | Parachute | Opens by itself when a fall would hurt; you drift down without damage. One per fall | $40 | 2 |
 | Shield | Takes up to 50 damage before your health does | $120 | 1 |
 | Heavy Shield | Takes up to 100 damage before your health does | $200 | 1 |
-| Mag Deflector | Pushes enemy shells away as they come close; 40 energy, 10 per shell pushed | $150 | 1 |
+| Mag Deflector | Pushes enemy shells away as they come close; 40 energy, 10 each time it pushes a shell away | $150 | 1 |
 
 - At the start of every round, your strongest shield goes up by itself (Heavy Shield, then Shield, then Mag Deflector)
   and lasts until its energy is used up or the round ends. It's used up either way, so a new round needs a new shield. A
@@ -167,9 +167,10 @@ Besides weapons, the shop sells items that protect your tank:
   energy left). During your turn, the top right of the screen shows your shield and its energy, for example "Heavy
   Shield: 60/100". Light blue is the Shield, dark blue the Heavy Shield, purple the Mag Deflector.
 - The Mag Deflector bends shells away from your tank, sometimes enough to miss. Bots know this and aim around it, as you
-  can. It doesn't touch your own shells. Each enemy shell that comes into its field costs it 10 energy (every MIRV
-  warhead counts), so it pushes away about four shells, fewer if blasts land near you. The shell that takes its last
-  energy is still pushed; once that turn's shells are done, it goes down like any shield.
+  can. It doesn't touch your own shells. Each time an enemy shell comes into its field costs it 10 energy: every MIRV
+  warhead counts, and so does a shell that is pushed out and falls back in. So it pushes shells away about four times,
+  fewer if blasts land near you. The shell that takes its last energy is still pushed until it leaves the field; if it
+  comes back, nothing stops it. Once that turn's shells are done, the deflector goes down like any shield.
 - Each item has an on/off switch in the inventory. Switched off, it stays in your inventory unused, for example to save
   your only Heavy Shield for later rounds.
 - Shields stop every kind of damage from blasts, including death blasts and self-destructs, but not falls (that's what
