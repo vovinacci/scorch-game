@@ -464,6 +464,18 @@ fn napalm_runs_downhill_and_burns_the_tank_there() {
 }
 
 #[test]
+fn napalm_leaves_only_a_few_burn_marks() {
+    // Its 18 drops burn out close together: on a slope they pool in the dip, on the flat they stay where they fell.
+    for ground in [valley as fn(f32) -> f32, |_| 600.0] {
+        let (mut players, mut b) = range(ground);
+        drop(&mut b, weapon("Napalm"), 500.0, 0.0);
+        run(&mut b, &mut players);
+        let marks = b.terrain.burn_marks();
+        assert!((1..=5).contains(&marks), "{marks} marks");
+    }
+}
+
+#[test]
 fn a_digger_sinks_the_ground_under_a_tank() {
     let (mut players, mut b) = range(|_| 600.0);
     b.tanks[1].pos = vec2(700.0, 600.0);

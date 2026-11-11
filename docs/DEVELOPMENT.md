@@ -163,8 +163,10 @@ one greys out the focus goes to the nearest working one the way the keys last mo
 
 ### Terrain look
 
-The ground is painted once into a full-screen texture and repainted only when it changes (a crater, a flattened tank
-pad, a landslide). Each terrain type has a palette of top edge, topsoil and deep earth:
+The ground is painted once into a full-screen texture. After that the game compares the ground and the burn marks with
+what the picture was painted from, each frame, and paints and uploads again only the columns that changed (a crater, a
+trench, a mark fading): well under a millisecond for a crater, against 5 to 6 for the whole picture. Each terrain type
+has a palette of top edge, topsoil and deep earth:
 
 - The top 3 px are grass (a sun-bleached sandstone rim in the canyon), except on slopes steeper than 1.3 (bare earth
   there).
@@ -177,10 +179,12 @@ pad, a landslide). Each terrain type has a palette of top edge, topsoil and deep
 - Every pixel gets a little fixed grain (up to 4% lighter or darker).
 - Every blast (also a tank blowing up; not Dirt Bomb, Riot Bomb or Digger) leaves a burn mark: the earth within 6 px +
   half the radius outside the crater blends towards charred brown, up to 85% at the crater's edge and fading out over
-  that rim. A napalm drop leaves a burn mark of radius 4 where it burns out; burning the same spot again (within the
-  radius, same size) makes that mark fresh instead of adding one. Each new turn a mark keeps 70% of its heat, so it's
-  gone after 6 turns; there are at most 60 at a time. There is no grass within the blast radius + 4 px of a mark's
-  centre (left and right) until it's gone. Marks are saved with the terrain.
+  that rim. A napalm drop leaves a burn mark of radius 8 where it burns out; burning the same spot again (same size,
+  within 8 px or the radius if that is less) makes that mark fresh instead of adding one, so one napalm leaves at most 5
+  marks. Each new turn a mark keeps 70% of its heat, so it's gone after 6 turns; there are at most 60 at a time. There
+  is no grass where the surface is within the blast radius + 4 px of a mark's centre until it's gone, so a blast high in
+  the air leaves the grass below alone. A Dirt Bomb removes the marks whose centre it lands on: fresh dirt isn't burnt.
+  Marks are saved with the terrain.
 - Napalm drops are drawn as flames: a glowing patch and three layered flames (red, orange, yellow) up to 37 px high,
   flickering and swaying, with a rising spark now and then. Each drop's flame stands up to 9 px to either side of it,
   fixed per drop, so drops pooled in a dip burn as one wide fire.
