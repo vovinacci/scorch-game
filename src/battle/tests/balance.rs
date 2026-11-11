@@ -212,3 +212,129 @@ fn balance_table() {
         }
     }
 }
+
+/// Firing order and round length: equal bots with the starting weapons play `ROUNDS` rounds for each line. Prints
+/// the share of rounds won by the tank firing first, second and so on, the mean number of turns, and the share of
+/// rounds that reached sudden death. Run by hand: `make balance`.
+#[test]
+#[ignore = "prints a table; run by hand when tuning turn order, bots or sudden death"]
+fn balance_order() {
+    const ROUNDS: u32 = 600;
+    println!(
+        "\nequal bots, {ROUNDS} rounds each: wins by firing order | mean turns | sudden death"
+    );
+    for (n, preset) in [(2, 0), (2, 1), (2, 2), (3, 0), (3, 1), (3, 2), (4, 1)] {
+        let mut wins = vec![0u32; n];
+        let (mut turns, mut sudden) = (0, 0);
+        for _ in 0..ROUNDS {
+            let mut players: Vec<Player> = (0..n)
+                .map(|i| Player::new(&format!("B{i}"), WHITE, Some(PRESETS[preset])))
+                .collect();
+            let mut b = battle(&players, Setup::default().rules());
+            b.skip_to_end(&mut players);
+            if let Phase::Over {
+                winner: Some(w), ..
+            } = b.phase
+            {
+                wins[w] += 1;
+            }
+            turns += b.turns;
+            sudden += u32::from(b.rules.sudden_death.is_some_and(|start| b.turns >= start));
+        }
+        let share = |count: u32| 100.0 * count as f32 / ROUNDS as f32;
+        let by_order: Vec<String> = wins
+            .iter()
+            .map(|&w| format!("{:>3.0}%", share(w)))
+            .collect();
+        println!(
+            "{n} x {:<8} {:<24} | {:>5.1} | {:>3.0}%",
+            PRESETS[preset].name,
+            by_order.join(" "),
+            turns as f32 / ROUNDS as f32,
+            share(sudden)
+        );
+    }
+}
+
+/// Digging out: a tank under a direct Dirt Bomb hit fires each weapon straight up until its barrel is clear (at
+/// most 4 shots). Prints the shots it took and the health left. Run by hand: `make balance`.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the Dirt Bomb or digging out"]
+fn balance_buried() {
+    println!("\nburied by a direct Dirt Bomb hit, firing straight up");
+    println!(
+        "{:<13} {:>6} | {:>5} {:>6}",
+        "weapon", "$/shot", "shots", "health"
+    );
+    for (w, weapon) in WEAPONS.iter().enumerate() {
+        if matches!(weapon.kind, Kind::Dirt | Kind::Tracer) {
+            continue;
+        }
+        let (mut players, mut b) = range(|_| 600.0);
+        let at = b.tanks[0].pos;
+        b.terrain.add_dirt(at, 45.0);
+        let muzzle = b.tanks[0].barrel_base() + direction(90.0) * BARREL;
+        // Buried while a shell can't get out: it moves about 3 px a step, so less dirt than that doesn't hold it.
+        let clear = muzzle - vec2(0.0, 4.0);
+        let mut shots = 0;
+        while shots < 4 && b.tanks[0].alive && b.terrain.is_solid(clear) {
+            let vel = launch_velocity(90.0, 500.0);
+            b.projectiles
+                .push(Projectile::new(muzzle, vel, w, 0, false));
+            run(&mut b, &mut players);
+            shots += 1;
+        }
+        let out = if b.terrain.is_solid(clear) {
+            "still buried"
+        } else {
+            ""
+        };
+        println!(
+            "{:<13} {:>6.1} | {:>5} {:>6.0} {out}",
+            weapon.name,
+            weapon.shot_price() as f32,
+            shots,
+            b.tanks[0].health.max(0.0)
+        );
+    }
+}
+
+/// The Mag Deflector against one Missile on different paths: dropped from 300 px above the tank at an offset, or
+/// lobbed in from the side. Prints the energy left of 40 and the tank's health. Run by hand: `make balance`.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the Mag Deflector"]
+fn balance_deflector() {
+    println!("\none Missile against a full Mag Deflector");
+    println!("{:<34} | {:>6} {:>6}", "path", "energy", "health");
+    let paths = [
+        ("dropped dead centre", 0.0, 0.0),
+        ("dropped 5 px off centre", 5.0, 0.0),
+        ("dropped 20 px off centre", 20.0, 0.0),
+        ("lobbed from 150 px away", -150.0, 120.0),
+        ("lobbed from 300 px away", -300.0, 200.0),
+    ];
+    for (name, dx, vx) in paths {
+        let mut players = bots(2);
+        players[1].items[3] = 1;
+        let mut rules = Setup::default().rules();
+        rules.world.terrain = crate::world::TerrainKind::Flat;
+        let mut b = battle(&players, rules);
+        b.raise_shields(&mut players);
+        b.wind = 0.0;
+        let centre = b.tanks[1].center();
+        let start = centre + vec2(dx, -300.0);
+        b.projectiles.push(Projectile::new(
+            start,
+            vec2(vx, 0.0),
+            weapon("Missile"),
+            0,
+            false,
+        ));
+        run(&mut b, &mut players);
+        println!(
+            "{name:<34} | {:>6.0} {:>6.0}",
+            b.tanks[1].shield.map_or(0.0, |s| s.energy),
+            b.tanks[1].health
+        );
+    }
+}
