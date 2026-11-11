@@ -139,10 +139,10 @@ pub const WEAPONS: [Weapon; 14] = [
     Weapon {
         name: "Leapfrog",
         kind: Kind::Leapfrog { hops: 2 },
-        radius: 25.0,
-        damage: 35.0,
-        price: 70,
-        bundle: 1,
+        radius: 30.0,
+        damage: 45.0,
+        price: 80,
+        bundle: 2,
     },
     Weapon {
         name: "Funky Bomb",
