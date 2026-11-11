@@ -1,7 +1,7 @@
 //! Between-round shop: spend money earned from damage, kills and wins.
 
+use crate::rng::gen_range;
 use macroquad::prelude::*;
-use macroquad::rand::gen_range;
 
 use crate::economy;
 use crate::i18n::t;

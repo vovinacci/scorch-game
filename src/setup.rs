@@ -1,8 +1,8 @@
 //! The "New game" setup screen: players, opponents, match rules and world.
 //! The last setup is remembered in the profile and copied into each game.
 
+use crate::rng::gen_range;
 use macroquad::prelude::*;
-use macroquad::rand::gen_range;
 use serde::{Deserialize, Serialize};
 
 use crate::ai::{self, AiProfile, CUSTOM, DIFFICULTIES};

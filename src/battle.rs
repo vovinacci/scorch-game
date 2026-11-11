@@ -7,8 +7,8 @@
 //!            sudden death drains health
 //!   Over   - round result shown briefly
 
+use crate::rng::gen_range;
 use macroquad::prelude::*;
-use macroquad::rand::gen_range;
 use serde::{Deserialize, Serialize};
 
 use crate::ai::AiProfile;
@@ -1929,7 +1929,7 @@ impl Battle {
 
         // Usually fire the biggest thing in the inventory (the dearest per shot); sometimes save ammo.
         let mut weapon = 0;
-        if ui::chance(0.6) {
+        if crate::rng::chance(0.6) {
             weapon = (1..WEAPONS.len())
                 .filter(|&w| players[me].has(w) && !WEAPONS[w].kind.is_utility())
                 .max_by_key(|&w| WEAPONS[w].shot_price())
