@@ -355,6 +355,12 @@ income-bounties = Bounties
 income-round-win = Round win
 income-round-pay = Round pay
 income-loss-bonus = Loss bonus
+income-rate-damage = ${ $pay } per point of damage, shields too
+income-rate-kills = ${ $pay } a kill
+income-rate-bounties = ${ $pay } per round the victim has won
+income-rate-round-win = ${ $pay } for winning the round
+income-rate-round-pay = ${ $pay } for everyone, win or lose
+income-rate-loss-bonus = ${ $pay } per loss in a row, up to ${ $most }
 income-note-losses = Lost { $n } in a row. Another loss pays a ${ $bonus } loss bonus.
 income-note-bounty = You have { $n } { $n ->
     [one] win

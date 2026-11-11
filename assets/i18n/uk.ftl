@@ -379,6 +379,12 @@ income-bounties = Нагороди
 income-round-win = Перемога в раунді
 income-round-pay = Плата за раунд
 income-loss-bonus = Бонус за поразки
+income-rate-damage = ${ $pay } за одиницю шкоди, щити теж
+income-rate-kills = ${ $pay } за знищення
+income-rate-bounties = ${ $pay } за кожен раунд, виграний жертвою
+income-rate-round-win = ${ $pay } за перемогу в раунді
+income-rate-round-pay = ${ $pay } усім, хоч виграли, хоч ні
+income-rate-loss-bonus = ${ $pay } за поразку поспіль, до ${ $most }
 income-note-losses = { $n } { $n ->
     [one] поразка
     [few] поразки
