@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/vovinacci/scorch-game/compare/v0.6.0...v0.7.0) - 2026-11-11
+
+### Changed
+
+- *(terrain)* paint and upload only the columns of the ground that changed ([#87](https://github.com/vovinacci/scorch-game/pull/87))
+
+### Documentation
+
+- smaller README screenshots ([#88](https://github.com/vovinacci/scorch-game/pull/88))
+
+### Features
+
+- *(dev)* make balance prints firing order, digging out and deflector tables too ([#97](https://github.com/vovinacci/scorch-game/pull/97))
+- *(weapons)* Leapfrog hits harder and costs less: 45 damage, radius 30, 2 for $80 ([#93](https://github.com/vovinacci/scorch-game/pull/93))
+- *(battle)* tell a player whose barrel is under the dirt that the tank is buried ([#91](https://github.com/vovinacci/scorch-game/pull/91))
+- *(shop)* the Last round panel lists every source of money with what it pays ([#89](https://github.com/vovinacci/scorch-game/pull/89))
+
+### Fixes
+
+- *(bots)* three bots spread their fire, so firing first is no handicap ([#99](https://github.com/vovinacci/scorch-game/pull/99))
+- *(bots)* bots keep a pack of Riot Bombs to dig themselves out ([#98](https://github.com/vovinacci/scorch-game/pull/98))
+- *(save)* keep a save file that can't be read, and tell the player ([#94](https://github.com/vovinacci/scorch-game/pull/94))
+- *(items)* a Mag Deflector pays for every pass of a shell through its field ([#92](https://github.com/vovinacci/scorch-game/pull/92))
+- *(dev)* --shot with a path that can't be saved says so instead of crashing ([#90](https://github.com/vovinacci/scorch-game/pull/90))
+- *(weapons)* a buried tank's shot goes off once, where it is ([#83](https://github.com/vovinacci/scorch-game/pull/83))
+- *(ui)* arrow keys follow rows and columns, panel by panel ([#84](https://github.com/vovinacci/scorch-game/pull/84))
+- *(bots)* a buried bot digs itself out instead of firing its biggest weapon ([#85](https://github.com/vovinacci/scorch-game/pull/85))
+- *(world)* thin wispy clouds instead of cartoon puffs ([#81](https://github.com/vovinacci/scorch-game/pull/81))
+
 ## [0.6.0](https://github.com/vovinacci/scorch-game/compare/v0.5.0...v0.6.0) - 2026-11-10
 
 ### Features
