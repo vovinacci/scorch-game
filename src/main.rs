@@ -1065,6 +1065,13 @@ fn main() {
     if std::env::args().any(|a| a == "--crash-test") {
         crash_test();
     }
+    // A screenshot that can't be saved would only fail (as a crash) after the window is up: say so now.
+    if let Some(path) = arg_after("--shot")
+        && let Some(problem) = shot_problem(std::path::Path::new(&path))
+    {
+        eprintln!("--shot {path}: {problem}");
+        std::process::exit(2);
+    }
     macroquad::Window::from_config(window_conf(), run());
 }
 
@@ -1171,6 +1178,21 @@ async fn run() {
     }
 }
 
+/// Why a screenshot can't be saved to `path`, if it can't: the name must end in `.png` and its folder must exist.
+fn shot_problem(path: &std::path::Path) -> Option<&'static str> {
+    let png = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("png"));
+    let folder = path.parent().filter(|p| !p.as_os_str().is_empty());
+    if !png {
+        Some("the file needs a name that ends in .png, like shot.png")
+    } else if folder.is_some_and(|folder| !folder.is_dir()) {
+        Some("the folder doesn't exist")
+    } else {
+        None
+    }
+}
+
 /// A menu key by its `--keys` name.
 fn menu_key(name: &str) -> Option<KeyCode> {
     match name {
@@ -1258,6 +1280,19 @@ mod guide_tests {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_screenshot_needs_a_png_name_in_a_folder_that_exists() {
+        use std::path::Path;
+        let problem = |path: &str| super::shot_problem(Path::new(path));
+        assert_eq!(problem("shot.png"), None);
+        assert_eq!(problem("src/shot.PNG"), None);
+        // A file called just ".png" has no extension: the image format can't be told from it.
+        assert!(problem("src/.png").is_some());
+        assert!(problem("shot.jpg").is_some());
+        assert!(problem("shot").is_some());
+        assert!(problem("no-such-folder/shot.png").is_some());
+    }
+
     #[test]
     fn icon_loads() {
         super::icon();
