@@ -199,8 +199,8 @@ The game helps whoever is behind, so one bad start doesn't decide the whole game
 Between rounds each human player gets a screen with three panels: what you earned last round (left: every source of
 money with what it pays, earned or not), the **Shop** (middle: weapons and items) and your **Inventory** (right: what
 you own, a switch for each item, and your death blast). In a two-player game the shop title shows whose turn it is to
-buy. Bots shop too: they buy random weapons (never Dirt Bombs or Diggers) and items they can afford, and use them like
-you do.
+buy. Bots shop too: first a pack of Riot Bombs if they have none (their way out from under a Dirt Bomb), then random
+weapons (never Dirt Bombs or Diggers) and items they can afford, and they use them like you do.
 
 ## Opponents
 

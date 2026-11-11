@@ -269,8 +269,16 @@ fn draw_income(player: &Player, shoots_first: bool) {
     }
 }
 
-/// Bots buy at random what they can afford: weapons they fire, and now and then a parachute or a shield.
+/// Bots buy at random what they can afford: weapons they fire, and now and then a parachute or a shield. First of
+/// all they see to a Riot Bomb, their way out from under a Dirt Bomb: without one, digging out takes two turns, and
+/// a player who buries a bot every other turn keeps it from ever firing.
 pub fn ai_shop(player: &mut Player) {
+    if let Some(riot) = WEAPONS.iter().position(|w| w.kind == Kind::Riot)
+        && player.ammo[riot] == 0
+        && player.money >= WEAPONS[riot].price
+    {
+        buy(player, riot);
+    }
     // Bots never fire Dirt Bombs, Diggers or Tracers, so they don't buy them either. A Riot Bomb digs them out when
     // they get buried.
     let weapons: Vec<usize> = (1..WEAPONS.len())
@@ -288,5 +296,45 @@ pub fn ai_shop(player: &mut Player) {
                 buy_item(player, i);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ai::PRESETS;
+    use macroquad::prelude::WHITE;
+
+    fn riot() -> usize {
+        WEAPONS.iter().position(|w| w.kind == Kind::Riot).unwrap()
+    }
+
+    fn bot(money: i32) -> Player {
+        let mut player = Player::new("Bot", WHITE, Some(PRESETS[1]));
+        player.money = money;
+        player
+    }
+
+    #[test]
+    fn a_bot_sees_to_a_riot_bomb_first() {
+        // Whatever the random picks turn out to be, the pack is bought before them.
+        for _ in 0..20 {
+            let mut player = bot(WEAPONS[riot()].price);
+            ai_shop(&mut player);
+            assert_eq!(player.ammo[riot()], WEAPONS[riot()].bundle);
+            assert_eq!(player.money, 0);
+        }
+    }
+
+    #[test]
+    fn a_bot_with_riot_bombs_left_spends_its_money_on_other_things() {
+        let mut player = bot(0);
+        player.ammo[riot()] = 1;
+        ai_shop(&mut player);
+        assert_eq!(player.ammo[riot()], 1, "no money, nothing bought");
+        // One short of the pack: it can't have it yet.
+        let mut player = bot(WEAPONS[riot()].price - 1);
+        ai_shop(&mut player);
+        assert_eq!(player.ammo[riot()], 0);
     }
 }

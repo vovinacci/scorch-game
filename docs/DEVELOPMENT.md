@@ -299,8 +299,9 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   is more than the dirt above the muzzle) for the least health, if that costs at most 40% of the health it has left: a
   Missile costs about 39 and gets it out of a direct Dirt Bomb hit. Otherwise with Baby Missiles: about 15 health and 40
   px of dirt a shot, two shots for a direct hit.
-- Shop: 8 random picks among the weapons it fires (the non-utility ones and the Riot Bomb) and the items, each bought if
-  affordable.
+- Shop: first a pack of Riot Bombs if it has none and can pay for it (digging out without one takes two turns, enough
+  for a player to keep a bot buried for good); then 8 random picks among the weapons it fires (the non-utility ones and
+  the Riot Bomb) and the items, each bought if affordable.
 - Target score for a new target: nearness (weight 1.0) + damage taken (0.8) + share of the most wins (0.8) - 0.5 per
   other bot aiming at that tank + random 0-0.3.
 
