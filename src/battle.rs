@@ -69,6 +69,8 @@ const FIRE_TIME: f32 = 3.0;
 const FIRE_FLOW: f32 = 70.0;
 const FIRE_REACH: f32 = 16.0;
 const FIRE_TICK: f32 = 0.5;
+/// A buried bot digs out with a damaging weapon only if that costs it no more than this share of its health.
+const DIG_HEALTH_SHARE: f32 = 0.4;
 /// Napalm: radius of the burn mark a drop leaves on the ground where it burns out.
 const FIRE_SINGE: f32 = 8.0;
 /// Digger: how far it burrows sideways (px), how fast (px/s), and how far the ground above it sinks (px).
@@ -1324,7 +1326,7 @@ impl Battle {
             .filter(|(_, t)| t.alive)
             .map(|(i, t)| (i, t.center().distance(pos)))
             .filter(|&(_, d)| d < reach)
-            .map(|(i, d)| (i, damage * (1.0 - 0.7 * d / reach)))
+            .map(|(i, d)| (i, blast_damage(damage, d, reach)))
             .collect();
         self.hurt(&hits, owner, players);
         self.sounds.push(if radius >= BIG_BLAST {
@@ -1865,6 +1867,32 @@ impl Battle {
         (best.0, best.1)
     }
 
+    /// What a buried bot digs out with, fired straight up into the dirt: a Riot Bomb if it has one (no damage);
+    /// else the blast weapon that clears its muzzle in one shot for the least health, if that is no more than
+    /// `DIG_HEALTH_SHARE` of what it has left; else a Baby Missile, however many it takes.
+    fn digging_weapon(&self, me: usize, players: &[Player]) -> usize {
+        let has = |w: &usize| players[me].has(*w);
+        if let Some(riot) = (0..WEAPONS.len()).find(|w| WEAPONS[*w].kind == Kind::Riot && has(w)) {
+            return riot;
+        }
+        let tank = &self.tanks[me];
+        let muzzle = tank.barrel_base() + direction(90.0) * BARREL;
+        let dirt = muzzle.y - self.terrain.height_at(muzzle.x);
+        let harm = |w: &usize| {
+            let weapon = &WEAPONS[*w];
+            let reach = weapon.radius + TANK_RADIUS;
+            blast_damage(weapon.damage, tank.center().distance(muzzle), reach)
+        };
+        (0..WEAPONS.len())
+            .filter(|w| WEAPONS[*w].kind == Kind::Blast && has(w))
+            // A blast at the muzzle takes away a column of dirt as high as the blast is wide.
+            .filter(|w| {
+                2.0 * WEAPONS[*w].radius > dirt && harm(w) <= DIG_HEALTH_SHARE * tank.health
+            })
+            .min_by(|a, b| harm(a).total_cmp(&harm(b)))
+            .unwrap_or(0)
+    }
+
     /// AI: try many angle/power combos in a simulation, take the one landing
     /// closest to a target, then add some error so bots are beatable.
     fn plan_shot(&mut self, me: usize, players: &[Player]) -> Shot {
@@ -1873,6 +1901,20 @@ impl Battle {
         let shooter = &self.tanks[me];
         let target = self.tanks[memory.target].center();
         let max_power = self.max_power(shooter);
+
+        // Buried (no way to point the barrel out of the dirt): any shot goes off around the bot itself, so it digs
+        // out instead of firing its biggest weapon.
+        let buried = (4..=176).step_by(3).all(|angle| {
+            let muzzle = shooter.barrel_base() + direction(angle as f32) * BARREL;
+            self.terrain.is_solid(muzzle)
+        });
+        if buried {
+            return Shot {
+                angle: 90.0,
+                power: max_power.min(500.0),
+                weapon: self.digging_weapon(me, players),
+            };
+        }
 
         // Usually fire the biggest thing in the inventory (the dearest per shot); sometimes save ammo.
         let mut weapon = 0;
@@ -2596,6 +2638,12 @@ fn damage_point(kind: Kind, landing: Landing, terrain: &Terrain) -> Vec2 {
         }
         _ => landing.pos,
     }
+}
+
+/// What a blast of `damage` does to a tank `distance` from its centre, within its `reach`: all of it at the centre,
+/// 30% at the edge.
+fn blast_damage(damage: f32, distance: f32, reach: f32) -> f32 {
+    damage * (1.0 - 0.7 * distance / reach)
 }
 
 /// A drop of napalm: a glowing patch on the ground and a flickering flame licking up from it, swaying and dying
