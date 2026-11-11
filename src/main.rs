@@ -1101,6 +1101,10 @@ async fn run() {
     if game.profile.settings.check_updates == Some(true) {
         game.updater.check();
     }
+    // With `--keys down,right,enter`, press those menu keys one after another before the screenshot.
+    let keys: Vec<KeyCode> = arg_after("--keys")
+        .map(|keys| keys.split(',').filter_map(menu_key).collect())
+        .unwrap_or_default();
     let mut frame: u32 = 0;
     let mut fullscreen = false;
     loop {
@@ -1120,6 +1124,11 @@ async fn run() {
 
         // Arrow keys aim the tank during play, so menu keyboard focus is off then.
         let in_play = matches!(game.screen, Screen::Battle { paused: false, .. });
+        // One scripted key every 4 frames from frame 20 on: the screen is up by then and each key gets its own frame.
+        let scripted = (frame >= 20 && frame.is_multiple_of(4))
+            .then(|| keys.get((frame as usize - 20) / 4).copied())
+            .flatten();
+        ui::script_key(scripted);
         ui::begin_frame(!in_play);
 
         // Take the screen out, run it, put the next one back.
@@ -1148,6 +1157,18 @@ async fn run() {
             break;
         }
         next_frame().await;
+    }
+}
+
+/// A menu key by its `--keys` name.
+fn menu_key(name: &str) -> Option<KeyCode> {
+    match name {
+        "up" => Some(KeyCode::Up),
+        "down" => Some(KeyCode::Down),
+        "left" => Some(KeyCode::Left),
+        "right" => Some(KeyCode::Right),
+        "enter" => Some(KeyCode::Enter),
+        _ => None,
     }
 }
 
