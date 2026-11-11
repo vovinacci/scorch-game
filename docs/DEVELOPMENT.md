@@ -386,8 +386,12 @@ dirty.
 | File | What |
 |---|---|
 | `main.rs` | Screens state machine, menus, intro, About, pause, saving flow, `--screen` |
-| `battle.rs` | Turns, physics, damage, bots' aiming and targeting, battle log |
-| `battle/tests.rs` | The battle's unit tests (other files keep theirs in a `tests` module at the bottom) |
+| `battle.rs` | One round: the tanks, turns and phases, aiming and firing, falling and settling, the battle log; the numbers behind the rules |
+| `battle/shells.rs` | Shells: flight, what happens where they land, fire, Mag Deflectors, blasts and damage; the flight simulation bots and the aiming help share |
+| `battle/bots.rs` | Bots: whom they shoot at, what with, how they find the aim and dig out |
+| `battle/coach.rs` | The coaching advice of the aiming help |
+| `battle/draw.rs` | Drawing the battle: scene, HUD, tanks, flames, weapon strip, full battle log |
+| `battle/tests.rs`, `battle/tests/` | The battle's unit tests: shared helpers, then one file each for rules, weapons, shields, bots, coaching, what is on screen, and the balance tools (other files keep their tests in a `tests` module at the bottom) |
 | `world.rs` | World settings, shell physics (`step_shell`), sky |
 | `terrain.rs` | Heightmap terrain, terrain types, craters |
 | `setup.rs` | New game screen and match rules |
