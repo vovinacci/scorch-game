@@ -403,25 +403,42 @@ fn a_roller_stops_at_a_tank() {
     assert!(b.tanks[1].health < 100.0);
 }
 
-#[test]
-fn a_buried_roller_explodes_under_the_dirt() {
-    let (mut players, mut b) = range(valley);
-    // Fired from 30 px under the surface: it must not pop up and roll away.
+/// Fires `name` from 30 px under the surface, like a buried tank; returns where.
+fn fire_buried(b: &mut Battle, name: &str) -> Vec2 {
     let start = vec2(500.0, valley(500.0) + 30.0);
     b.projectiles.push(Projectile::new(
         start,
-        vec2(0.0, -200.0),
-        weapon("Roller"),
+        vec2(120.0, -200.0),
+        weapon(name),
         0,
         false,
     ));
-    let blasts = run(&mut b, &mut players);
-    assert_eq!(blasts.len(), 1);
-    assert!(
-        blasts[0].distance(start) < 5.0,
-        "explodes where it is: {}",
-        blasts[0]
-    );
+    start
+}
+
+#[test]
+fn a_buried_shell_goes_off_once_where_it_is() {
+    // No rolling away, no hops, no bomblets: one blast in the dirt.
+    for name in ["Missile", "Roller", "Leapfrog", "Funky Bomb"] {
+        let (mut players, mut b) = range(valley);
+        let start = fire_buried(&mut b, name);
+        let blasts = run(&mut b, &mut players);
+        assert_eq!(blasts.len(), 1, "{name}");
+        assert!(
+            blasts[0].distance(start) < 5.0,
+            "{name} explodes where it is: {}",
+            blasts[0]
+        );
+    }
+}
+
+#[test]
+fn buried_napalm_is_smothered() {
+    let (mut players, mut b) = range(valley);
+    fire_buried(&mut b, "Napalm");
+    b.step_projectiles(&mut players);
+    assert!(b.projectiles.is_empty());
+    assert!(b.fires.is_empty(), "no fire runs out on the surface");
 }
 
 #[test]
