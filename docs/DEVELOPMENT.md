@@ -385,7 +385,10 @@ dirty.
 
 | File | What |
 |---|---|
-| `main.rs` | Screens state machine, menus, intro, About, pause, saving flow, `--screen` |
+| `main.rs` | Start-up: the command line, the window and its icon; the tests that the guides name every weapon and setting |
+| `game.rs` | The game around the battles: the screens and how one leads to the next (`Game::step`), starting and ending games and rounds, saving, the main loop |
+| `game/menus.rs` | Main menu and its notices, pause menu, final standings, intro, About, the confirmation dialog |
+| `game/dev.rs` | Developer aids: `--screen`, `--keys`, the screenshot's game area |
 | `battle.rs` | One round: the tanks, turns and phases, aiming and firing, falling and settling, the battle log; the numbers behind the rules |
 | `battle/shells.rs` | Shells: flight, what happens where they land, fire, Mag Deflectors, blasts and damage; the flight simulation bots and the aiming help share |
 | `battle/bots.rs` | Bots: whom they shoot at, what with, how they find the aim and dig out |
