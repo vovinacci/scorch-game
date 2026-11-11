@@ -4,6 +4,10 @@
 //!   - `run.json`: the game in progress, so you can continue where you left off.
 //!     Rewritten at the start of every turn, deleted when the game ends.
 //!   - `profile.json`: settings and all-time stats.
+//!
+//! Each file carries the `FORMAT` it was written in. A file that can't be read (damaged, or written by a newer
+//! version of the game) is moved aside as `<name>.unreadable.json`, so the next save doesn't overwrite it, and the
+//! player is told.
 
 use std::fs;
 use std::path::PathBuf;
@@ -29,6 +33,33 @@ use crate::stats::Stats;
 
 const RUN: &str = "run.json";
 const PROFILE: &str = "profile.json";
+
+/// Version of the save files, written into each as `"version"`. Raise it with a change an older version of the game
+/// can't read; new fields with `#[serde(default)]` don't need it. Files without it (before 0.7) count as 0.
+const FORMAT: u64 = 1;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum File {
+    Profile,
+    Run,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Problem {
+    /// Not what the game wrote: cut short, edited by hand, from a broken disk.
+    Damaged,
+    /// Written by a newer version of the game.
+    Newer,
+}
+
+/// A save file that couldn't be used.
+#[derive(Clone, Debug)]
+pub struct Unreadable {
+    pub file: File,
+    pub problem: Problem,
+    /// Where it was moved to (`None` if it couldn't be moved: it then stays where it was).
+    pub kept: Option<PathBuf>,
+}
 
 /// Run being written: borrows the live game state.
 #[derive(Serialize)]
@@ -93,8 +124,9 @@ pub fn store_run(run: &RunOut<'_>) {
     store(RUN, run);
 }
 
-pub fn load_run() -> Option<RunIn> {
-    load(RUN)
+/// The saved game; `Err(None)` if there is none, `Err(Some(..))` if it couldn't be read.
+pub fn load_run() -> Result<RunIn, Option<Unreadable>> {
+    load(RUN).map_err(|problem| problem.map(|problem| unreadable(File::Run, RUN, problem)))
 }
 
 pub fn remove_run() {
@@ -110,25 +142,63 @@ pub fn store_profile(profile: &Profile) {
     store(PROFILE, profile);
 }
 
-pub fn load_profile() -> Profile {
-    let mut profile: Profile = load(PROFILE).unwrap_or_default();
+/// The profile, or a fresh one; with what went wrong if there was a file that couldn't be read.
+pub fn load_profile() -> (Profile, Option<Unreadable>) {
+    let (mut profile, problem) = match load::<Profile>(PROFILE) {
+        Ok(profile) => (profile, None),
+        Err(problem) => (Profile::default(), problem),
+    };
     profile.setup.sanitize();
-    profile
+    let problem = problem.map(|problem| unreadable(File::Profile, PROFILE, problem));
+    (profile, problem)
+}
+
+/// `value` as the text of a save file: its JSON, with the format version added.
+fn stamped<T: Serialize>(value: &T) -> serde_json::Result<String> {
+    let mut json = serde_json::to_value(value)?;
+    if let Some(fields) = json.as_object_mut() {
+        fields.insert("version".to_string(), FORMAT.into());
+    }
+    serde_json::to_string(&json)
+}
+
+/// Reads the text of a save file.
+fn parse<T: DeserializeOwned>(text: &str) -> Result<T, Problem> {
+    let json: serde_json::Value = serde_json::from_str(text).map_err(|_| Problem::Damaged)?;
+    let version = json.get("version").and_then(serde_json::Value::as_u64);
+    if version.unwrap_or(0) > FORMAT {
+        return Err(Problem::Newer);
+    }
+    serde_json::from_value(json).map_err(|e| {
+        eprintln!("Unreadable save file: {e}");
+        Problem::Damaged
+    })
+}
+
+/// Moves the unreadable file `name` aside, so the next save doesn't overwrite it.
+fn unreadable(file: File, name: &str, problem: Problem) -> Unreadable {
+    let kept = path(name).and_then(|from| {
+        let to = from.with_extension("unreadable.json");
+        let moved = !READ_ONLY.load(Ordering::Relaxed) && fs::rename(&from, &to).is_ok();
+        moved.then_some(to)
+    });
+    Unreadable {
+        file,
+        problem,
+        kept,
+    }
 }
 
 fn path(name: &str) -> Option<PathBuf> {
     dirs::data_dir().map(|d| d.join("scorch").join(name))
 }
 
-fn load<T: DeserializeOwned>(name: &str) -> Option<T> {
-    let text = fs::read_to_string(path(name)?).ok()?;
-    match serde_json::from_str(&text) {
-        Ok(value) => Some(value),
-        Err(e) => {
-            eprintln!("Ignoring unreadable {name}: {e}");
-            None
-        }
-    }
+/// The file `name`; `Err(None)` if there is none.
+fn load<T: DeserializeOwned>(name: &str) -> Result<T, Option<Problem>> {
+    let text = path(name)
+        .and_then(|path| fs::read_to_string(path).ok())
+        .ok_or(None)?;
+    parse(&text).map_err(Some)
 }
 
 /// Writes to a temporary file first, then renames it over the old one,
@@ -145,7 +215,7 @@ fn store<T: Serialize>(name: &str, value: &T) {
             fs::create_dir_all(dir)?;
         }
         let tmp = path.with_extension("tmp");
-        fs::write(&tmp, serde_json::to_string(value)?)?;
+        fs::write(&tmp, stamped(value)?)?;
         fs::rename(tmp, &path)
     })();
     if let Err(e) = result {
@@ -175,6 +245,30 @@ mod tests {
     use super::*;
     use crate::ai::PRESETS;
     use macroquad::prelude::RED;
+
+    #[test]
+    fn a_save_file_carries_its_version() {
+        let text = stamped(&Profile::default()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(json["version"], FORMAT);
+        assert!(parse::<Profile>(&text).is_ok());
+    }
+
+    #[test]
+    fn older_files_load_and_newer_or_damaged_ones_are_told_apart() {
+        // Before 0.7 files had no version.
+        let old = r#"{"intro_seen":true}"#;
+        assert!(parse::<Profile>(old).is_ok_and(|p| p.intro_seen));
+        let newer = format!(r#"{{"intro_seen":true,"version":{}}}"#, FORMAT + 1);
+        assert_eq!(parse::<Profile>(&newer).err(), Some(Problem::Newer));
+        for damaged in ["", "{\"intro_seen\":tr", r#"{"intro_seen":"yes"}"#, "42"] {
+            assert_eq!(
+                parse::<Profile>(damaged).err(),
+                Some(Problem::Damaged),
+                "{damaged}"
+            );
+        }
+    }
 
     #[test]
     fn run_survives_a_save_and_load() {

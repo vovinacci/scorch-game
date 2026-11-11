@@ -397,6 +397,9 @@ A saved game continues fine in either language.
   saved also abandons it: New game asks first.
 - Your saved game, settings and statistics are kept in your user data folder, for example `~/.local/share/scorch/` on
   Linux.
+- If one of those files can't be read (it is damaged, or was saved by a newer version of Scorch), the game starts afresh
+  without it, keeps the old file next to it as `profile.unreadable.json` or `run.unreadable.json`, and says so on the
+  main menu.
 
 ## Statistics
 

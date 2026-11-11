@@ -110,6 +110,8 @@ struct Game {
     preview: Preview,
     /// Crash report from a previous run, offered on the main menu.
     crash: Option<crash::Pending>,
+    /// A save file that couldn't be read (and was moved aside), told on the main menu.
+    save_problem: Option<save::Unreadable>,
     /// Shown on the main menu after the crash report was copied.
     crash_note: Option<String>,
     /// Full battle log opened from the pause menu.
@@ -200,9 +202,13 @@ impl Game {
     }
 
     fn load_run(&mut self) -> Screen {
-        let Some(run) = save::load_run() else {
-            self.has_saved_run = false;
-            return Screen::Menu;
+        let run = match save::load_run() {
+            Ok(run) => run,
+            Err(problem) => {
+                self.has_saved_run = false;
+                self.save_problem = problem.or(self.save_problem.take());
+                return Screen::Menu;
+            }
         };
         self.players = run.players;
         self.setup = run.setup;
@@ -563,8 +569,14 @@ impl Game {
             Screen::Menu
         };
 
-        self.crash_notice(cx);
-        let y = if self.crash.is_some() { 96.0 } else { 10.0 };
+        // One notice at the top at a time: a lost save first, then crash reports.
+        let y = if self.save_notice(cx) {
+            116.0
+        } else if self.crash_notice(cx) {
+            96.0
+        } else {
+            10.0
+        };
         self.update_notice(cx, y);
 
         ui::text_centered(&t!("tribute"), cx, ui::HEIGHT - 14.0, 18.0, GRAY);
@@ -581,12 +593,44 @@ impl Game {
     }
 
     /// "The game crashed" (once or several times) with a button to copy the reports for sending.
-    fn crash_notice(&mut self, cx: f32) {
+    /// A save file couldn't be read: what was lost and where the old file is kept. True while it shows.
+    fn save_notice(&mut self, cx: f32) -> bool {
+        let Some(problem) = &self.save_problem else {
+            return false;
+        };
+        let text = match (problem.file, problem.problem) {
+            (save::File::Profile, save::Problem::Damaged) => t!("save-profile-damaged"),
+            (save::File::Profile, save::Problem::Newer) => t!("save-profile-newer"),
+            (save::File::Run, save::Problem::Damaged) => t!("save-run-damaged"),
+            (save::File::Run, save::Problem::Newer) => t!("save-run-newer"),
+        };
+        let kept = match &problem.kept {
+            Some(path) => t!("save-kept", path = path.display().to_string()),
+            None => String::new(),
+        };
+        // Taller than the crash notice: the path gets a line of its own, the whole width.
+        let area = Rect::new(cx - 420.0, 10.0, 840.0, 96.0);
+        ui::panel(area);
+        let (x, w) = (area.x + 16.0, area.w - 32.0);
+        ui::text_fit(&text, x, area.y + 34.0, w - 136.0, 18.0, ORANGE);
+        ui::text_fit(&kept, x, area.y + 80.0, w, 16.0, LIGHTGRAY);
+        if ui::button(
+            Rect::new(area.x + area.w - 136.0, area.y + 19.0, 120.0, 38.0),
+            &t!("crash-dismiss"),
+            true,
+        ) {
+            self.save_problem = None;
+        }
+        true
+    }
+
+    /// Crash reports from earlier runs, to copy and send. True while the notice shows.
+    fn crash_notice(&mut self, cx: f32) -> bool {
         if let Some(note) = self.crash_note.clone() {
             ui::text_centered(&note, cx, 40.0, 18.0, SKYBLUE);
         }
         let Some(pending) = &self.crash else {
-            return;
+            return false;
         };
         let area = Rect::new(cx - 420.0, 10.0, 840.0, 76.0);
         ui::panel(area);
@@ -624,6 +668,7 @@ impl Game {
             crash::mark_seen(pending);
             self.crash = None;
         }
+        true
     }
 
     /// The update question (first time), an available update, its progress, or a failed install.
@@ -818,7 +863,7 @@ fn arg_after(flag: &str) -> Option<String> {
 impl Game {
     /// Developer aid: `scorch --screen <name> [--shot file.png]` opens one
     /// screen directly with a fresh game, to check layouts (for example in
-    /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, pause-settings, stats, crash, arsenal, buried,
+    /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, pause-settings, stats, crash, unreadable, arsenal, buried,
     /// battle, pause, over, defence, log, shop, abandon, final.
     fn open_screen(&mut self, name: &str) -> Screen {
         self.has_saved_run = false;
@@ -838,6 +883,10 @@ impl Game {
                 back: Box::new(game_screen(self, true)),
             },
             "stats" => Screen::Stats,
+            "unreadable" => {
+                self.save_problem = Some(sample_unreadable());
+                Screen::Menu
+            }
             "crash" => {
                 let report = |t| {
                     std::path::PathBuf::from(format!("/home/you/.local/share/scorch/crash-{t}.log"))
@@ -1085,7 +1134,7 @@ async fn run() {
     if screen.is_some() {
         save::set_read_only();
     }
-    let mut profile = save::load_profile();
+    let (mut profile, save_problem) = save::load_profile();
     // First run (or an old "System" setting): pick the OS language once and save it.
     if profile.settings.language.is_none() {
         profile.settings.language = Some(i18n::detect());
@@ -1107,6 +1156,7 @@ async fn run() {
         sounds: Box::leak(Box::new(sound::Sounds::load().await)),
         crash: crash::pending(),
         crash_note: None,
+        save_problem,
         ladder_note: None,
         preview: Preview::default(),
         screen: first_screen,
@@ -1190,6 +1240,15 @@ fn shot_problem(path: &std::path::Path) -> Option<&'static str> {
         Some("the folder doesn't exist")
     } else {
         None
+    }
+}
+
+/// For `--screen unreadable`: the notice about a save file that couldn't be read.
+fn sample_unreadable() -> save::Unreadable {
+    save::Unreadable {
+        file: save::File::Profile,
+        problem: save::Problem::Damaged,
+        kept: Some("/home/you/.local/share/scorch/profile.unreadable.json".into()),
     }
 }
 

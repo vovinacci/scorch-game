@@ -62,6 +62,11 @@ crash-copy = { $n ->
    *[other] Copy reports
 }
 crash-dismiss = Dismiss
+save-profile-damaged = Your settings and statistics couldn't be read, so they start afresh.
+save-profile-newer = Your settings and statistics are from a newer Scorch, so they start afresh here.
+save-run-damaged = Your saved game couldn't be read.
+save-run-newer = Your saved game is from a newer Scorch and can't be continued here.
+save-kept = The old file is kept: { $path }
 crash-copied = { $n ->
     [1] Crash report copied to the clipboard. Paste it into a message.
    *[other] { $n } crash reports copied to the clipboard. Paste them into a message.

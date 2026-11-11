@@ -55,7 +55,7 @@ Command line options:
 | `--version`, `-V` | Print the version and exit |
 | `--crash-test` | Crash on purpose, to check crash reports |
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
-| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, battle, pause, over (a round just won), defence (every tank with a shield), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
+| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, over (a round just won), defence (every tank with a shield), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit. The name must end in `.png` and its folder must exist, or the game says so and exits with status 2 before opening the window |
 | `--keys <keys>` | With `--screen`: press menu keys before the screenshot, one every 4 frames: a comma-separated list of up, down, left, right, enter (`--screen shop --keys down,down,right --shot shop.png`) |
 
@@ -354,6 +354,11 @@ JSON in the platform data folder (`~/.local/share/scorch/` on Linux):
   each is renamed to `crash-<time>.seen.log`.
 
 New saved fields need `#[serde(default)]` so older files still load.
+
+Both files carry `"version"` (`save::FORMAT`, now 1; files from before it count as 0). Raise it with a change an older
+version of the game can't read. A file that doesn't parse, or has a higher version than the game knows, is renamed to
+`profile.unreadable.json` or `run.unreadable.json` (replacing an earlier one) before anything is saved again, and the
+main menu shows a notice with that path until it is dismissed. With `--screen` nothing is renamed.
 
 ## Versioning
 
