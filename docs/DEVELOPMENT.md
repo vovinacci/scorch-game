@@ -399,6 +399,7 @@ dirty.
 | `shop.rs` | Shop screen, bot shopping |
 | `stats.rs` | All-time stats |
 | `crash.rs` | Version string, crash reports |
+| `rng.rs` | Random numbers: one generator per thread, seeded from the clock in the game, in its fixed starting state in every test (so tests repeat exactly and don't disturb each other; `rng::seed` starts a sequence over) |
 | `save.rs` | Save files |
 | `update.rs` | Self-update: check, signed download, replace, restart (see RELEASING.md) |
 | `i18n.rs` | Languages, `t!` translation lookup, language detection |

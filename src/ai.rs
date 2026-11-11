@@ -7,8 +7,8 @@
 //!
 //! So the typical error on shot n is about 0.7 * E * L^(n-1).
 
+use crate::rng::gen_range;
 use macroquad::prelude::*;
-use macroquad::rand::gen_range;
 use serde::{Deserialize, Serialize};
 
 use crate::i18n::t;
@@ -225,7 +225,7 @@ impl From<SavedProfile> for AiProfile {
 /// Random value between 40% and 100% of `max`, either sign: first shots never land dead-on.
 fn rough(max: f32) -> f32 {
     let e = gen_range(max * 0.4, max);
-    if ui::chance(0.5) { e } else { -e }
+    if crate::rng::chance(0.5) { e } else { -e }
 }
 
 fn wobble(max: f32) -> f32 {

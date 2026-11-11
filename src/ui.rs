@@ -16,10 +16,6 @@ pub const HEIGHT: f32 = 720.0;
 pub const PANEL: Color = Color::new(0.05, 0.06, 0.1, 0.9);
 pub const ACCENT: Color = SKYBLUE;
 
-pub fn chance(p: f32) -> bool {
-    rand::gen_range(0.0, 1.0) < p
-}
-
 /// Camera that maps the virtual screen onto the largest centered area of the window
 /// with the same aspect ratio.
 pub fn camera() -> Camera2D {

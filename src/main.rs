@@ -18,6 +18,7 @@ mod i18n;
 mod items;
 mod logo;
 mod player;
+mod rng;
 mod save;
 mod settings;
 mod setup;
@@ -1125,7 +1126,7 @@ fn main() {
 }
 
 async fn run() {
-    rand::srand((miniquad::date::now() * 1000.0) as u64);
+    rng::seed((miniquad::date::now() * 1000.0) as u64);
     // Closing the window should save first, so handle it ourselves.
     prevent_quit();
 

@@ -22,7 +22,7 @@ pub trait Choice: Copy + PartialEq + 'static {
             .copied()
             .filter(|v| !v.is_random())
             .collect();
-        real[macroquad::rand::gen_range(0, real.len())]
+        real[crate::rng::gen_range(0, real.len())]
     }
 
     /// `self`, or for `Random` a real value picked at random.

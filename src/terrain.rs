@@ -3,8 +3,8 @@
 //! A heightmap cannot hold floating dirt, which is exactly what we want:
 //! when an explosion removes dirt from a column, everything above falls down.
 
+use crate::rng::gen_range;
 use macroquad::prelude::*;
-use macroquad::rand::gen_range;
 use serde::{Deserialize, Serialize};
 
 use crate::choice::Choice;
@@ -645,7 +645,7 @@ mod look_tests {
             step(&mut t);
             let (first, last) = painted.update(&t).expect(name);
             assert!(first <= last && last < WIDTH, "{name}");
-            assert!(painted.image.bytes == t.paint().bytes, "{name}");
+            assert_eq!(painted.image.bytes, t.paint().bytes, "{name}");
         }
         // A small change repaints a small part.
         t.carve(vec2(640.0, 400.0), 20.0);

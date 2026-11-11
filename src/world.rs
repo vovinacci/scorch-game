@@ -2,8 +2,8 @@
 //! Also `step_shell`, the one function that moves a shell, shared by real
 //! shots and bot aiming so bots "see" exactly the same physics.
 
+use crate::rng::gen_range;
 use macroquad::prelude::*;
-use macroquad::rand::gen_range;
 use serde::{Deserialize, Serialize};
 
 use crate::choice::{Choice, choice};
