@@ -310,6 +310,11 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   the Riot Bomb) and the items, each bought if affordable.
 - Target score for a new target: nearness (weight 1.0) + damage taken (0.8) + share of the most wins (0.8) - 0.5 per
   other bot aiming at that tank + random 0-0.3.
+- With exactly three tanks left, all bots: a further - 0.5 for the tank that aims at the bot choosing, and no revenge on
+  a tank the third bot already aims at. Without this the bot firing first wins 24% of rounds among three equal bots
+  instead of a third (the others avoid its target, which leaves only itself, and whoever it hits takes revenge too);
+  with it, 36-38%, about the edge the first shot gives with two tanks (`balance_order`). With a human or four tanks
+  alive the rules don't apply.
 
 ### Battle log
 

@@ -102,3 +102,59 @@ fn bots_aim_rollers_and_napalm_at_where_they_end_up() {
     );
     assert_eq!(damage_point(Kind::Blast, landing, &terrain), landing.pos);
 }
+
+/// Three tanks in a row on flat ground, 400 px apart, tank 1 in the middle.
+fn three(players: &[Player]) -> Battle {
+    let mut b = battle(players, Setup::default().rules());
+    for (tank, x) in b.tanks.iter_mut().zip([240.0, 640.0, 1040.0]) {
+        tank.pos = vec2(x, 600.0);
+    }
+    b
+}
+
+fn aim_at(target: usize) -> AimMemory {
+    AimMemory {
+        target,
+        error: (0.0, 0.0),
+        reason: "nearest",
+    }
+}
+
+#[test]
+fn with_three_bots_left_a_bot_doesnt_square_off_with_the_one_aiming_at_it() {
+    let players = bots(3);
+    let mut b = three(&players);
+    b.tanks[0].aim = Some(aim_at(1));
+    // Both others are as near and as healthy; only tank 0 aims at tank 1.
+    for _ in 0..20 {
+        assert_eq!(b.score_targets(1, &players).0, 2);
+    }
+    // With a human among the three the rule stays out: either may be picked.
+    let mut mixed = bots(3);
+    mixed[2].bot = None;
+    let picks: Vec<usize> = (0..40).map(|_| b.score_targets(1, &mixed).0).collect();
+    assert!(picks.contains(&0) && picks.contains(&2), "{picks:?}");
+}
+
+#[test]
+fn with_three_bots_left_revenge_is_left_to_the_bot_already_after_the_attacker() {
+    let players = bots(3);
+    let profile = players[1].bot.unwrap();
+    let mut b = three(&players);
+    // Tank 0 hit tank 1, which was aiming at tank 2; tank 2 is already after tank 0.
+    b.tanks[2].aim = Some(aim_at(0));
+    b.tanks[1].aim = Some(aim_at(2));
+    b.tanks[1].revenge = Some(0);
+    assert_eq!(b.choose_target(1, &players, &profile).target, 2);
+    // Nobody else on the attacker: revenge as usual.
+    b.tanks[2].aim = Some(aim_at(1));
+    b.tanks[1].revenge = Some(0);
+    assert_eq!(b.choose_target(1, &players, &profile).target, 0);
+    // Four tanks: revenge as usual, even with another bot on the attacker.
+    let players = bots(4);
+    let mut b = battle(&players, Setup::default().rules());
+    b.tanks[2].aim = Some(aim_at(0));
+    b.tanks[1].aim = Some(aim_at(2));
+    b.tanks[1].revenge = Some(0);
+    assert_eq!(b.choose_target(1, &players, &profile).target, 0);
+}

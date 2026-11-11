@@ -232,6 +232,10 @@ out and it has the health to spare, otherwise with Baby Missiles, a little healt
 3. Otherwise it picks a new target, preferring tanks that are **nearest**, **weakest** or the **leader** (most round
    wins). It avoids a tank that other bots are already aiming at, so bots don't all gang up on you.
 
+When only three bots are left (no human), they spread their fire so that each has one other after it: a bot rather
+doesn't pick the one that is aiming at it, and it leaves revenge to the third bot if that one is already after the
+attacker. Otherwise two bots would end up on whichever fired first.
+
 The bottom line of the screen shows the target and the reason while a bot aims, and the full battle log keeps every
 choice. Right after continuing a saved game, the reason isn't shown until the bot picks a new target.
 
