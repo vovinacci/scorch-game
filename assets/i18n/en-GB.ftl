@@ -33,6 +33,8 @@ skill-shooter = Shooter
 skill-sniper = Sniper
 skill-spoiler = Spoiler
 skill-cyborg = Cyborg
+skill-tosser = Tosser
+skill-poolshark = Poolshark
 skill-custom = Custom
 
 ## Intro and About

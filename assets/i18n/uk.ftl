@@ -37,6 +37,8 @@ skill-shooter = Стрілець
 skill-sniper = Снайпер
 skill-spoiler = Капосник
 skill-cyborg = Кіборг
+skill-tosser = Навісник
+skill-poolshark = Більярдист
 skill-custom = Власний
 
 ## Заставка і «Про гру»

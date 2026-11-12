@@ -343,9 +343,10 @@ fn balance_deflector() {
 /// can't see a human's) against `lineup`: 5 rounds with the default settings, everyone shopping between rounds as
 /// bots do. Returns the share of games it wins outright, the share it shares first place in, and its mean round
 /// wins per game.
-fn ladder_games(standin: usize, lineup: &[usize], games: u64) -> (f32, f32, f32) {
+fn ladder_games(standin: usize, lineup: &[usize], games: u64, walls: Walls) -> (f32, f32, f32) {
     const ROUNDS: u32 = 5;
-    let setup = Setup::default();
+    let mut setup = Setup::default();
+    setup.world.walls = walls;
     let (mut won, mut shared, mut rounds_won) = (0u32, 0u32, 0u32);
     for game in 0..games {
         // The same numbers for a game whatever else has run, so a table can be compared with the one before.
@@ -411,21 +412,24 @@ fn lineups() -> Vec<Vec<usize>> {
 
 /// Prints `ladder_games` for every line-up, easiest first.
 fn ladder_table(standin: usize, games: u64) {
-    games_table(standin, &lineups(), games);
+    games_table(standin, &lineups(), games, Setup::default().world.walls);
 }
 
 /// Prints `ladder_games` for each of `lineups`, easiest first.
-fn games_table(standin: usize, lineups: &[Vec<usize>], games: u64) {
+fn games_table(standin: usize, lineups: &[Vec<usize>], games: u64, walls: Walls) {
     let mut rows: Vec<((f32, f32, f32), String)> = lineups
         .iter()
         .map(|lineup| {
             let names: Vec<&str> = lineup.iter().map(|&p| PRESETS[p].name).collect();
-            (ladder_games(standin, lineup, games), names.join(", "))
+            (
+                ladder_games(standin, lineup, games, walls),
+                names.join(", "),
+            )
         })
         .collect();
     rows.sort_by(|a, b| b.0.0.total_cmp(&a.0.0));
     println!(
-        "\na {}-like player against each line-up, {games} games of 5 rounds",
+        "\na {}-like player against each line-up, {games} games of 5 rounds, walls {walls:?}",
         PRESETS[standin].name
     );
     println!("{:>6} {:>7} {:>7}  line-up", "won", "shared", "rounds");
@@ -471,6 +475,27 @@ fn balance_types() {
         vec![CYBORG, CYBORG, 0],
     ]);
     for standin in [1, SNIPER] {
-        games_table(standin, &lineups, 200);
+        games_table(standin, &lineups, 200, Setup::default().world.walls);
+    }
+}
+
+/// What the types that aim differently are worth: a Tosser beside a Shooter (the same aim, lobs only) and a
+/// Poolshark beside a Sniper, alone and with two Morons, behind each kind of wall a Poolshark cares about. The
+/// same games as `balance_ladder`. About a quarter of an hour.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the bot types or their threat points"]
+fn balance_shots() {
+    const SHOOTER: usize = 1;
+    const SNIPER: usize = 2;
+    const TOSSER: usize = 5;
+    const POOLSHARK: usize = 6;
+    let mut lineups = Vec::new();
+    for top in [SHOOTER, TOSSER, SNIPER, POOLSHARK] {
+        lineups.extend([vec![top], vec![top, 0, 0]]);
+    }
+    for walls in [Walls::Open, Walls::Bouncy, Walls::Wrap] {
+        for standin in [SHOOTER, SNIPER] {
+            games_table(standin, &lineups, 150, walls);
+        }
     }
 }

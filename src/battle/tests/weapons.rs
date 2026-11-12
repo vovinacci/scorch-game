@@ -164,6 +164,7 @@ fn the_predicted_roll_matches_the_real_one() {
         pos: vec2(500.0, valley(500.0)),
         vel: vec2(0.0, 200.0),
         ground: true,
+        off_wall: false,
     };
     let predicted = damage_point(Kind::Roller, landing, &Terrain::from_fn(valley));
     assert!(

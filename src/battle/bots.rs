@@ -1,5 +1,7 @@
 //! How bots play: whom they shoot at, what with, and how they find the aim.
 
+use std::ops::RangeInclusive;
+
 use macroquad::prelude::*;
 
 use super::shells::{blast_damage, damage_point, simulate};
@@ -7,13 +9,29 @@ use super::{
     AimMemory, BARREL, Battle, CROWD_PENALTY, DIG_HEALTH_SHARE, FACE_OFF_PENALTY, PREFER_LEADER,
     PREFER_NEAREST, PREFER_WEAKEST, Shot, TANK_RADIUS, direction, launch_velocity, you,
 };
-use crate::ai::{AiProfile, Targets};
+use crate::ai::{AiProfile, Shots, Targets};
 use crate::i18n::t;
 use crate::player::Player;
 use crate::rng::gen_range;
 use crate::terrain::WIDTH;
 use crate::weapons::Kind;
 use crate::weapons::WEAPONS;
+
+/// The angles a Tosser fires at: within 30 degrees of straight up.
+pub(super) const LOB_ANGLES: RangeInclusive<i32> = 61..=121;
+/// A Tosser takes a flatter shot when its best lob lands further than this from the target, px.
+const LOB_NEAR: f32 = 60.0;
+/// A Poolshark takes the shot off a wall when it lands at most this much further from the target than the
+/// closest shot, px.
+pub(super) const WALL_SHOT_SLACK: f32 = 20.0;
+
+/// A shot a bot has found: where it lands is `miss` px from the target.
+#[derive(Clone, Copy)]
+pub(super) struct Found {
+    pub(super) angle: f32,
+    pub(super) power: f32,
+    pub(super) miss: f32,
+}
 
 impl Battle {
     /// Who a bot shoots at this turn:
@@ -173,6 +191,66 @@ impl Battle {
             .unwrap_or(0)
     }
 
+    /// The angle and power, among `angles` (whole degrees, every third one), that bring `weapon` closest to
+    /// `target` without harming the bot itself, and how far off that is. With `walls`, a shot off a wall wins if it
+    /// lands within `WALL_SHOT_SLACK` of the closest one.
+    pub(super) fn closest_shot(
+        &self,
+        me: usize,
+        weapon: usize,
+        target: Vec2,
+        angles: RangeInclusive<i32>,
+        walls: bool,
+    ) -> Option<Found> {
+        let shooter = &self.tanks[me];
+        let max_power = self.max_power(shooter);
+        let safe_distance = WEAPONS[weapon].radius + 25.0;
+        let side_speed = WEAPONS[weapon].kind.side_speed();
+        let gravity = self.world().gravity();
+        // Bots see deflectors like walls and wind, and aim around them.
+        let deflectors = self.deflectors(me);
+        let (mut best, mut off_wall): (Option<Found>, Option<Found>) = (None, None);
+        for angle in angles.step_by(3) {
+            for power in (50..=max_power as i32).step_by(25) {
+                let (angle, power) = (angle as f32, power as f32);
+                let origin = shooter.barrel_base() + direction(angle) * BARREL;
+                let Some(landing) = simulate(
+                    origin,
+                    launch_velocity(angle, power),
+                    self.wind,
+                    self.world(),
+                    &self.terrain,
+                    &deflectors,
+                ) else {
+                    continue;
+                };
+                // Rollers and Napalm are aimed at where they end up, not where they land.
+                let hit = damage_point(WEAPONS[weapon].kind, landing, &self.terrain);
+                // MIRV warheads split at the top of the arc and drift apart for as long as they fall, which the
+                // landing speed tells (the fall starts with no vertical speed).
+                let drift = side_speed * landing.vel.y.max(0.0) / gravity;
+                if hit.distance(shooter.center()) < safe_distance + drift {
+                    continue;
+                }
+                let miss = hit.distance(target);
+                let found = Found { angle, power, miss };
+                let closer = |than: Option<Found>| than.is_none_or(|f| miss < f.miss);
+                if closer(best) {
+                    best = Some(found);
+                }
+                if landing.off_wall && closer(off_wall) {
+                    off_wall = Some(found);
+                }
+            }
+        }
+        match (best, off_wall) {
+            (Some(direct), Some(wall)) if walls && wall.miss <= direct.miss + WALL_SHOT_SLACK => {
+                Some(wall)
+            }
+            _ => best,
+        }
+    }
+
     /// AI: try many angle/power combos in a simulation, take the one landing
     /// closest to a target, then add some error so bots are beatable.
     pub(super) fn plan_shot(&mut self, me: usize, players: &[Player]) -> Shot {
@@ -204,51 +282,20 @@ impl Battle {
                 .max_by_key(|&w| WEAPONS[w].shot_price())
                 .unwrap_or(0);
         }
-        let safe_distance = WEAPONS[weapon].radius + 25.0;
-        let side_speed = WEAPONS[weapon].kind.side_speed();
-        let gravity = self.world().gravity();
-
+        // A Tosser lobs while a lob gets near; a Poolshark goes off the walls where that lands about as close.
+        let found = match profile.shots {
+            Shots::Any => self.closest_shot(me, weapon, target, 4..=176, false),
+            Shots::Walls => self.closest_shot(me, weapon, target, 4..=176, true),
+            Shots::Lobs => self
+                .closest_shot(me, weapon, target, LOB_ANGLES, false)
+                .filter(|lob| lob.miss <= LOB_NEAR)
+                .or_else(|| self.closest_shot(me, weapon, target, 4..=176, false)),
+        };
         let mut best = Shot {
-            angle: 90.0,
-            power: max_power.min(500.0),
+            angle: found.map_or(90.0, |f| f.angle),
+            power: found.map_or(max_power.min(500.0), |f| f.power),
             weapon,
         };
-        let mut best_distance = f32::MAX;
-        // Bots see deflectors like walls and wind, and aim around them.
-        let deflectors = self.deflectors(me);
-        for angle in (4..=176).step_by(3) {
-            for power in (50..=max_power as i32).step_by(25) {
-                let (angle, power) = (angle as f32, power as f32);
-                let origin = shooter.barrel_base() + direction(angle) * BARREL;
-                let Some(landing) = simulate(
-                    origin,
-                    launch_velocity(angle, power),
-                    self.wind,
-                    self.world(),
-                    &self.terrain,
-                    &deflectors,
-                ) else {
-                    continue;
-                };
-                // Rollers and Napalm are aimed at where they end up, not where they land.
-                let hit = damage_point(WEAPONS[weapon].kind, landing, &self.terrain);
-                // MIRV warheads split at the top of the arc and drift apart for as long as they fall, which the
-                // landing speed tells (the fall starts with no vertical speed).
-                let drift = side_speed * landing.vel.y.max(0.0) / gravity;
-                if hit.distance(shooter.center()) < safe_distance + drift {
-                    continue;
-                }
-                let d = hit.distance(target);
-                if d < best_distance {
-                    best_distance = d;
-                    best = Shot {
-                        angle,
-                        power,
-                        weapon,
-                    };
-                }
-            }
-        }
         best.angle = (best.angle + memory.error.0).clamp(0.0, 180.0);
         best.power = (best.power + memory.error.1).clamp(0.0, max_power);
 

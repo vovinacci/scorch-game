@@ -1305,6 +1305,8 @@ struct Landing {
     pos: Vec2,
     vel: Vec2,
     ground: bool,
+    /// It came off a Bouncy wall or round a Wrap one on the way.
+    off_wall: bool,
 }
 
 fn approach(value: f32, target: f32, max_step: f32) -> f32 {

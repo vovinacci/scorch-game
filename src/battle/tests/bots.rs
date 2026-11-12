@@ -1,6 +1,7 @@
 //! Bots: what they fire, where they aim, how they dig out.
 
 use super::*;
+use crate::battle::bots::{Found, LOB_ANGLES, WALL_SHOT_SLACK};
 
 #[test]
 fn bots_never_fire_utility_weapons_at_enemies() {
@@ -87,6 +88,7 @@ fn bots_aim_rollers_and_napalm_at_where_they_end_up() {
         pos: vec2(500.0, valley(500.0)),
         vel: vec2(0.0, 200.0),
         ground: true,
+        off_wall: false,
     };
     let roll = damage_point(Kind::Roller, landing, &terrain);
     assert!(
@@ -194,4 +196,63 @@ fn a_spoiler_goes_for_the_leader_whatever_else_happens() {
     b.tanks[0].pos.x = 500.0;
     b.tanks[1].aim = None;
     assert_eq!(b.choose_target(1, &players, &profile).target, 0);
+}
+
+/// The shot `me` plans with a learned aim (no error) at `target`.
+fn sure_shot(b: &mut Battle, players: &[Player], me: usize, target: usize) -> Shot {
+    b.tanks[me].aim = Some(aim_at(target));
+    b.plan_shot(me, players)
+}
+
+#[test]
+fn a_tosser_lobs_its_shells_while_a_lob_gets_there() {
+    const TOSSER: usize = 5;
+    let (mut players, mut b) = range(|_| 600.0);
+    players[0].bot = Some(PRESETS[TOSSER]);
+    assert_eq!(PRESETS[TOSSER].name, "Tosser");
+    // Any other bot takes the flat shot across the field when that lands closest; a Tosser never does.
+    for wind in [-40.0, 0.0, 40.0] {
+        b.wind = wind;
+        let angle = sure_shot(&mut b, &players, 0, 1).angle as i32;
+        assert!(LOB_ANGLES.contains(&angle), "wind {wind}: {angle}");
+    }
+    // A gale in its face: no lob gets near, so it shoots flatter and still lands close.
+    b.wind = -600.0;
+    let target = b.tanks[1].center();
+    let lob = b.closest_shot(0, 0, target, LOB_ANGLES, false);
+    assert!(lob.is_none_or(|l| l.miss > 100.0), "the lob falls short");
+    let shot = sure_shot(&mut b, &players, 0, 1);
+    assert!(!LOB_ANGLES.contains(&(shot.angle as i32)), "{}", shot.angle);
+}
+
+#[test]
+fn a_poolshark_plays_the_walls_where_they_bounce_or_wrap() {
+    let (_, mut b) = range(|_| 600.0);
+    // Well away from the walls, so that the closest shot is a plain one.
+    b.tanks[0].pos.x = 400.0;
+    b.tanks[1].pos.x = 880.0;
+    let target = b.tanks[1].center();
+    let landing = |b: &Battle, shot: Found| {
+        let origin = b.tanks[0].barrel_base() + direction(shot.angle) * BARREL;
+        let velocity = launch_velocity(shot.angle, shot.power);
+        simulate(origin, velocity, b.wind, b.world(), &b.terrain, &[]).unwrap()
+    };
+    for walls in [Walls::Bouncy, Walls::Wrap] {
+        b.rules.world.walls = walls;
+        let direct = b.closest_shot(0, 0, target, 4..=176, false).unwrap();
+        let played = b.closest_shot(0, 0, target, 4..=176, true).unwrap();
+        assert!(
+            !landing(&b, direct).off_wall,
+            "the closest shot flies straight there"
+        );
+        assert!(landing(&b, played).off_wall, "{walls:?}");
+        assert!(played.miss <= direct.miss + WALL_SHOT_SLACK);
+    }
+    // Walls that stop or lose a shell: the same shot as anyone's.
+    for walls in [Walls::Open, Walls::Solid] {
+        b.rules.world.walls = walls;
+        let direct = b.closest_shot(0, 0, target, 4..=176, false).unwrap();
+        let played = b.closest_shot(0, 0, target, 4..=176, true).unwrap();
+        assert_eq!((played.angle, played.power), (direct.angle, direct.power));
+    }
 }
