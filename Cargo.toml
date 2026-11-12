@@ -55,7 +55,3 @@ allow_attributes_without_reason = "warn"
 dbg_macro = "warn"
 todo = "warn"
 unimplemented = "warn"
-
-# macroquad's audio library with a smaller sound buffer on Linux, so sounds start sooner (see third_party/README.md).
-[patch.crates-io]
-quad-snd = { path = "third_party/quad-snd" }

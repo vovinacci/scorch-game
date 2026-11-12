@@ -355,13 +355,11 @@ the profile's `setup` so the battle shot is your turn. Scale them down to 1280x7
 (`pngquant --quality 85-98 --speed 1 --strip`; the grain in the ground makes full-colour shots several times bigger) and
 shrink them with `oxipng -o 4 --strip safe`.
 
-## Sound delay and the patched audio library
+## Sound delay
 
-macroquad plays sound through the quad-snd crate, which mixes a buffer of 4096 frames at a time; the sound device holds
-one more. A sound therefore started 0.1 to 0.2 s after its event, though the game plays it in the same frame. The
-repository carries quad-snd 0.2.8 in `third_party/quad-snd` with the Linux (ALSA) buffer at 1024 frames, a quarter of
-that, and `Cargo.toml` puts it in place of the published crate with `[patch.crates-io]`. `third_party/README.md` says
-what was changed and what to do when macroquad updates. The macOS and Windows buffers are as published.
+macroquad plays sound through the quad-snd crate, which mixes a buffer of 4096 frames at a time (93 ms at 44.1 kHz); the
+sound device holds one more. A sound therefore starts 0.1 to 0.2 s after its event, though the game plays it in the same
+frame. The buffer size is a constant in that crate, not a setting.
 
 Bluetooth headphones and some USB sound devices go to sleep while nothing plays and take a moment to wake: the start of
 the next sound is cut, short sounds are lost, the rest comes late. So while sound is on, the game loops a 10 Hz hum at
@@ -444,6 +442,5 @@ dirty.
 | `i18n.rs` | Languages, `t!` translation lookup, language detection |
 | `ui.rs` | Widgets, keyboard focus, scaling to the window, font |
 | `sound.rs` | 8-bit style sound effects (pulse, triangle and noise voices) synthesised at start, no sound files; played from the battle's `take_sounds()`. To listen while tuning: `SCORCH_SOUNDS=<dir> cargo test write_sounds -- --ignored` |
-| `third_party/` | Other people's crates the game needs a change in (see its README); not linted or formatted with the game |
 | `logo.rs` | Main menu logo |
 | `choice.rs` | Helper for settings with a fixed list of values |
