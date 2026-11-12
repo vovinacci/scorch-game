@@ -58,7 +58,7 @@ const PARACHUTE_SPEED: f32 = 90.0;
 /// Mag Deflector: enemy shells closer than this (px) to the tank are pushed away...
 pub const DEFLECT_RADIUS: f32 = 80.0;
 /// ...with this acceleration (px/s^2) at the tank, fading to nothing at the edge.
-pub const DEFLECT_FORCE: f32 = 3000.0;
+pub const DEFLECT_FORCE: f32 = 5000.0;
 /// Energy a Mag Deflector spends on each enemy shell that enters its field, so it can't push shells away for ever.
 pub const DEFLECT_COST: f32 = 10.0;
 /// A shell this far (px) outside a Mag Deflector's field has left it: coming back in is a new pass.
