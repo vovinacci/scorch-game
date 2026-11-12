@@ -247,6 +247,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   - `balance_buried` puts a tank under a direct Dirt Bomb hit and fires each weapon straight up until the barrel is
     clear: shots taken and health left.
   - `balance_deflector` sends one Missile at a full Mag Deflector on five paths: energy and health left.
+  - `balance_types` plays the same whole games against line-ups that differ in one bot type, to set the types' threat
+    points. About ten minutes.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against every line-up of one to three bots, 200 games each: the
     share of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a
@@ -284,7 +286,20 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 - First error at a new target: random 40-100% of E, either sign.
 - Next error = error x L + wobble, wobble uniform within ±12% of E. Typical miss on shot n = 0.7 x E x L^(n-1); "on
   target" means under 2° and 30 power, which is what the custom bot editor and the guide's table use.
-- Presets: Moron E = 25° / 300, L = 0.8; Shooter 12° / 180, 0.5; Sniper 6° / 90, 0.3.
+- Types (`ai::PRESETS`): Moron E = 25° / 300, L = 0.8; Shooter 12° / 180, 0.5; Sniper 6° / 90, 0.3; Spoiler 9° / 135,
+  0.4; Cyborg 3° / 45, 0.2. The first three keep their places in the list: the ladder's rungs are indices into it.
+- A Spoiler (`Targets::Leader`) shoots at the living enemy with the most round wins, the nearer of two level. No
+  revenge, no penalty for a crowded target, no three-bot rules; it keeps its learned aim only while that aim is on the
+  leader. While no living enemy has a round win it chooses as the others do. A custom bot always chooses as the others
+  do.
+- Threat points (`ai::THREAT`): Moron 1, Shooter 2, Sniper and Spoiler 3, Cyborg 4. A line-up gives every bot 1 point,
+  hands the rest of the budget out a point at a time to random bots (4 at most), then makes each bot a random type of
+  its cost. A lone bot is never a Spoiler: alone it is only a worse shot than a Sniper (a Shooter-like player wins 25%
+  of games against it, 6.5% against a Sniper). The costs come from `balance_types` (whole games, as `balance_ladder`):
+  with two Morons or two Shooters beside it a Spoiler costs the player about what a Sniper does (11-17% of games won by
+  a Shooter-like player, 32-41% by a Sniper-like one), and 9 points cost about the same as three Snipers, three
+  Spoilers, a Cyborg with a Sniper and a Shooter, or two Cyborgs with a Moron (4.5-16.5% and 15-27%). A lone Cyborg is
+  the hardest single bot: 0.5% and 23%.
 - Weapon: 60% chance of its weapon with the highest price per shot (`Weapon::shot_price`) that isn't a utility one,
   otherwise a Baby Missile. Shots landing closer to the bot than the weapon's radius + 25 px are ruled out; for
   MIRV-type weapons add the outer warhead's drift: its sideways speed x the fall time from the top of the arc (landing

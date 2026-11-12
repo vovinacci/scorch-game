@@ -208,14 +208,19 @@ weapons (never Dirt Bombs or Diggers) and items they can afford, and they use th
 
 ### Bot skills
 
-Bots come in three skills. Each one aims well, but misses on purpose at first and then corrects itself shot by shot, the
+Bots come in five skills. Each one aims well, but misses on purpose at first and then corrects itself shot by shot, the
 way a person would:
 
 | Skill | First miss up to | Corrects each shot by | Typically on target by |
 |---|---|---|---|
 | Moron | 25° / 300 power | keeps 80% of its error | shot 11 |
 | Shooter | 12° / 180 power | keeps 50% of its error | shot 4 |
+| Spoiler | 9° / 135 power | keeps 40% of its error | shot 3 |
 | Sniper | 6° / 90 power | keeps 30% of its error | shot 2 |
+| Cyborg | 3° / 45 power | keeps 20% of its error | shot 2 |
+
+A **Spoiler** also picks its targets differently: it is always after whoever is winning (see below). A **Cyborg**'s
+first shot already lands close, so there is little time before it hits.
 
 How it works: a bot works out the perfect shot from the real wind, gravity and hills, then adds an error. Its first shot
 at a new target misses by 40-100% of its "first miss" in a random direction. After each shot the error shrinks to the
@@ -238,14 +243,19 @@ When only three bots are left (no human), they spread their fire so that each ha
 doesn't pick the one that is aiming at it, and it leaves revenge to the third bot if that one is already after the
 attacker. Otherwise two bots would end up on whichever fired first.
 
+A **Spoiler** skips all of this once somebody has won a round: it shoots at the living tank with the most round wins
+(the nearer one of two level), whoever has hit it and however many others are already after that tank. Lead the game and
+every Spoiler is yours. While no living enemy has won a round it chooses like any other bot.
+
 The bottom line of the screen shows the target and the reason while a bot aims, and the full battle log keeps every
 choice. Right after continuing a saved game, the reason isn't shown until the bot picks a new target.
 
 ### Difficulty
 
-Difficulty sets a budget of "threat points" for the bots: a Moron costs 1, a Shooter 2, a Sniper 3. Every bot starts as
-a Moron and random bots are upgraded until the budget is spent, so the same difficulty gives a different mix each game.
-More bots get a little extra each, so more opponents is harder, but not overwhelming.
+Difficulty sets a budget of "threat points" for the bots: a Moron costs 1, a Shooter 2, a Sniper or a Spoiler 3, a
+Cyborg 4. Every bot starts as a Moron and random bots are upgraded a point at a time until the budget is spent, so the
+same difficulty gives a different mix each game. A bot on its own is never a Spoiler. More bots get a little extra each,
+so more opponents is harder, but not overwhelming.
 
 | Difficulty | vs 1 bot | vs 2 bots | vs 3 bots |
 |---|---|---|---|

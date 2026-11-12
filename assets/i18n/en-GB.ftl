@@ -31,6 +31,8 @@ bot-charlie = Charlie
 skill-moron = Moron
 skill-shooter = Shooter
 skill-sniper = Sniper
+skill-spoiler = Spoiler
+skill-cyborg = Cyborg
 skill-custom = Custom
 
 ## Intro and About

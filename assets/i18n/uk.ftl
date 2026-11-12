@@ -35,6 +35,8 @@ bot-charlie = Чарлі
 skill-moron = Бовдур
 skill-shooter = Стрілець
 skill-sniper = Снайпер
+skill-spoiler = Капосник
+skill-cyborg = Кіборг
 skill-custom = Власний
 
 ## Заставка і «Про гру»

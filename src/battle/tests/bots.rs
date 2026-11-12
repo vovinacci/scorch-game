@@ -158,3 +158,40 @@ fn with_three_bots_left_revenge_is_left_to_the_bot_already_after_the_attacker() 
     b.tanks[1].revenge = Some(0);
     assert_eq!(b.choose_target(1, &players, &profile).target, 0);
 }
+
+#[test]
+fn a_spoiler_goes_for_the_leader_whatever_else_happens() {
+    const SPOILER: usize = 3;
+    let mut players = bots(3);
+    let profile = PRESETS[SPOILER];
+    assert_eq!(profile.name, "Spoiler");
+    let mut b = three(&players);
+    // Nobody has won a round yet: it behaves like any other bot, revenge first.
+    b.tanks[1].revenge = Some(0);
+    assert_eq!(b.choose_target(1, &players, &profile).target, 0);
+    // Tank 2 leads. Tank 0 has just hit the Spoiler and is its old target, and tank 0 already aims at the leader.
+    players[2].wins = 2;
+    players[0].wins = 1;
+    b.tanks[0].aim = Some(aim_at(2));
+    b.tanks[1].aim = Some(aim_at(0));
+    b.tanks[1].revenge = Some(0);
+    let memory = b.choose_target(1, &players, &profile);
+    assert_eq!((memory.target, memory.reason), (2, "leader"));
+    // It keeps what it has learned about the leader.
+    b.tanks[1].aim = Some(AimMemory {
+        error: (1.0, 2.0),
+        ..aim_at(2)
+    });
+    assert_eq!(b.choose_target(1, &players, &profile).error, (1.0, 2.0));
+    // The leader is dead: the best of those left.
+    b.tanks[2].alive = false;
+    assert_eq!(b.choose_target(1, &players, &profile).target, 0);
+    // A Spoiler that leads goes for the best of the others; two level on wins, the nearer one.
+    b.tanks[2].alive = true;
+    players[1].wins = 3;
+    assert_eq!(b.choose_target(1, &players, &profile).target, 2);
+    players[0].wins = 2;
+    b.tanks[0].pos.x = 500.0;
+    b.tanks[1].aim = None;
+    assert_eq!(b.choose_target(1, &players, &profile).target, 0);
+}
