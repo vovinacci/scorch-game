@@ -3,6 +3,22 @@
 use super::*;
 
 #[test]
+fn a_shell_explodes_on_the_bottom_of_the_screen() {
+    // The ground is blown away all the way down; a tank sits on the bottom edge.
+    let (mut players, mut b) = range(|_| HEIGHT);
+    b.tanks[1].pos = vec2(640.0, HEIGHT);
+    drop(&mut b, weapon("Missile"), 665.0, 0.0);
+    let blasts = run(&mut b, &mut players);
+    assert_eq!(
+        blasts.len(),
+        1,
+        "it lands instead of falling out of the world"
+    );
+    assert!(blasts[0].y <= HEIGHT);
+    assert!(b.tanks[1].health < 100.0, "a near miss hurts");
+}
+
+#[test]
 fn a_roller_rolls_down_into_the_dip() {
     let (mut players, mut b) = range(valley);
     drop(&mut b, weapon("Roller"), 500.0, 0.0);

@@ -117,6 +117,8 @@ The player's guide explains the rules; these are the exact values.
 - Wind maximum: Off 0, Calm 20, Normal 40, Strong 70. It starts at a random value within 60% of the maximum; if it
   changes, it drifts by up to 35% of the maximum each turn.
 - Walls: Open loses a shell 200 px past the edge; Bouncy keeps 80% of the sideways speed.
+- The bottom edge (y 720) is solid under the field: a shell that would fall below it is stopped on it, where the ground
+  test (ground is never lower than 720) makes it land. Beside the field, with Open walls, it falls out of the world.
 
 ### Menu keys
 
