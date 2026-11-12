@@ -88,7 +88,7 @@ setup-bots = Боти
 setup-difficulty = Складність
 setup-edit-custom = Налаштувати власного бота
 setup-ladder = Драбина
-setup-ladder-at = Драбина (зараз «{ $level }»)
+setup-ladder-solo = Драбина (лише 1 гравець)
 setup-rounds = Раунди
 setup-power-limit = Здоров'я обмежує силу
 setup-sudden-death = Раптова смерть
@@ -259,6 +259,9 @@ stats-damage = Завдано шкоди
 stats-damage-per-shot = Шкода за постріл
 stats-best-hit = Найсильніше влучання
 stats-money = Зароблено грошей
+stats-ladder = Найвищий щабель драбини
+stats-ladder-rung = { $rung } з { $of }
+stats-ladder-champion = Чемпіон драбини (разів)
 
 ## Бій
 
@@ -423,8 +426,24 @@ weapon-deaths-head = Мертва голова
 final-title = ПІДСУМКИ
 final-play-again = Грати знову
 final-main-menu = Головне меню
-ladder-up = Драбина: наступна гра складніша - «{ $level }»
-ladder-down = Драбина: наступна гра легша - «{ $level }»
+ladder-rung = Щабель { $rung } з { $of }
+ladder-opponents = Проти: { $bots }
+ladder-rule = Виграйте гру одноосібно, щоб піднятися на щабель. Дві поразки поспіль на щаблі опускають на один нижче.
+ladder-warned = Ще одна поразка на цьому щаблі - і ви опуститеся на один нижче.
+ladder-no-count = З підказкою прицілювання «{ $help }» ця гра не зараховується до драбини.
+ladder-best = Найкращий досі: щабель { $rung }
+ladder-best-champion = Найкращий досі: щабель { $rung }. Чемпіон { $n } { $n ->
+    [one] раз
+    [few] рази
+   *[many] разів
+}.
+ladder-up = Драбина: вгору, на щабель { $rung } з { $of }
+ladder-down = Драбина: дві поразки поспіль, вниз на щабель { $rung } з { $of }
+ladder-champion = Драбина: ви здолали найвищий щабель. Чемпіон!
+ladder-shared = Драбина: спільне перше місце, ви лишаєтеся на щаблі { $rung }
+ladder-lost-warned = Драбина: поразка на щаблі { $rung }. Ще одна тут - і ви опуститеся.
+ladder-lost = Драбина: поразка на щаблі { $rung }
+ladder-not-counted = Драбина: ця гра не зараховується (був увімкнений показ шляху)
 
 ## Оновлення
 

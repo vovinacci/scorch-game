@@ -255,10 +255,34 @@ More bots get a little extra each, so more opponents is harder, but not overwhel
 **Custom** gives every bot your own profile. In **Edit custom bot** you set the first miss and how fast it learns, and
 the screen shows how close its shots will typically be, shot by shot.
 
-**Ladder:** when on, the difficulty goes up one step after you win a game and down one step after you lose, between Easy
-and Brutal (Custom never changes). The final screen tells you when it changed, and the Ladder row shows the level it has
-reached, e.g. "Ladder (now Hard)". Your chosen difficulty stays as you set it: picking a difficulty, or switching the
-ladder off and on, starts the ladder again from your choice.
+### The ladder
+
+Switch **Ladder** on (one player only) to climb ten rungs of opponents. The rung sets the bots you face, so the Bots and
+Difficulty options don't apply, and the setup screen shows your rung, whom you are up against and your best rung so far.
+
+| Rung | Opponents |
+|---|---|
+| 1 | Moron |
+| 2 | Moron, Moron |
+| 3 | Shooter |
+| 4 | Shooter, Shooter |
+| 5 | Sniper, Shooter |
+| 6 | Shooter, Shooter, Shooter |
+| 7 | Sniper, Shooter, Moron |
+| 8 | Sniper, Shooter, Shooter |
+| 9 | Sniper, Sniper, Shooter |
+| 10 | Sniper, Sniper, Sniper |
+
+- **Win the game outright** (more round wins than any bot) and you go up a rung.
+- **Lose twice in a row** on a rung and you go down one. A win in between wipes the first loss out. There is no way down
+  from rung 1.
+- A **shared first place** changes nothing.
+- **Abandoning** a ladder game counts as a loss.
+- Win on rung 10 and you are **champion**; you stay on rung 10 and can do it again.
+- A game played with the **Short path** or **Full path** aiming help doesn't count, either way. Coaching is fine.
+
+The final screen says what the game did to your rung, and **Statistics** keeps your best rung and how often you were
+champion. Your place on the ladder stays when you switch the ladder off and play ordinary games in between.
 
 ## Game options
 
@@ -272,7 +296,7 @@ random except the number of human players; you can still check and change it all
 | Players | 1, 2 (hotseat: take turns at one computer) | 1 |
 | Bots | 1 to 3 (4 tanks at most) | 2 |
 | Difficulty | Easy, Normal, Hard, Brutal, Custom | Normal |
-| Ladder | Off, On | Off |
+| Ladder | Off, On (see The ladder) | Off |
 | Rounds | 3, 5, 7, 10 | 5 |
 | Health limits power | Off, On | On |
 | Sudden death | Off, 8/12/16/24 shots each | 12 shots each |

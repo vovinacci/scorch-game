@@ -17,6 +17,7 @@ mod economy;
 mod game;
 mod i18n;
 mod items;
+mod ladder;
 mod logo;
 mod player;
 mod rng;

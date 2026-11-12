@@ -243,6 +243,9 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   - `balance_buried` puts a tank under a direct Dirt Bomb hit and fires each weapon straight up until the barrel is
     clear: shots taken and health left.
   - `balance_deflector` sends one Missile at a full Mag Deflector on five paths: energy and health left.
+  - `balance_ladder` lets a stand-in for the player (a Shooter whose aim the bots can't see, as they can't see a
+    human's) play 400 rounds against every line-up of one to three bots, taking each place in the firing order in turn:
+    the share of rounds it wins, hardest line-up last.
 - Utility weapons do no damage: Dirt Bomb, Digger, Tracer, Riot Bomb. Bots don't buy or fire them, and they don't add to
   the death blast.
 - MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,
@@ -315,6 +318,21 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   instead of a third (the others avoid its target, which leaves only itself, and whoever it hits takes revenge too);
   with it, 36-38%, about the edge the first shot gives with two tanks (`balance_order`). With a human or four tanks
   alive the rules don't apply.
+
+### Ladder
+
+- Ten rungs (`ladder::RUNGS`), each a fixed line-up of bots; the Bots and Difficulty settings aren't used. The order
+  comes from `balance_ladder`: against these line-ups a Shooter-like player wins 88, 59, 50, 43, 34, 29, 25, 20, 14 and
+  8% of single rounds with the starting weapons. More bots is not always harder, because they also fight each other: one
+  Sniper alone (18%) is harder than two (36%).
+- Only with one human player; with two the switch does nothing.
+- After a game: more round wins than the best bot is a win (up a rung; on rung 10, champion + 1 and stay); the same
+  number is a shared first place (no change); fewer is a loss. Two losses in a row on a rung go down one and start the
+  count afresh; a win clears the count, a shared first place doesn't; rung 1 has no way down.
+- Abandoning a ladder game is a loss, also when a new game replaces a saved one.
+- A game with a path preview (Short path, Full path) is on the ladder's rung but isn't recorded, won or lost.
+- The player's place (rung, losses in a row, best rung, champion count) is `Profile::ladder` in `profile.json`, apart
+  from the setup, so switching the ladder off and on keeps it.
 
 ### Battle log
 
@@ -415,6 +433,7 @@ dirty.
 | `economy.rs` | Money rules |
 | `weapons.rs` | Weapon table |
 | `items.rs` | Parachutes and shields: item table, which shield goes up |
+| `ladder.rs` | The ladder: its ten rungs, the player's place on it, what a won, shared or lost game does |
 | `shop.rs` | Shop screen, bot shopping |
 | `stats.rs` | All-time stats |
 | `crash.rs` | Version string, crash reports |

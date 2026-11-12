@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::ai::{self, AiProfile, CUSTOM, DIFFICULTIES};
 use crate::choice::{Choice, choice};
 use crate::i18n::t;
+use crate::ladder::Ladder;
 use crate::player::Player;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
@@ -144,11 +145,8 @@ pub struct Setup {
     pub bots: usize,
     /// Index into `ai::DIFFICULTIES`.
     pub difficulty: usize,
-    /// Difficulty steps up after a won game, down after a lost one.
+    /// Play the ladder (one player only): its rung sets the opponents, not `bots` and `difficulty`.
     pub ladder: bool,
-    /// Where the ladder has got to, starting from `difficulty`. Cleared whenever the player picks a difficulty or
-    /// switches the ladder, so their own choice is never overwritten.
-    pub ladder_level: Option<usize>,
     pub rounds: u32,
     /// Max shot power = health x 10, like the original game.
     pub power_limit: bool,
@@ -166,7 +164,6 @@ impl Default for Setup {
             bots: 2,
             difficulty: 1,
             ladder: false,
-            ladder_level: None,
             rounds: 5,
             power_limit: true,
             sudden_death: SuddenDeath::After12,
@@ -199,12 +196,14 @@ impl Setup {
         }
     }
 
-    /// The difficulty the next game is played at: the ladder's level when it is on, otherwise the chosen one.
-    pub fn level(&self) -> usize {
-        match self.ladder_level {
-            Some(level) if self.ladder => level,
-            _ => self.difficulty,
-        }
+    /// The game is played on the ladder: it is switched on and there is one player.
+    pub fn on_ladder(&self) -> bool {
+        self.ladder && self.humans == 1
+    }
+
+    /// The game counts for the ladder: a path preview makes aiming so much easier that such a game doesn't.
+    pub fn counts_for_ladder(&self) -> bool {
+        self.on_ladder() && self.aim_help.preview() <= 0.0
     }
 
     /// Keeps values valid after loading an old or edited profile.
@@ -212,7 +211,6 @@ impl Setup {
         self.humans = self.humans.clamp(1, 2);
         self.bots = self.bots.clamp(1, MAX_PLAYERS - self.humans);
         self.difficulty = self.difficulty.min(CUSTOM);
-        self.ladder_level = self.ladder_level.map(|l| l.min(CUSTOM));
         if !ROUND_CHOICES.contains(&self.rounds) {
             self.rounds = 5;
         }
@@ -252,15 +250,21 @@ impl Setup {
         } else {
             r.wind.text()
         };
-        let mut lines = vec![
-            (
-                "setup-players",
-                t!("summary-players", humans = self.humans, bots = self.bots),
+        let mut lines = vec![(
+            "setup-players",
+            t!("summary-players", humans = self.humans, bots = self.bots),
+            false,
+        )];
+        // On the ladder the rung picks the opponents; the difficulty isn't used.
+        if self.on_ladder() {
+            lines.push(("setup-ladder", on(true), false));
+        } else {
+            lines.push((
+                "setup-difficulty",
+                ai::difficulty_text(self.difficulty),
                 false,
-            ),
-            ("setup-difficulty", ai::difficulty_text(self.level()), false),
-            ("setup-ladder", on(self.ladder), false),
-        ];
+            ));
+        }
         match progress {
             Some((round, turn)) => {
                 lines.push((
@@ -328,7 +332,6 @@ impl Setup {
     pub fn randomize(&mut self) {
         self.bots = gen_range(1, MAX_PLAYERS - self.humans + 1);
         self.difficulty = gen_range(0, CUSTOM);
-        self.ladder_level = None;
         self.rounds = ROUND_CHOICES[gen_range(0, ROUND_CHOICES.len())];
         self.power_limit = gen_range(0, 2) == 1;
         self.sudden_death = pick();
@@ -345,11 +348,48 @@ impl Setup {
     }
 }
 
+/// The ladder on the setup screen: the rung and its opponents, what the next game can do, and the best rung so far.
+fn ladder_card(area: Rect, setup: &Setup, ladder: &Ladder) {
+    let bots: Vec<String> = ladder
+        .opponents()
+        .iter()
+        .map(|bot| ai::skill_text(bot.name))
+        .collect();
+    let (x, w) = (area.x + 10.0, area.w - 20.0);
+    let rung = t!("ladder-rung", rung = ladder.rung(), of = Ladder::RUNGS);
+    ui::text_fit(&rung, x, area.y + 34.0, w, 30.0, GOLD);
+    let against = t!("ladder-opponents", bots = bots.join(", "));
+    ui::text_fit(&against, x, area.y + 68.0, w, 22.0, WHITE);
+    let (note, color) = if !setup.counts_for_ladder() {
+        (t!("ladder-no-count", help = setup.aim_help.text()), ORANGE)
+    } else if ladder.losses_left() == 1 {
+        (t!("ladder-warned"), ORANGE)
+    } else {
+        (t!("ladder-rule"), GRAY)
+    };
+    let y = ui::text_wrapped(&note, x, area.y + 100.0, w, 18.0, color);
+    let best = if ladder.champion > 0 {
+        t!(
+            "ladder-best-champion",
+            rung = ladder.best(),
+            n = ladder.champion
+        )
+    } else {
+        t!("ladder-best", rung = ladder.best())
+    };
+    ui::text_fit(&best, x, y + 12.0, w, 18.0, LIGHTGRAY);
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one screen of widgets, drawn top to bottom"
 )]
-pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> SetupAction {
+pub fn screen(
+    setup: &mut Setup,
+    custom: &AiProfile,
+    ladder: &Ladder,
+    preview: &mut Preview,
+) -> SetupAction {
     const STEP: f32 = 47.0;
     ui::text_centered(&t!("setup-title"), ui::WIDTH / 2.0, 62.0, 48.0, ORANGE);
 
@@ -371,48 +411,52 @@ pub fn screen(setup: &mut Setup, custom: &AiProfile, preview: &mut Preview) -> S
         setup.humans = humans + 1;
         setup.bots = setup.bots.min(MAX_PLAYERS - setup.humans);
     }
-    let bot_labels = ["1", "2", "3"];
-    let mut bots = setup.bots - 1;
-    let max_bots = MAX_PLAYERS - setup.humans;
-    if ui::selector(
-        row(left, 1.0),
-        &t!("setup-bots"),
-        &bot_labels[..max_bots],
-        &mut bots,
-    ) {
-        setup.bots = bots + 1;
-    }
-    if ui::selector(
-        row(left, 2.0),
-        &t!("setup-difficulty"),
-        &(0..DIFFICULTIES.len())
-            .map(ai::difficulty_text)
-            .collect::<Vec<_>>(),
-        &mut setup.difficulty,
-    ) {
-        setup.ladder_level = None;
-    }
-    ui::text_wrapped(
-        &ai::describe(setup.difficulty, custom),
-        left.x + 30.0,
-        left.y + 52.0 + 3.0 * STEP + 12.0,
-        left.w - 60.0,
-        16.0,
-        GRAY,
-    );
-    let edit = ui::button(row(left, 4.0), &t!("setup-edit-custom"), true);
-    // With the ladder on, the label says where it has got to when that differs from the chosen difficulty.
-    let ladder_label = if setup.level() == setup.difficulty {
+    let edit = if setup.on_ladder() {
+        // The rung sets the opponents: its card takes the place of the bots and difficulty rows.
+        let (top, bottom) = (row(left, 1.0), row(left, 4.0));
+        ladder_card(
+            Rect::new(top.x, top.y, top.w, bottom.y + bottom.h - top.y),
+            setup,
+            ladder,
+        );
+        false
+    } else {
+        let bot_labels = ["1", "2", "3"];
+        let mut bots = setup.bots - 1;
+        let max_bots = MAX_PLAYERS - setup.humans;
+        if ui::selector(
+            row(left, 1.0),
+            &t!("setup-bots"),
+            &bot_labels[..max_bots],
+            &mut bots,
+        ) {
+            setup.bots = bots + 1;
+        }
+        ui::selector(
+            row(left, 2.0),
+            &t!("setup-difficulty"),
+            &(0..DIFFICULTIES.len())
+                .map(ai::difficulty_text)
+                .collect::<Vec<_>>(),
+            &mut setup.difficulty,
+        );
+        ui::text_wrapped(
+            &ai::describe(setup.difficulty, custom),
+            left.x + 30.0,
+            left.y + 52.0 + 3.0 * STEP + 12.0,
+            left.w - 60.0,
+            16.0,
+            GRAY,
+        );
+        ui::button(row(left, 4.0), &t!("setup-edit-custom"), true)
+    };
+    // The ladder is for one player.
+    let ladder_label = if setup.humans == 1 {
         t!("setup-ladder")
     } else {
-        t!(
-            "setup-ladder-at",
-            level = ai::difficulty_text(setup.level())
-        )
+        t!("setup-ladder-solo")
     };
-    if ui::toggle(row(left, 5.0), &ladder_label, &mut setup.ladder) {
-        setup.ladder_level = None;
-    }
+    ui::toggle(row(left, 5.0), &ladder_label, &mut setup.ladder);
     let round_labels: Vec<String> = ROUND_CHOICES.iter().map(u32::to_string).collect();
     let mut rounds = ROUND_CHOICES
         .iter()
@@ -602,25 +646,20 @@ mod tests {
     }
 
     #[test]
-    fn the_ladder_plays_its_own_level_and_keeps_the_choice() {
+    fn the_ladder_is_for_one_player_and_path_previews_dont_count() {
         let mut setup = Setup {
-            difficulty: 1,
-            ladder: true,
-            ladder_level: Some(2),
-            ..Setup::default()
-        };
-        assert_eq!(setup.level(), 2, "ladder on: its level");
-        assert_eq!(setup.difficulty, 1, "the choice is untouched");
-        setup.ladder = false;
-        assert_eq!(setup.level(), 1, "ladder off: the choice");
-        let fresh = Setup {
             ladder: true,
             ..Setup::default()
         };
-        assert_eq!(
-            fresh.level(),
-            fresh.difficulty,
-            "a new ladder starts at the choice"
-        );
+        assert!(setup.on_ladder() && setup.counts_for_ladder());
+        setup.aim_help = AimHelp::Coaching;
+        assert!(setup.counts_for_ladder(), "coaching is allowed");
+        for help in [AimHelp::ShortPath, AimHelp::FullPath] {
+            setup.aim_help = help;
+            assert!(setup.on_ladder() && !setup.counts_for_ladder());
+        }
+        setup.aim_help = AimHelp::Off;
+        setup.humans = 2;
+        assert!(!setup.on_ladder() && !setup.counts_for_ladder());
     }
 }

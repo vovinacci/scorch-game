@@ -338,3 +338,65 @@ fn balance_deflector() {
         );
     }
 }
+
+/// The ladder's rungs: a stand-in for the player (a Shooter whose aim the bots can't see, as they can't see a
+/// human's) plays 400 rounds with the starting weapons against every line-up of one to three bots, firing first,
+/// second and so on in turn. Prints the share of rounds it wins, hardest last. Run by hand: `make balance`.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the ladder or the bots"]
+fn balance_ladder() {
+    const ROUNDS: usize = 400;
+    let mut lineups: Vec<Vec<usize>> = Vec::new();
+    for a in 0..3 {
+        lineups.push(vec![a]);
+        for b in 0..=a {
+            lineups.push(vec![a, b]);
+            for c in 0..=b {
+                lineups.push(vec![a, b, c]);
+            }
+        }
+    }
+    let mut rows: Vec<(f32, String)> = lineups
+        .iter()
+        .map(|lineup| {
+            let n = lineup.len() + 1;
+            let mut wins = 0;
+            for round in 0..ROUNDS {
+                let mut players = vec![Player::new("You", WHITE, Some(PRESETS[1]))];
+                for &preset in lineup {
+                    players.push(Player::new("Bot", WHITE, Some(PRESETS[preset])));
+                }
+                let order: Vec<usize> = (0..n).map(|k| (k + round) % n).collect();
+                let mut b = Battle::new(&players, order, 1, 5, Setup::default().rules());
+                for _ in 0..200_000 {
+                    if matches!(b.phase, Phase::Over { .. }) {
+                        break;
+                    }
+                    // The bots plan without seeing whom the stand-in aims at.
+                    let hidden = if b.current == 0 {
+                        None
+                    } else {
+                        b.tanks[0].aim.take()
+                    };
+                    b.update(1.0 / 30.0, &mut players);
+                    if hidden.is_some() && b.tanks[0].aim.is_none() {
+                        b.tanks[0].aim = hidden;
+                    }
+                }
+                if let Phase::Over {
+                    winner: Some(0), ..
+                } = b.phase
+                {
+                    wins += 1;
+                }
+            }
+            let names: Vec<&str> = lineup.iter().map(|&p| PRESETS[p].name).collect();
+            (100.0 * wins as f32 / ROUNDS as f32, names.join(", "))
+        })
+        .collect();
+    rows.sort_by(|a, b| b.0.total_cmp(&a.0));
+    println!("\na Shooter-like player against each line-up, {ROUNDS} rounds: rounds won");
+    for (share, names) in rows {
+        println!("{share:>5.1}%  {names}");
+    }
+}

@@ -4,6 +4,7 @@ use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::i18n::t;
+use crate::ladder::Ladder;
 use crate::ui;
 
 /// What one player did in the current round. Added to `Stats` when the round ends.
@@ -102,7 +103,7 @@ impl Stats {
 }
 
 /// Draws the all-time stats screen. Returns `true` when the player goes back.
-pub fn screen(stats: &Stats) -> bool {
+pub fn screen(stats: &Stats, ladder: &Ladder) -> bool {
     let area = Rect::new(340.0, 30.0, 600.0, 660.0);
     ui::panel(area);
     ui::text_centered(
@@ -113,11 +114,23 @@ pub fn screen(stats: &Stats) -> bool {
         GOLD,
     );
     let mut y = area.y + 105.0;
-    for (key, value) in stats.rows() {
+    let mut rows = stats.rows();
+    rows.push((
+        "stats-ladder",
+        t!(
+            "stats-ladder-rung",
+            rung = ladder.best(),
+            of = Ladder::RUNGS
+        ),
+    ));
+    if ladder.champion > 0 {
+        rows.push(("stats-ladder-champion", ladder.champion.to_string()));
+    }
+    for (key, value) in rows {
         ui::text_fit(&t!(key), area.x + 50.0, y, area.w - 230.0, 24.0, LIGHTGRAY);
         let w = ui::measure(&value, 24.0).width;
         ui::text_at(&value, area.x + area.w - 50.0 - w, y, 24.0, WHITE);
-        y += 32.0;
+        y += 30.0;
     }
     ui::button(
         Rect::new(area.center().x - 120.0, area.y + area.h - 76.0, 240.0, 52.0),
