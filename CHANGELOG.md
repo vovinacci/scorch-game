@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/vovinacci/scorch-game/compare/v0.7.0...v0.8.0) - 2026-11-12
+
+### Features
+
+- *(ladder)* a real ladder: ten rungs, up on a win, down after two losses ([#101](https://github.com/vovinacci/scorch-game/pull/101))
+
+### Fixes
+
+- *(sound)* keep the sound device awake between sounds ([#107](https://github.com/vovinacci/scorch-game/pull/107))
+- *(sound)* sounds start sooner on Linux: a smaller buffer in the audio library ([#105](https://github.com/vovinacci/scorch-game/pull/105))
+- *(battle)* shells explode on the bottom of the screen ([#104](https://github.com/vovinacci/scorch-game/pull/104))
+- *(items)* a Mag Deflector pushes harder and shows while it pushes its last shell ([#103](https://github.com/vovinacci/scorch-game/pull/103))
+- *(ui)* the focus stays on its widget when others appear or disappear ([#102](https://github.com/vovinacci/scorch-game/pull/102))
+
 ## [0.7.0](https://github.com/vovinacci/scorch-game/compare/v0.6.0...v0.7.0) - 2026-11-11
 
 ### Changed
