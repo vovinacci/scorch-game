@@ -344,16 +344,30 @@ fn balance_deflector() {
 /// bots do. Returns the share of games it wins outright, the share it shares first place in, and its mean round
 /// wins per game.
 fn ladder_games(standin: usize, lineup: &[usize], games: u64, walls: Walls) -> (f32, f32, f32) {
+    let seed = 1_000 * lineup.iter().map(|&p| p as u64 + 1).sum::<u64>();
+    drawn_games(standin, seed, games, walls, || {
+        lineup.iter().map(|&p| PRESETS[p]).collect()
+    })
+}
+
+/// `ladder_games` against a line-up that `draw` makes afresh for every game.
+fn drawn_games(
+    standin: usize,
+    seed: u64,
+    games: u64,
+    walls: Walls,
+    draw: impl Fn() -> Vec<AiProfile>,
+) -> (f32, f32, f32) {
     const ROUNDS: u32 = 5;
     let mut setup = Setup::default();
     setup.world.walls = walls;
     let (mut won, mut shared, mut rounds_won) = (0u32, 0u32, 0u32);
     for game in 0..games {
         // The same numbers for a game whatever else has run, so a table can be compared with the one before.
-        crate::rng::seed(1_000 * lineup.iter().map(|&p| p as u64 + 1).sum::<u64>() + game);
+        crate::rng::seed(seed + game);
         let mut players = vec![Player::new("You", WHITE, Some(PRESETS[standin]))];
-        for &preset in lineup {
-            players.push(Player::new("Bot", WHITE, Some(PRESETS[preset])));
+        for bot in draw() {
+            players.push(Player::new("Bot", WHITE, Some(bot)));
         }
         for round in 1..=ROUNDS {
             for p in &mut players {
@@ -395,19 +409,57 @@ fn ladder_games(standin: usize, lineup: &[usize], games: u64, walls: Walls) -> (
     (share(won), share(shared), rounds_won as f32 / games as f32)
 }
 
-/// Every line-up of one to three bots, strongest bot first.
+/// Line-ups of one to three bots a ladder rung could be made of, strongest bot first (indices into `PRESETS`).
 fn lineups() -> Vec<Vec<usize>> {
-    let mut all = Vec::new();
-    for a in 0..3 {
-        all.push(vec![a]);
-        for b in 0..=a {
-            all.push(vec![a, b]);
-            for c in 0..=b {
-                all.push(vec![a, b, c]);
-            }
-        }
-    }
-    all
+    const M: usize = 0;
+    const SH: usize = 1;
+    const SN: usize = 2;
+    const SP: usize = 3;
+    const CY: usize = 4;
+    const TO: usize = 5;
+    const PO: usize = 6;
+    const CH: usize = 7;
+    let all: [&[usize]; 38] = [
+        &[M],
+        &[M, M],
+        &[M, M, M],
+        &[TO],
+        &[TO, M],
+        &[TO, TO, M],
+        &[SH],
+        &[SH, M, M],
+        &[SH, TO, M],
+        &[SH, SH, M],
+        &[SH, SH, SH],
+        &[CH],
+        &[CH, M, M],
+        &[CH, SH, M],
+        &[CH, CH, CH],
+        &[PO],
+        &[PO, M, M],
+        &[PO, SH, M],
+        &[PO, PO, SH],
+        &[SN],
+        &[SN, M],
+        &[SN, M, M],
+        &[SP, M, M],
+        &[SP, SH, M],
+        &[SP, SH, SH],
+        &[SP, PO, SH],
+        &[SN, SH, SH],
+        &[SN, SP, SH],
+        &[SN, SN, SN],
+        &[SN, SP, PO],
+        &[CY],
+        &[CY, M],
+        &[CY, M, M],
+        &[CY, SH, SH],
+        &[CY, SN, SP],
+        &[CY, SN, SN],
+        &[CY, CY, SN],
+        &[CY, CY, CY],
+    ];
+    all.iter().map(|lineup| lineup.to_vec()).collect()
 }
 
 /// Prints `ladder_games` for every line-up, easiest first.
@@ -438,44 +490,63 @@ fn games_table(standin: usize, lineups: &[Vec<usize>], games: u64, walls: Walls)
     }
 }
 
-/// The ladder's rungs: whole games of a Shooter-like stand-in for the player against every line-up of one to three
-/// bots (see `ladder_games`). Prints the share of games it wins outright, hardest line-up last. Takes about ten
-/// minutes. Run by hand: `make balance`.
+/// The ladder's rungs: whole games of a Shooter-like stand-in for the player against the line-ups a rung could be
+/// made of (see `ladder_games`). Prints the share of games it wins outright, hardest line-up last. Takes about a
+/// quarter of an hour. Run by hand: `make balance`.
 #[test]
 #[ignore = "prints a table; run by hand when tuning the ladder, the bots or the economy"]
 fn balance_ladder() {
     ladder_table(1, 200);
 }
 
-/// The same against a Sniper-like stand-in: a ladder has to work for a strong player too. About ten minutes more.
+/// The same against a Sniper-like stand-in: a ladder has to work for a strong player too. About a quarter of an hour more.
 #[test]
 #[ignore = "prints a table; run by hand when tuning the ladder, the bots or the economy"]
 fn balance_ladder_sniper() {
     ladder_table(2, 200);
 }
 
-/// What a bot type is worth in a line-up: the same games as `balance_ladder`, with one bot of the line-up swapped
-/// for each type that should cost the same or a point more. Line-ups next to each other in the table cost the
-/// player about the same. About ten minutes.
+/// What a bot type is worth in a line-up: the same games as `balance_ladder` against each type alone and with two
+/// Morons. Types next to each other in the table cost the player about the same. About ten minutes.
 #[test]
 #[ignore = "prints a table; run by hand when tuning the bot types or their threat points"]
 fn balance_types() {
-    const SNIPER: usize = 2;
-    const SPOILER: usize = 3;
-    const CYBORG: usize = 4;
     let mut lineups = Vec::new();
-    for top in [SNIPER, SPOILER, CYBORG] {
-        lineups.extend([vec![top], vec![top, 0, 0], vec![top, 1, 1]]);
+    for top in 0..PRESETS.len() {
+        lineups.extend([vec![top], vec![top, 0, 0]]);
     }
-    // The same 9 points three ways.
-    lineups.extend([
-        vec![SNIPER, SNIPER, SNIPER],
-        vec![SPOILER, SPOILER, SPOILER],
-        vec![CYBORG, SNIPER, 1],
-        vec![CYBORG, CYBORG, 0],
-    ]);
-    for standin in [1, SNIPER] {
+    for standin in [1, 2] {
         games_table(standin, &lineups, 200, Setup::default().world.walls);
+    }
+}
+
+/// What each difficulty is worth: the same games against line-ups drawn as the game draws them (`ai::lineup`),
+/// for one to three bots. About ten minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the difficulty budgets or the threat points"]
+fn balance_difficulty() {
+    for standin in [1, 2] {
+        println!(
+            "\na {}-like player against each difficulty, 200 games of 5 rounds",
+            PRESETS[standin].name
+        );
+        println!(
+            "{:>6} {:>7} {:>7}  difficulty, bots",
+            "won", "shared", "rounds"
+        );
+        for difficulty in 0..crate::ai::CUSTOM {
+            for bots in 1..=3 {
+                let seed = 10_000 * (difficulty as u64 + 1) + 1_000 * bots as u64;
+                let (won, shared, rounds) =
+                    drawn_games(standin, seed, 200, Setup::default().world.walls, || {
+                        crate::ai::lineup(difficulty, bots, PRESETS[1])
+                    });
+                println!(
+                    "{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {}, {bots}",
+                    crate::ai::DIFFICULTIES[difficulty]
+                );
+            }
+        }
     }
 }
 

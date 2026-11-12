@@ -441,7 +441,7 @@ pub fn screen(
             &mut setup.difficulty,
         );
         ui::text_wrapped(
-            &ai::describe(setup.difficulty, custom),
+            &ai::describe(setup.difficulty, setup.bots, custom),
             left.x + 30.0,
             left.y + 52.0 + 3.0 * STEP + 12.0,
             left.w - 60.0,

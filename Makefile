@@ -24,7 +24,7 @@ ascii-check: ## Check that code and config are ASCII (see tools/check_ascii.sh)
 		requirements.txt requirements-build.txt prek.toml ruff.toml .rumdl.toml .editorconfig -type f)
 
 .PHONY: balance
-balance: ## Print the balance tables: weapons, firing order, digging out, the Mag Deflector
+balance: ## Print the balance tables: weapons, firing order, digging out, deflector, bot types, difficulty, ladder
 	$(call CARGO,test --release balance_ -- --ignored --nocapture --test-threads=1)
 
 .PHONY: build

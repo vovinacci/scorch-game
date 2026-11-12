@@ -56,7 +56,7 @@ pub struct AiProfile {
 }
 
 /// The bot types. The first three keep their places: the ladder's rungs and older code count on them.
-pub const PRESETS: [AiProfile; 7] = [
+pub const PRESETS: [AiProfile; 8] = [
     AiProfile {
         name: "Moron",
         first_angle_error: 25.0,
@@ -117,14 +117,34 @@ pub const PRESETS: [AiProfile; 7] = [
         targets: Targets::Usual,
         shots: Shots::Walls,
     },
+    // Plays each round as one of the others, picked at random (`AiProfile::for_round`); its own numbers are never
+    // used in a battle.
+    AiProfile {
+        name: CHOOSER,
+        first_angle_error: 12.0,
+        first_power_error: 180.0,
+        learning: 0.5,
+        targets: Targets::Usual,
+        shots: Shots::Any,
+    },
 ];
 
-/// Threat points each type costs in a line-up, in the order of `PRESETS`.
-const THREAT: [usize; PRESETS.len()] = [1, 2, 3, 3, 4, 2, 3];
-/// The most one bot can cost.
-const MAX_THREAT: usize = 4;
+const CHOOSER: &str = "Chooser";
+
+/// What each type costs in a line-up, in half threat points, in the order of `PRESETS`: Moron 1, Tosser 1.5,
+/// Shooter 2, Poolshark and Chooser 2.5, Sniper and Spoiler 3, Cyborg 4. Measured with `balance_types`.
+const THREAT: [usize; PRESETS.len()] = [2, 4, 6, 6, 8, 3, 5, 5];
 
 impl AiProfile {
+    /// The type a bot plays a round as: itself, or for a Chooser any of the others.
+    pub fn for_round(self) -> Self {
+        if self.name != CHOOSER {
+            return self;
+        }
+        let others: Vec<&AiProfile> = PRESETS.iter().filter(|p| p.name != CHOOSER).collect();
+        *others[gen_range(0, others.len())]
+    }
+
     pub fn custom() -> Self {
         Self {
             name: "Custom",
@@ -201,67 +221,67 @@ pub fn skill_text(name: &str) -> String {
     t!(&format!("skill-{}", name.to_lowercase()))
 }
 
-/// Threat budget per difficulty: (points for one bot, points per extra bot).
-/// Each bot costs its type's threat: Moron 1, Shooter or Tosser 2, Sniper, Spoiler or Poolshark 3, Cyborg 4.
-/// Extra bots add less than the first one, so more opponents is harder
-/// but not overwhelming.
-const BUDGETS: [(f32, f32); 4] = [(1.0, 0.5), (2.0, 1.0), (3.0, 1.5), (3.0, 3.0)];
+/// Threat points per difficulty for one, two and three bots (see `THREAT` for what a bot costs). Extra bots add
+/// less than the first one, since they also fight each other. Measured with `balance_difficulty`.
+const BUDGETS: [[usize; 3]; 4] = [[1, 2, 3], [2, 3, 4], [3, 4, 6], [4, 6, 9]];
 
-/// Threat points to spend on `bots` opponents: at least 1 each (all Morons), at most 3 each (as many as all
-/// Snipers; a Cyborg at 4 then leaves less for the others).
+/// Threat points to spend on `bots` opponents.
 pub fn threat_budget(difficulty: usize, bots: usize) -> usize {
-    let (first, extra) = BUDGETS[difficulty];
-    let points = (first + extra * (bots as f32 - 1.0)).round() as usize;
-    points.clamp(bots, 3 * bots)
+    let row = BUDGETS[difficulty];
+    row[bots.clamp(1, row.len()) - 1]
 }
 
-/// Builds the opponents: everyone starts at 1 threat point, then the rest of the budget goes to random bots a
-/// point at a time, and each bot becomes a type that costs its points (a random one where two cost the same). Same
-/// budget, different mix each game.
+/// Builds the opponents: everyone starts as a Moron, then random bots move up to the next dearer cost while the
+/// budget lasts, and each bot becomes a type of its cost (a random one where several cost the same). Same budget,
+/// different mix each game.
 pub fn lineup(difficulty: usize, bots: usize, custom: AiProfile) -> Vec<AiProfile> {
     if difficulty == CUSTOM {
         return vec![custom; bots];
     }
-    let mut points = vec![1; bots];
-    let mut spare = threat_budget(difficulty, bots) - bots;
-    while spare > 0 {
-        let i = gen_range(0, bots);
-        if points[i] < MAX_THREAT {
-            points[i] += 1;
-            spare -= 1;
+    let mut costs: Vec<usize> = THREAT.to_vec();
+    costs.sort_unstable();
+    costs.dedup();
+    // Each bot's place in `costs`.
+    let mut steps = vec![0; bots];
+    let mut spare = 2 * threat_budget(difficulty, bots) - costs[0] * bots;
+    let rise = |step: usize| costs.get(step + 1).map(|dearer| dearer - costs[step]);
+    loop {
+        let open: Vec<usize> = (0..bots)
+            .filter(|&i| rise(steps[i]).is_some_and(|by| by <= spare))
+            .collect();
+        if open.is_empty() {
+            break;
         }
+        let i = open[gen_range(0, open.len())];
+        spare -= rise(steps[i]).unwrap_or(0);
+        steps[i] += 1;
     }
-    points.sort_unstable_by(|a, b| b.cmp(a));
-    points
+    steps.sort_unstable_by(|a, b| b.cmp(a));
+    steps
         .into_iter()
-        .map(|p| of_threat(p, bots == 1))
+        .map(|step| of_threat(costs[step], bots == 1))
         .collect()
 }
 
-/// A bot type that costs `points` threat points. A `lone` bot is never one that differs only in whom it shoots
+/// A bot type that costs `cost` half threat points. A `lone` bot is never one that differs only in whom it shoots
 /// at: with one enemy a Spoiler is just a worse shot than a Sniper for the same points.
-fn of_threat(points: usize, lone: bool) -> AiProfile {
+fn of_threat(cost: usize, lone: bool) -> AiProfile {
     let fits: Vec<usize> = (0..PRESETS.len())
-        .filter(|&i| THREAT[i] == points && !(lone && PRESETS[i].targets != Targets::Usual))
+        .filter(|&i| THREAT[i] == cost && !(lone && PRESETS[i].targets != Targets::Usual))
         .collect();
     PRESETS[fits[gen_range(0, fits.len())]]
 }
 
 /// One-line explanation for the title screen.
-pub fn describe(difficulty: usize, custom: &AiProfile) -> String {
+pub fn describe(difficulty: usize, bots: usize, custom: &AiProfile) -> String {
     if difficulty == CUSTOM {
         return t!("difficulty-custom-note", summary = custom.summary());
     }
-    let points: Vec<String> = (1..=3)
-        .map(|n| {
-            t!(
-                "difficulty-points",
-                points = threat_budget(difficulty, n),
-                bots = n
-            )
-        })
-        .collect();
-    t!("difficulty-note", points = points.join(", "))
+    t!(
+        "difficulty-note",
+        bots = bots,
+        points = threat_budget(difficulty, bots)
+    )
 }
 
 /// Loading form of `AiProfile`: names are `&'static str`, so a saved name is
@@ -350,10 +370,10 @@ pub fn editor(profile: &mut AiProfile) -> bool {
 
     ui::text_fit(&t!("custom-start-from"), x, y + 8.0, 110.0, 22.0, LIGHTGRAY);
     let mut bx = x + 120.0;
-    // The row has room for three.
-    for preset in &PRESETS[..3] {
+    // The types whose aim differs; the others share one of these and differ in what they do with it.
+    for preset in [0, 1, 2, 4].map(|i| &PRESETS[i]) {
         if ui::button(
-            Rect::new(bx, y - 16.0, 130.0, 36.0),
+            Rect::new(bx, y - 16.0, 98.0, 36.0),
             &skill_text(preset.name),
             true,
         ) {
@@ -362,7 +382,7 @@ pub fn editor(profile: &mut AiProfile) -> bool {
                 ..*preset
             };
         }
-        bx += 140.0;
+        bx += 107.0;
     }
     ui::text_wrapped(&t!("custom-explanation"), x, y + 56.0, w, 18.0, WHITE);
 
@@ -435,13 +455,11 @@ mod tests {
                     .map(|p| THREAT[PRESETS.iter().position(|q| q.name == p.name).unwrap()])
                     .sum();
                 assert_eq!(team.len(), bots);
-                assert_eq!(spent, threat_budget(difficulty, bots));
+                assert_eq!(spent, 2 * threat_budget(difficulty, bots));
             }
         }
-        // Normal: one Shooter alone, a softer mix when outnumbered.
-        assert_eq!(threat_budget(1, 1), 2);
-        assert_eq!(threat_budget(1, 3), 4);
-        // Brutal: as much as all Snipers.
+        // Brutal: a Cyborg alone, as much as three Snipers for three.
+        assert_eq!(lineup(3, 1, AiProfile::custom())[0].name, "Cyborg");
         assert_eq!(threat_budget(3, 3), 9);
     }
 
@@ -461,22 +479,34 @@ mod tests {
     #[test]
     fn lineups_use_every_type() {
         let mut seen = std::collections::BTreeSet::new();
-        for _ in 0..200 {
-            seen.extend(lineup(3, 3, AiProfile::custom()).iter().map(|p| p.name));
+        for round in 0..600 {
+            let team = lineup(round % CUSTOM, 1 + round % 3, AiProfile::custom());
+            seen.extend(team.iter().map(|p| p.name));
         }
         assert_eq!(seen.len(), PRESETS.len(), "{seen:?}");
-        // Easy stays all Morons, and a lone Normal bot costs 2.
+        // Easy stays all Morons, and a lone Normal bot is a Shooter.
         assert!(
             lineup(0, 3, AiProfile::custom())
                 .iter()
                 .all(|p| p.name == "Moron")
         );
-        let lone = lineup(1, 1, AiProfile::custom())[0].name;
-        assert!(["Shooter", "Tosser"].contains(&lone), "{lone}");
+        assert_eq!(lineup(1, 1, AiProfile::custom())[0].name, "Shooter");
         // A lone bot is never a Spoiler: with one enemy there is no leader to pick.
         for _ in 0..50 {
-            assert_ne!(lineup(3, 1, AiProfile::custom())[0].name, "Spoiler");
+            assert_eq!(lineup(2, 1, AiProfile::custom())[0].name, "Sniper");
         }
+    }
+
+    #[test]
+    fn a_chooser_plays_a_round_as_any_other_type() {
+        let chooser = *PRESETS.last().unwrap();
+        assert_eq!(chooser.name, CHOOSER);
+        let roles: std::collections::BTreeSet<&str> =
+            (0..300).map(|_| chooser.for_round().name).collect();
+        assert_eq!(roles.len(), PRESETS.len() - 1, "{roles:?}");
+        assert!(!roles.contains(CHOOSER));
+        // Everyone else is what it is.
+        assert_eq!(PRESETS[2].for_round().name, "Sniper");
     }
 
     #[test]

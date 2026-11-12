@@ -35,6 +35,7 @@ skill-spoiler = Spoiler
 skill-cyborg = Cyborg
 skill-tosser = Tosser
 skill-poolshark = Poolshark
+skill-chooser = Chooser
 skill-custom = Custom
 
 ## Intro and About
@@ -115,8 +116,13 @@ difficulty-normal = Normal
 difficulty-hard = Hard
 difficulty-brutal = Brutal
 difficulty-custom = Custom
-difficulty-points = { $points } vs { $bots }
-difficulty-note = threat points: { $points }   (Moron 1, Shooter 2, Sniper 3; mix is random)
+difficulty-note = { $bots ->
+    [one] 1 bot worth
+   *[other] { $bots } bots, a new mix each game, worth
+} { $points } { $points ->
+    [one] threat point
+   *[other] threat points
+}. A bot costs 1 (Moron) to 4 (Cyborg): see Bot skills in the guide.
 difficulty-custom-note = every bot: { $summary }
 bot-summary = first miss up to { $angle } deg / { $power } power, keeps { $keep }% of error per shot, { $hit }
 bot-hits-by = usually on target by shot { $n }

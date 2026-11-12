@@ -254,7 +254,10 @@ impl Battle {
     /// AI: try many angle/power combos in a simulation, take the one landing
     /// closest to a target, then add some error so bots are beatable.
     pub(super) fn plan_shot(&mut self, me: usize, players: &[Player]) -> Shot {
-        let profile = players[me].bot.expect("only bots plan shots");
+        let profile = self.tanks[me]
+            .role
+            .or(players[me].bot)
+            .expect("only bots plan shots");
         let memory = self.choose_target(me, players, &profile);
         let shooter = &self.tanks[me];
         let target = self.tanks[memory.target].center();

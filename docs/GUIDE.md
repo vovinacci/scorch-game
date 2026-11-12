@@ -208,7 +208,7 @@ weapons (never Dirt Bombs or Diggers) and items they can afford, and they use th
 
 ### Bot skills
 
-Bots come in seven skills. Each one aims well, but misses on purpose at first and then corrects itself shot by shot, the
+Bots come in eight skills. Each one aims well, but misses on purpose at first and then corrects itself shot by shot, the
 way a person would:
 
 | Skill | First miss up to | Corrects each shot by | Typically on target by |
@@ -220,6 +220,7 @@ way a person would:
 | Poolshark | 9° / 135 power | keeps 40% of its error | shot 3 |
 | Sniper | 6° / 90 power | keeps 30% of its error | shot 2 |
 | Cyborg | 3° / 45 power | keeps 20% of its error | shot 2 |
+| Chooser | as the skill it plays | | |
 
 Some differ in more than their aim:
 
@@ -230,6 +231,8 @@ Some differ in more than their aim:
   shoots like everyone else.
 - A **Spoiler** picks its targets differently: it is always after whoever is winning (see below).
 - A **Cyborg**'s first shot already lands close, so there is little time before it hits.
+- A **Chooser** plays every round as one of the other seven, picked at random, and doesn't say which: a Moron in one
+  round may be a Cyborg in the next. Watch its first shots to find out what you are up against.
 
 How it works: a bot works out the perfect shot from the real wind, gravity and hills, then adds an error. Its first shot
 at a new target misses by 40-100% of its "first miss" in a random direction. After each shot the error shrinks to the
@@ -261,17 +264,17 @@ choice. Right after continuing a saved game, the reason isn't shown until the bo
 
 ### Difficulty
 
-Difficulty sets a budget of "threat points" for the bots: a Moron costs 1, a Shooter or a Tosser 2, a Sniper, a Spoiler
-or a Poolshark 3, a Cyborg 4. Every bot starts as a Moron and random bots are upgraded a point at a time until the
-budget is spent, so the same difficulty gives a different mix each game. A bot on its own is never a Spoiler. More bots
-get a little extra each, so more opponents is harder, but not overwhelming.
+Difficulty sets a budget of "threat points" for the bots: a Moron costs 1, a Tosser 1.5, a Shooter 2, a Poolshark or a
+Chooser 2.5, a Sniper or a Spoiler 3, a Cyborg 4. Every bot starts as a Moron and random bots are upgraded a step at a
+time until the budget is spent, so the same difficulty gives a different mix each game. A bot on its own is never a
+Spoiler. More bots get a little extra each, so more opponents is harder, but not overwhelming.
 
 | Difficulty | vs 1 bot | vs 2 bots | vs 3 bots |
 |---|---|---|---|
 | Easy | 1 | 2 | 3 |
 | Normal | 2 | 3 | 4 |
 | Hard | 3 | 4 | 6 |
-| Brutal | 3 | 6 | 9 |
+| Brutal | 4 | 6 | 9 |
 
 **Custom** gives every bot your own profile. In **Edit custom bot** you set the first miss and how fast it learns, and
 the screen shows how close its shots will typically be, shot by shot.
@@ -285,14 +288,14 @@ Difficulty options don't apply, and the setup screen shows your rung, whom you a
 |---|---|
 | 1 | Moron |
 | 2 | Moron, Moron |
-| 3 | Moron, Moron, Moron |
+| 3 | Tosser |
 | 4 | Shooter |
-| 5 | Shooter, Moron, Moron |
-| 6 | Shooter, Shooter, Moron |
-| 7 | Shooter, Shooter, Shooter |
-| 8 | Sniper, Moron |
-| 9 | Sniper, Shooter, Shooter |
-| 10 | Sniper, Sniper, Sniper |
+| 5 | Chooser |
+| 6 | Shooter, Moron, Moron |
+| 7 | Poolshark, Shooter, Moron |
+| 8 | Spoiler, Shooter, Moron |
+| 9 | Sniper, Spoiler, Poolshark |
+| 10 | Cyborg, Sniper, Spoiler |
 
 - **Win the game outright** (more round wins than any bot) and you go up a rung.
 - **Lose twice in a row** on a rung and you go down one. A win in between wipes the first loss out. There is no way down
