@@ -39,6 +39,7 @@ skill-spoiler = Капосник
 skill-cyborg = Кіборг
 skill-tosser = Навісник
 skill-poolshark = Більярдист
+skill-chooser = Хамелеон
 skill-custom = Власний
 
 ## Заставка і «Про гру»
@@ -120,8 +121,14 @@ difficulty-normal = Нормально
 difficulty-hard = Важко
 difficulty-brutal = Жорстоко
 difficulty-custom = Власний
-difficulty-points = { $points } проти { $bots }
-difficulty-note = очки загрози: { $points }   (Бовдур 1, Стрілець 2, Снайпер 3; склад випадковий)
+difficulty-note = { $bots ->
+    [one] 1 бот на
+   *[other] { $bots } боти, щоразу новий склад, разом на
+} { $points } { $points ->
+    [one] очко загрози
+    [few] очки загрози
+   *[many] очок загрози
+}. Бот коштує від 1 (Бовдур) до 4 (Кіборг): див. «Рівні ботів» у посібнику.
 difficulty-custom-note = кожен бот: { $summary }
 bot-summary = перший промах до { $angle }° / { $power } сили, зберігає { $keep }% похибки за постріл, { $hit }
 bot-hits-by = зазвичай влучає з { $n }-го пострілу

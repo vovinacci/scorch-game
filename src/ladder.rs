@@ -1,27 +1,34 @@
-//! The ladder: ten rungs of opponents, from one Moron to three Snipers. A single player climbs by winning games
+//! The ladder: ten rungs of opponents, from one Moron to a Cyborg, a Sniper and a Spoiler. A single player climbs by winning games
 //! outright, drops a rung after two losses in a row on it, and is champion after beating the top rung.
 
 use serde::{Deserialize, Serialize};
 
 use crate::ai::{AiProfile, PRESETS};
 
-/// The bots to beat on each rung (indices into `ai::PRESETS`: 0 Moron, 1 Shooter, 2 Sniper). The order comes from
-/// `balance_ladder`, which plays whole games against every line-up: the share of games won outright falls rung by
-/// rung, from 100% to 24% for a Sniper-like player and from 99% to about 10% for a Shooter-like one (who meets a wall
-/// at the first Sniper, whatever comes with it). More bots is not always harder, since they also fight each other:
-/// three Morons come before one Shooter.
+/// The bots to beat on each rung (indices into `ai::PRESETS`). The order comes from `balance_ladder`, which plays
+/// whole games against the line-ups a rung could be made of: the share of games won outright falls rung by rung,
+/// from 100% to 17% for a Sniper-like player and from 100% to 5% for a Shooter-like one. Every bot type is met on
+/// the way. More bots is not always harder, since they also fight each other.
 const RUNGS: [&[usize]; 10] = [
-    &[0],
-    &[0, 0],
-    &[0, 0, 0],
-    &[1],
-    &[1, 0, 0],
-    &[1, 1, 0],
-    &[1, 1, 1],
-    &[2, 0],
-    &[2, 1, 1],
-    &[2, 2, 2],
+    &[MORON],
+    &[MORON, MORON],
+    &[TOSSER],
+    &[SHOOTER],
+    &[CHOOSER],
+    &[SHOOTER, MORON, MORON],
+    &[POOLSHARK, SHOOTER, MORON],
+    &[SPOILER, SHOOTER, MORON],
+    &[SNIPER, SPOILER, POOLSHARK],
+    &[CYBORG, SNIPER, SPOILER],
 ];
+const MORON: usize = 0;
+const SHOOTER: usize = 1;
+const SNIPER: usize = 2;
+const SPOILER: usize = 3;
+const CYBORG: usize = 4;
+const TOSSER: usize = 5;
+const POOLSHARK: usize = 6;
+const CHOOSER: usize = 7;
 
 /// Losses in a row on a rung that take the player down one.
 const LOSSES_TO_DROP: u8 = 2;
@@ -200,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn rungs_go_from_one_moron_to_three_snipers() {
+    fn rungs_go_from_one_moron_to_a_cyborg_with_company() {
         let names = |ladder: &Ladder| -> Vec<&str> {
             ladder.opponents().iter().map(|bot| bot.name).collect()
         };
@@ -209,7 +216,16 @@ mod tests {
         for _ in 1..Ladder::RUNGS {
             ladder.record(Outcome::Won);
         }
-        assert_eq!(names(&ladder), ["Sniper", "Sniper", "Sniper"]);
+        assert_eq!(names(&ladder), ["Cyborg", "Sniper", "Spoiler"]);
+        // The names behind the indices are the ones meant, and every type has a rung.
+        let met: std::collections::BTreeSet<&str> = RUNGS
+            .iter()
+            .flat_map(|rung| rung.iter().map(|&p| PRESETS[p].name))
+            .collect();
+        assert_eq!(met.len(), PRESETS.len());
+        assert_eq!(PRESETS[CHOOSER].name, "Chooser");
+        assert_eq!(PRESETS[POOLSHARK].name, "Poolshark");
+        assert_eq!(PRESETS[TOSSER].name, "Tosser");
         // A profile edited by hand can't point past the top.
         ladder.rung = 99;
         assert_eq!(ladder.rung(), Ladder::RUNGS);

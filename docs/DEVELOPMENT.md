@@ -247,14 +247,16 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   - `balance_buried` puts a tank under a direct Dirt Bomb hit and fires each weapon straight up until the barrel is
     clear: shots taken and health left.
   - `balance_deflector` sends one Missile at a full Mag Deflector on five paths: energy and health left.
-  - `balance_types` plays the same whole games against line-ups that differ in one bot type, to set the types' threat
-    points. About ten minutes.
+  - `balance_types` plays the same whole games against each bot type, alone and with two Morons, to set the types'
+    threat points. About ten minutes.
+  - `balance_difficulty` plays them against line-ups drawn for each difficulty and one to three bots, to set the
+    budgets. About ten minutes.
   - `balance_shots` does the same for the types that aim differently (Tosser, Poolshark) behind Open, Bouncy and
     Wrap-around walls. About a quarter of an hour.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
-    rounds as bots do) of a stand-in for the player against every line-up of one to three bots, 200 games each: the
-    share of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a
-    Shooter or a Sniper whose aim the bots can't see, as they can't see a human's. These two take about ten minutes
+    rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
+    of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
+    or a Sniper whose aim the bots can't see, as they can't see a human's. These two take about a quarter of an hour
     each.
 
 ### Parachutes and shields
@@ -289,8 +291,8 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 - Next error = error x L + wobble, wobble uniform within ±12% of E. Typical miss on shot n = 0.7 x E x L^(n-1); "on
   target" means under 2° and 30 power, which is what the custom bot editor and the guide's table use.
 - Types (`ai::PRESETS`): Moron E = 25° / 300, L = 0.8; Shooter 12° / 180, 0.5; Sniper 6° / 90, 0.3; Spoiler 9° / 135,
-  0.4; Cyborg 3° / 45, 0.2; Tosser as a Shooter; Poolshark as a Spoiler. The first three keep their places in the list:
-  the ladder's rungs are indices into it.
+  0.4; Cyborg 3° / 45, 0.2; Tosser as a Shooter; Poolshark as a Spoiler; a Chooser has no aim of its own. The types keep
+  their places in the list: the ladder's rungs are indices into it.
 - A Spoiler (`Targets::Leader`) shoots at the living enemy with the most round wins, the nearer of two level. No
   revenge, no penalty for a crowded target, no three-bot rules; it keeps its learned aim only while that aim is on the
   leader. While no living enemy has a round win it chooses as the others do. A custom bot always chooses as the others
@@ -299,18 +301,23 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   target (`LOB_NEAR`) it searches all angles like the others. A Poolshark (`Shots::Walls`) takes the closest shot that
   came off a Bouncy wall or round a Wrap-around one (`Landing::off_wall`) if it lands at most 20 px further from the
   target than the closest shot of all (`WALL_SHOT_SLACK`); behind Open or Solid walls no shot does.
-- Threat points (`ai::THREAT`): Moron 1, Shooter and Tosser 2, Sniper, Spoiler and Poolshark 3, Cyborg 4. A line-up
-  gives every bot 1 point, hands the rest of the budget out a point at a time to random bots (4 at most), then makes
-  each bot a random type of its cost. A lone bot is never a Spoiler: alone it is only a worse shot than a Sniper (a
-  Shooter-like player wins 25% of games against it, 6.5% against a Sniper). The costs come from `balance_types` (whole
-  games, as `balance_ladder`): with two Morons or two Shooters beside it a Spoiler costs the player about what a Sniper
-  does (11-17% of games won by a Shooter-like player, 32-41% by a Sniper-like one), and 9 points cost about the same as
-  three Snipers, three Spoilers, a Cyborg with a Sniper and a Shooter, or two Cyborgs with a Moron (4.5-16.5% and
-  15-27%). A lone Cyborg is the hardest single bot: 0.5% and 23%. `balance_shots` puts a Tosser beside a Shooter and a
-  Poolshark beside a Sniper behind Open, Bouncy and Wrap-around walls: the walls change little. A Tosser is softer than
-  a Shooter (a Shooter-like player wins 61-67% of games against one alone, 47-50% against a Shooter). A Poolshark sits
-  between a Shooter and a Sniper (23-26% alone, a Sniper 5-8%; with two Morons 23-29%, close to a Shooter's 29-39%), so
-  at 3 points it makes a line-up a little easier than a Sniper would, never harder.
+- A Chooser plays each round as one of the other seven types, picked at random when the round is made
+  (`AiProfile::for_round`, kept in `Tank::role` and saved with the battle). Its name on screen stays Chooser.
+- Threat points (`ai::THREAT`, kept in halves): Moron 1, Tosser 1.5, Shooter 2, Poolshark and Chooser 2.5, Sniper and
+  Spoiler 3, Cyborg 4. A line-up starts everyone as a Moron, moves random bots up to the next dearer cost while the
+  budget lasts, then makes each bot a random type of its cost; the budget is always spent exactly. A lone bot is never a
+  Spoiler: alone it is only a worse shot than a Sniper.
+- The costs come from `balance_types` (whole games, as `balance_ladder`). Share of games won outright by a Shooter-like
+  and a Sniper-like player against one bot: Moron 100% / 100%, Tosser 64 / 95, Shooter 46 / 92, Chooser 36 / 84, Spoiler
+  25 / 81, Poolshark 23 / 75, Sniper 7 / 50, Cyborg 1 / 23. With two Morons beside it: Tosser 46 / 78, Shooter 28 / 68,
+  Poolshark 26 / 49, Chooser 24 / 60, Spoiler 13 / 41, Sniper 11 / 32, Cyborg 4 / 23. A Spoiler is worth a Sniper only
+  in company, where it hunts the player who leads. `balance_shots` puts a Tosser beside a Shooter and a Poolshark beside
+  a Sniper behind Open, Bouncy and Wrap-around walls: the walls change little.
+- Difficulty budgets (`ai::BUDGETS`, threat points for 1 / 2 / 3 bots): Easy 1 / 2 / 3, Normal 2 / 3 / 4, Hard 3 / 4 /
+  6, Brutal 4 / 6 / 9. `balance_difficulty` plays line-ups drawn as the game draws them: a Shooter-like player wins
+  about 97 / 70 / 59% of games outright on Easy, 51 / 34 / 29% on Normal, 9 / 12 / 18% on Hard and 1 / 6 / 7% on Brutal;
+  a Sniper-like one 100 / 95 / 90%, 91 / 73 / 68%, 48 / 27 / 43% and 23 / 18 / 19%. With two bots many games end in a
+  shared first place, which is why Hard with two looks harder than with three.
 - Weapon: 60% chance of its weapon with the highest price per shot (`Weapon::shot_price`) that isn't a utility one,
   otherwise a Baby Missile. Shots landing closer to the bot than the weapon's radius + 25 px are ruled out; for
   MIRV-type weapons add the outer warhead's drift: its sideways speed x the fall time from the top of the arc (landing
@@ -334,11 +341,10 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 ### Ladder
 
 - Ten rungs (`ladder::RUNGS`), each a fixed line-up of bots; the Bots and Difficulty settings aren't used. The order
-  comes from `balance_ladder` (whole games, see Weapons): against the ten line-ups a Sniper-like player wins 100, 97,
-  89, 91, 72, 53, 46, 39, 31 and 24% of games outright, a Shooter-like one 99, 73, 59, 43, 31, 30, 21, 9, 11 and 11%.
-  The Shooter-like player meets a wall at the first Sniper, whatever comes with it. More bots is not always harder,
-  because they also fight each other: three Morons are easier than one Shooter, and a Sniper with a Moron is harder for
-  a Shooter-like player than three Snipers.
+  comes from `balance_ladder` (whole games, see Weapons), which plays 38 line-ups a rung could be made of: against the
+  ten chosen a Sniper-like player wins 100, 97, 95, 92, 84, 68, 43, 31, 27 and 17% of games outright, a Shooter-like one
+  100, 73, 64, 46, 36, 28, 20, 12, 7 and 5%. Every bot type has a rung. More bots is not always harder, because they
+  also fight each other: three Morons (60% for a Shooter-like player) are easier than one Shooter.
 - Only with one human player; with two the switch does nothing.
 - After a game: more round wins than the best bot is a win (up a rung; on rung 10, champion + 1 and stay); the same
   number is a shared first place (no change); fewer is a loss. Two losses in a row on a rung go down one and start the

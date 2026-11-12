@@ -7,6 +7,7 @@
 //!            sudden death drains health
 //!   Over   - round result shown briefly
 
+use crate::ai::AiProfile;
 use crate::rng::gen_range;
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -151,6 +152,9 @@ struct Tank {
     last_trail: Vec<Vec2>,
     /// Bots only.
     aim: Option<AimMemory>,
+    /// The type a Chooser plays this round as (`AiProfile::for_round`); `None` for everyone else.
+    #[serde(default)]
+    role: Option<AiProfile>,
     /// Who hit this tank since its last shot. Bots shoot back.
     #[serde(default)]
     revenge: Option<usize>,
@@ -536,7 +540,8 @@ impl Battle {
         }
         let tanks = slots
             .iter()
-            .map(|&slot| {
+            .zip(players)
+            .map(|(&slot, player)| {
                 let x = (WIDTH as f32 * (slot as f32 + 0.5) / n as f32 + gen_range(-40.0, 40.0))
                     .clamp(30.0, WIDTH as f32 - 30.0);
                 terrain.flatten(x, TANK_RADIUS + 2.0);
@@ -552,6 +557,10 @@ impl Battle {
                     last_hit_by: None,
                     last_trail: Vec::new(),
                     aim: None,
+                    role: player
+                        .bot
+                        .map(AiProfile::for_round)
+                        .filter(|role| Some(role.name) != player.bot.map(|bot| bot.name)),
                     revenge: None,
                     last_weapon: 0,
                     coaching: None,

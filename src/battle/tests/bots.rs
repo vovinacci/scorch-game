@@ -256,3 +256,33 @@ fn a_poolshark_plays_the_walls_where_they_bounce_or_wrap() {
         assert_eq!((played.angle, played.power), (direct.angle, direct.power));
     }
 }
+
+#[test]
+fn a_chooser_takes_a_role_for_the_round_and_shoots_as_it() {
+    const TOSSER: usize = 5;
+    let mut players = bots(3);
+    players[1].bot = PRESETS.last().copied();
+    let b = battle(&players, Setup::default().rules());
+    let role = b.tanks[1].role.expect("a Chooser has a role");
+    assert_ne!(role.name, "Chooser");
+    assert!(b.tanks[0].role.is_none() && b.tanks[2].role.is_none());
+    // Over many rounds it is not always the same one.
+    let roles: std::collections::BTreeSet<&str> = (0..40)
+        .filter_map(|_| battle(&players, Setup::default().rules()).tanks[1].role)
+        .map(|role| role.name)
+        .collect();
+    assert!(roles.len() > 3, "{roles:?}");
+    // As a Tosser it lobs.
+    let (mut players, mut b) = range(|_| 600.0);
+    players[0].bot = PRESETS.last().copied();
+    b.tanks[0].role = Some(PRESETS[TOSSER]);
+    let angle = sure_shot(&mut b, &players, 0, 1).angle as i32;
+    assert!(LOB_ANGLES.contains(&angle), "{angle}");
+    // A battle saved before there were Choosers loads without roles.
+    let mut saved = serde_json::to_value(&b).unwrap();
+    for tank in saved["tanks"].as_array_mut().unwrap() {
+        tank.as_object_mut().unwrap().remove("role");
+    }
+    let loaded: Battle = serde_json::from_value(saved).unwrap();
+    assert!(loaded.tanks.iter().all(|tank| tank.role.is_none()));
+}
