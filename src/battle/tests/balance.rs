@@ -411,7 +411,12 @@ fn lineups() -> Vec<Vec<usize>> {
 
 /// Prints `ladder_games` for every line-up, easiest first.
 fn ladder_table(standin: usize, games: u64) {
-    let mut rows: Vec<((f32, f32, f32), String)> = lineups()
+    games_table(standin, &lineups(), games);
+}
+
+/// Prints `ladder_games` for each of `lineups`, easiest first.
+fn games_table(standin: usize, lineups: &[Vec<usize>], games: u64) {
+    let mut rows: Vec<((f32, f32, f32), String)> = lineups
         .iter()
         .map(|lineup| {
             let names: Vec<&str> = lineup.iter().map(|&p| PRESETS[p].name).collect();
@@ -443,4 +448,29 @@ fn balance_ladder() {
 #[ignore = "prints a table; run by hand when tuning the ladder, the bots or the economy"]
 fn balance_ladder_sniper() {
     ladder_table(2, 200);
+}
+
+/// What a bot type is worth in a line-up: the same games as `balance_ladder`, with one bot of the line-up swapped
+/// for each type that should cost the same or a point more. Line-ups next to each other in the table cost the
+/// player about the same. About ten minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the bot types or their threat points"]
+fn balance_types() {
+    const SNIPER: usize = 2;
+    const SPOILER: usize = 3;
+    const CYBORG: usize = 4;
+    let mut lineups = Vec::new();
+    for top in [SNIPER, SPOILER, CYBORG] {
+        lineups.extend([vec![top], vec![top, 0, 0], vec![top, 1, 1]]);
+    }
+    // The same 9 points three ways.
+    lineups.extend([
+        vec![SNIPER, SNIPER, SNIPER],
+        vec![SPOILER, SPOILER, SPOILER],
+        vec![CYBORG, SNIPER, 1],
+        vec![CYBORG, CYBORG, 0],
+    ]);
+    for standin in [1, SNIPER] {
+        games_table(standin, &lineups, 200);
+    }
 }

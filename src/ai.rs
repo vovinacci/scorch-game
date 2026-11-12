@@ -20,6 +20,16 @@ pub const WOBBLE: f32 = 0.12;
 const HIT_ANGLE: f32 = 2.0;
 const HIT_POWER: f32 = 30.0;
 
+/// Whom a bot shoots at.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Targets {
+    /// Revenge, then the same target again, then the best scored enemy (`Battle::choose_target`).
+    #[default]
+    Usual,
+    /// Whoever has won the most rounds, whatever else is going on.
+    Leader,
+}
+
 #[derive(Clone, Copy, Serialize)]
 pub struct AiProfile {
     pub name: &'static str,
@@ -29,28 +39,54 @@ pub struct AiProfile {
     pub first_power_error: f32,
     /// L: fraction of the error kept after each shot. Lower = learns faster.
     pub learning: f32,
+    pub targets: Targets,
 }
 
-pub const PRESETS: [AiProfile; 3] = [
+/// The bot types. The first three keep their places: the ladder's rungs and older code count on them.
+pub const PRESETS: [AiProfile; 5] = [
     AiProfile {
         name: "Moron",
         first_angle_error: 25.0,
         first_power_error: 300.0,
         learning: 0.8,
+        targets: Targets::Usual,
     },
     AiProfile {
         name: "Shooter",
         first_angle_error: 12.0,
         first_power_error: 180.0,
         learning: 0.5,
+        targets: Targets::Usual,
     },
     AiProfile {
         name: "Sniper",
         first_angle_error: 6.0,
         first_power_error: 90.0,
         learning: 0.3,
+        targets: Targets::Usual,
+    },
+    // Between a Shooter and a Sniper in aim, but always after whoever is winning.
+    AiProfile {
+        name: "Spoiler",
+        first_angle_error: 9.0,
+        first_power_error: 135.0,
+        learning: 0.4,
+        targets: Targets::Leader,
+    },
+    // Close to perfect: its first shot nearly hits.
+    AiProfile {
+        name: "Cyborg",
+        first_angle_error: 3.0,
+        first_power_error: 45.0,
+        learning: 0.2,
+        targets: Targets::Usual,
     },
 ];
+
+/// Threat points each type costs in a line-up, in the order of `PRESETS`.
+const THREAT: [usize; PRESETS.len()] = [1, 2, 3, 3, 4];
+/// The most one bot can cost.
+const MAX_THREAT: usize = 4;
 
 impl AiProfile {
     pub fn custom() -> Self {
@@ -130,36 +166,49 @@ pub fn skill_text(name: &str) -> String {
 }
 
 /// Threat budget per difficulty: (points for one bot, points per extra bot).
-/// Each bot costs its preset's threat: Moron 1, Shooter 2, Sniper 3.
+/// Each bot costs its type's threat: Moron 1, Shooter 2, Sniper or Spoiler 3, Cyborg 4.
 /// Extra bots add less than the first one, so more opponents is harder
 /// but not overwhelming.
 const BUDGETS: [(f32, f32); 4] = [(1.0, 0.5), (2.0, 1.0), (3.0, 1.5), (3.0, 3.0)];
 
-/// Threat points to spend on `bots` opponents. Every bot costs at least 1
-/// (a Moron) and at most 3 (a Sniper).
+/// Threat points to spend on `bots` opponents: at least 1 each (all Morons), at most 3 each (as many as all
+/// Snipers; a Cyborg at 4 then leaves less for the others).
 pub fn threat_budget(difficulty: usize, bots: usize) -> usize {
     let (first, extra) = BUDGETS[difficulty];
     let points = (first + extra * (bots as f32 - 1.0)).round() as usize;
     points.clamp(bots, 3 * bots)
 }
 
-/// Builds the opponents: everyone starts as a Moron, then the remaining budget
-/// upgrades random bots one step at a time. Same budget, different mix each game.
+/// Builds the opponents: everyone starts at 1 threat point, then the rest of the budget goes to random bots a
+/// point at a time, and each bot becomes a type that costs its points (a random one where two cost the same). Same
+/// budget, different mix each game.
 pub fn lineup(difficulty: usize, bots: usize, custom: AiProfile) -> Vec<AiProfile> {
     if difficulty == CUSTOM {
         return vec![custom; bots];
     }
-    let mut levels = vec![0; bots];
+    let mut points = vec![1; bots];
     let mut spare = threat_budget(difficulty, bots) - bots;
     while spare > 0 {
         let i = gen_range(0, bots);
-        if levels[i] < PRESETS.len() - 1 {
-            levels[i] += 1;
+        if points[i] < MAX_THREAT {
+            points[i] += 1;
             spare -= 1;
         }
     }
-    levels.sort_unstable_by(|a, b| b.cmp(a));
-    levels.into_iter().map(|l| PRESETS[l]).collect()
+    points.sort_unstable_by(|a, b| b.cmp(a));
+    points
+        .into_iter()
+        .map(|p| of_threat(p, bots == 1))
+        .collect()
+}
+
+/// A bot type that costs `points` threat points. A `lone` bot is never one that differs only in whom it shoots
+/// at: with one enemy a Spoiler is just a worse shot than a Sniper for the same points.
+fn of_threat(points: usize, lone: bool) -> AiProfile {
+    let fits: Vec<usize> = (0..PRESETS.len())
+        .filter(|&i| THREAT[i] == points && !(lone && PRESETS[i].targets != Targets::Usual))
+        .collect();
+    PRESETS[fits[gen_range(0, fits.len())]]
 }
 
 /// One-line explanation for the title screen.
@@ -187,6 +236,8 @@ struct SavedProfile {
     first_angle_error: f32,
     first_power_error: f32,
     learning: f32,
+    #[serde(default)]
+    targets: Targets,
 }
 
 // Written by hand: a derived impl would require the input to live for 'static.
@@ -208,6 +259,7 @@ impl From<SavedProfile> for AiProfile {
             first_angle_error: saved.first_angle_error,
             first_power_error: saved.first_power_error,
             learning: saved.learning,
+            targets: saved.targets,
         }
     }
 }
@@ -259,7 +311,8 @@ pub fn editor(profile: &mut AiProfile) -> bool {
 
     ui::text_fit(&t!("custom-start-from"), x, y + 8.0, 110.0, 22.0, LIGHTGRAY);
     let mut bx = x + 120.0;
-    for preset in PRESETS {
+    // The row has room for three.
+    for preset in &PRESETS[..3] {
         if ui::button(
             Rect::new(bx, y - 16.0, 130.0, 36.0),
             &skill_text(preset.name),
@@ -267,7 +320,7 @@ pub fn editor(profile: &mut AiProfile) -> bool {
         ) {
             *profile = AiProfile {
                 name: "Custom",
-                ..preset
+                ..*preset
             };
         }
         bx += 140.0;
@@ -340,7 +393,7 @@ mod tests {
                 let team = lineup(difficulty, bots, AiProfile::custom());
                 let spent: usize = team
                     .iter()
-                    .map(|p| PRESETS.iter().position(|q| q.name == p.name).unwrap() + 1)
+                    .map(|p| THREAT[PRESETS.iter().position(|q| q.name == p.name).unwrap()])
                     .sum();
                 assert_eq!(team.len(), bots);
                 assert_eq!(spent, threat_budget(difficulty, bots));
@@ -349,7 +402,7 @@ mod tests {
         // Normal: one Shooter alone, a softer mix when outnumbered.
         assert_eq!(threat_budget(1, 1), 2);
         assert_eq!(threat_budget(1, 3), 4);
-        // Brutal: all Snipers.
+        // Brutal: as much as all Snipers.
         assert_eq!(threat_budget(3, 3), 9);
     }
 
@@ -360,6 +413,44 @@ mod tests {
             .map(|p| p.expected_hit_shot().unwrap_or(99))
             .collect();
         assert!(shots[0] > shots[1] && shots[1] > shots[2], "{shots:?}");
+        // A Spoiler sits between a Shooter and a Sniper; a Cyborg's first miss is about half a Sniper's.
+        let first = |i: usize| PRESETS[i].typical_error(1).0;
+        assert!(first(1) > first(3) && first(3) > first(2), "Spoiler");
+        assert!(first(4) < first(2) * 0.6, "Cyborg");
+    }
+
+    #[test]
+    fn lineups_use_every_type() {
+        let mut seen = std::collections::BTreeSet::new();
+        for _ in 0..200 {
+            seen.extend(lineup(3, 3, AiProfile::custom()).iter().map(|p| p.name));
+        }
+        assert_eq!(seen.len(), PRESETS.len(), "{seen:?}");
+        // Easy stays all Morons, and a lone Normal bot a Shooter.
+        assert!(
+            lineup(0, 3, AiProfile::custom())
+                .iter()
+                .all(|p| p.name == "Moron")
+        );
+        assert_eq!(lineup(1, 1, AiProfile::custom())[0].name, "Shooter");
+        // A lone bot is never a Spoiler: with one enemy there is no leader to pick.
+        for _ in 0..50 {
+            assert_eq!(lineup(3, 1, AiProfile::custom())[0].name, "Sniper");
+        }
+    }
+
+    #[test]
+    fn older_saves_load_without_a_target_rule() {
+        let old =
+            r#"{"name":"Sniper","first_angle_error":6.0,"first_power_error":90.0,"learning":0.3}"#;
+        let bot: AiProfile = serde_json::from_str(old).unwrap();
+        assert_eq!((bot.name, bot.targets), ("Sniper", Targets::Usual));
+        let spoiler: AiProfile =
+            serde_json::from_str(&serde_json::to_string(&PRESETS[3]).unwrap()).unwrap();
+        assert_eq!(
+            (spoiler.name, spoiler.targets),
+            ("Spoiler", Targets::Leader)
+        );
     }
 
     #[test]

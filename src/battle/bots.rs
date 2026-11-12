@@ -7,7 +7,7 @@ use super::{
     AimMemory, BARREL, Battle, CROWD_PENALTY, DIG_HEALTH_SHARE, FACE_OFF_PENALTY, PREFER_LEADER,
     PREFER_NEAREST, PREFER_WEAKEST, Shot, TANK_RADIUS, direction, launch_velocity, you,
 };
-use crate::ai::AiProfile;
+use crate::ai::{AiProfile, Targets};
 use crate::i18n::t;
 use crate::player::Player;
 use crate::rng::gen_range;
@@ -33,6 +33,14 @@ impl Battle {
         let revenge = self.tanks[me].revenge.take();
         let alive = |j: usize| j != me && self.tanks[j].alive;
         let current = current.filter(|m| alive(m.target));
+        // A Spoiler has eyes only for whoever is winning: no revenge, no sharing targets out.
+        let leader = (profile.targets == Targets::Leader)
+            .then(|| self.leader(me, players))
+            .flatten();
+        let (current, revenge) = match leader {
+            Some(leader) => (current.filter(|m| m.target == leader), None),
+            None => (current, revenge),
+        };
         // Three bots left: no revenge on one that the third bot is already after (see `three_bots_left`).
         let hunted = |j: usize| self.three_bots_left(players) && self.aimed_at(j, me) > 0;
         let revenge = revenge.filter(|&j| alive(j) && !hunted(j));
@@ -47,7 +55,10 @@ impl Battle {
             (_, Some(attacker)) => fresh(attacker, "revenge"),
             (Some(memory), None) => memory,
             (None, None) => {
-                let (target, reason) = self.score_targets(me, players);
+                let (target, reason) = leader.map_or_else(
+                    || self.score_targets(me, players),
+                    |leader| (leader, "leader"),
+                );
                 fresh(target, reason)
             }
         };
@@ -62,6 +73,20 @@ impl Battle {
             self.note(text, players[me].color);
         }
         memory
+    }
+
+    /// The living enemy of `me` with the most round wins, the nearer one of two level; `None` while nobody has won
+    /// a round.
+    fn leader(&self, me: usize, players: &[Player]) -> Option<usize> {
+        let from = self.tanks[me].center();
+        (0..self.tanks.len())
+            .filter(|&j| j != me && self.tanks[j].alive && players[j].wins > 0)
+            .max_by(|&a, &b| {
+                let near = |j: usize| -from.distance(self.tanks[j].center());
+                (players[a].wins, near(a))
+                    .partial_cmp(&(players[b].wins, near(b)))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 
     /// How many other tanks (not `me`) aim at tank `j`.
