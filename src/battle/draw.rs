@@ -127,7 +127,14 @@ impl Battle {
                 continue;
             }
             let is_current = i == self.current && matches!(self.phase, Phase::Aim { .. });
-            draw_tank(tank, &players[i], is_current, settings.health_display);
+            let pushing = self.projectiles.iter().any(|p| p.charged & (1u8 << i) != 0);
+            draw_tank(
+                tank,
+                &players[i],
+                is_current,
+                settings.health_display,
+                pushing,
+            );
         }
 
         for p in &self.projectiles {
@@ -585,11 +592,18 @@ pub(super) fn draw_tank_body(tank: &Tank, color: Color) {
     clippy::too_many_lines,
     reason = "one tank with its bars, labels and shield"
 )]
-pub(super) fn draw_tank(tank: &Tank, player: &Player, is_current: bool, health: HealthDisplay) {
+pub(super) fn draw_tank(
+    tank: &Tank,
+    player: &Player,
+    is_current: bool,
+    health: HealthDisplay,
+    pushing: bool,
+) {
     let (x, y) = (tank.pos.x, tank.pos.y);
     draw_tank_body(tank, player.color);
 
-    if let Some(shield) = tank.shield_up() {
+    // A Mag Deflector that has spent its last energy still shows, faintly, while it pushes the shell that paid.
+    if let Some(shield) = tank.shield_up().or(tank.shield.filter(|_| pushing)) {
         let color = shield.color();
         let a = 0.25 + 0.55 * shield.strength();
         draw_circle(

@@ -277,8 +277,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   shared), so they aim around them. A shell pays 10 energy for each pass through the field: when it comes in, and again
   if it gets 6 px clear of the field and comes back (a bit per tank in `Projectile::charged`, cleared on the way out and
   at every Leapfrog hop). A deflector at 0 takes no new passes but keeps pushing the shells that paid until they leave,
-  absorbs no damage, isn't drawn, and goes down when the turn's shells are done or at the next turn
-  (`drop_spent_deflectors`).
+  absorbs no damage, is drawn only as a faint ring while a shell that paid is still in its field, and goes down when the
+  turn's shells are done or at the next turn (`drop_spent_deflectors`).
 - Parachute: opens once a fall passes the free 15 px (if owned and switched on), uses one, slows the fall to 90 px/s and
   cancels the fall damage.
 
