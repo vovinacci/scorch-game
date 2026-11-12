@@ -264,13 +264,13 @@ Difficulty options don't apply, and the setup screen shows your rung, whom you a
 |---|---|
 | 1 | Moron |
 | 2 | Moron, Moron |
-| 3 | Shooter |
-| 4 | Shooter, Shooter |
-| 5 | Sniper, Shooter |
-| 6 | Shooter, Shooter, Shooter |
-| 7 | Sniper, Shooter, Moron |
-| 8 | Sniper, Shooter, Shooter |
-| 9 | Sniper, Sniper, Shooter |
+| 3 | Moron, Moron, Moron |
+| 4 | Shooter |
+| 5 | Shooter, Moron, Moron |
+| 6 | Shooter, Shooter, Moron |
+| 7 | Shooter, Shooter, Shooter |
+| 8 | Sniper, Moron |
+| 9 | Sniper, Shooter, Shooter |
 | 10 | Sniper, Sniper, Sniper |
 
 - **Win the game outright** (more round wins than any bot) and you go up a rung.

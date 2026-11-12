@@ -339,64 +339,108 @@ fn balance_deflector() {
     }
 }
 
-/// The ladder's rungs: a stand-in for the player (a Shooter whose aim the bots can't see, as they can't see a
-/// human's) plays 400 rounds with the starting weapons against every line-up of one to three bots, firing first,
-/// second and so on in turn. Prints the share of rounds it wins, hardest last. Run by hand: `make balance`.
-#[test]
-#[ignore = "prints a table; run by hand when tuning the ladder or the bots"]
-fn balance_ladder() {
-    const ROUNDS: usize = 400;
-    let mut lineups: Vec<Vec<usize>> = Vec::new();
+/// Whole games of a stand-in for the player (a bot of skill `standin` whose aim the other bots can't see, as they
+/// can't see a human's) against `lineup`: 5 rounds with the default settings, everyone shopping between rounds as
+/// bots do. Returns the share of games it wins outright, the share it shares first place in, and its mean round
+/// wins per game.
+fn ladder_games(standin: usize, lineup: &[usize], games: u64) -> (f32, f32, f32) {
+    const ROUNDS: u32 = 5;
+    let setup = Setup::default();
+    let (mut won, mut shared, mut rounds_won) = (0u32, 0u32, 0u32);
+    for game in 0..games {
+        // The same numbers for a game whatever else has run, so a table can be compared with the one before.
+        crate::rng::seed(1_000 * lineup.iter().map(|&p| p as u64 + 1).sum::<u64>() + game);
+        let mut players = vec![Player::new("You", WHITE, Some(PRESETS[standin]))];
+        for &preset in lineup {
+            players.push(Player::new("Bot", WHITE, Some(PRESETS[preset])));
+        }
+        for round in 1..=ROUNDS {
+            for p in &mut players {
+                p.income = economy::Income::default();
+            }
+            let order = crate::setup::turn_order(setup.turn_order, &players, round);
+            let mut b = Battle::new(&players, order, round, ROUNDS, setup.rules());
+            b.raise_shields(&mut players);
+            for _ in 0..200_000 {
+                if matches!(b.phase, Phase::Over { .. }) {
+                    break;
+                }
+                // The bots plan without seeing whom the stand-in aims at.
+                let hidden = if b.current == 0 {
+                    None
+                } else {
+                    b.tanks[0].aim.take()
+                };
+                b.update(1.0 / 30.0, &mut players);
+                if hidden.is_some() && b.tanks[0].aim.is_none() {
+                    b.tanks[0].aim = hidden;
+                }
+            }
+            let winner = match b.phase {
+                Phase::Over { winner, .. } => winner,
+                _ => None,
+            };
+            economy::end_round(&mut players, winner);
+            if round < ROUNDS {
+                players.iter_mut().for_each(crate::shop::ai_shop);
+            }
+        }
+        let best_bot = players[1..].iter().map(|p| p.wins).max().unwrap_or(0);
+        won += u32::from(players[0].wins > best_bot);
+        shared += u32::from(players[0].wins == best_bot);
+        rounds_won += players[0].wins;
+    }
+    let share = |count: u32| 100.0 * count as f32 / games as f32;
+    (share(won), share(shared), rounds_won as f32 / games as f32)
+}
+
+/// Every line-up of one to three bots, strongest bot first.
+fn lineups() -> Vec<Vec<usize>> {
+    let mut all = Vec::new();
     for a in 0..3 {
-        lineups.push(vec![a]);
+        all.push(vec![a]);
         for b in 0..=a {
-            lineups.push(vec![a, b]);
+            all.push(vec![a, b]);
             for c in 0..=b {
-                lineups.push(vec![a, b, c]);
+                all.push(vec![a, b, c]);
             }
         }
     }
-    let mut rows: Vec<(f32, String)> = lineups
+    all
+}
+
+/// Prints `ladder_games` for every line-up, easiest first.
+fn ladder_table(standin: usize, games: u64) {
+    let mut rows: Vec<((f32, f32, f32), String)> = lineups()
         .iter()
         .map(|lineup| {
-            let n = lineup.len() + 1;
-            let mut wins = 0;
-            for round in 0..ROUNDS {
-                let mut players = vec![Player::new("You", WHITE, Some(PRESETS[1]))];
-                for &preset in lineup {
-                    players.push(Player::new("Bot", WHITE, Some(PRESETS[preset])));
-                }
-                let order: Vec<usize> = (0..n).map(|k| (k + round) % n).collect();
-                let mut b = Battle::new(&players, order, 1, 5, Setup::default().rules());
-                for _ in 0..200_000 {
-                    if matches!(b.phase, Phase::Over { .. }) {
-                        break;
-                    }
-                    // The bots plan without seeing whom the stand-in aims at.
-                    let hidden = if b.current == 0 {
-                        None
-                    } else {
-                        b.tanks[0].aim.take()
-                    };
-                    b.update(1.0 / 30.0, &mut players);
-                    if hidden.is_some() && b.tanks[0].aim.is_none() {
-                        b.tanks[0].aim = hidden;
-                    }
-                }
-                if let Phase::Over {
-                    winner: Some(0), ..
-                } = b.phase
-                {
-                    wins += 1;
-                }
-            }
             let names: Vec<&str> = lineup.iter().map(|&p| PRESETS[p].name).collect();
-            (100.0 * wins as f32 / ROUNDS as f32, names.join(", "))
+            (ladder_games(standin, lineup, games), names.join(", "))
         })
         .collect();
-    rows.sort_by(|a, b| b.0.total_cmp(&a.0));
-    println!("\na Shooter-like player against each line-up, {ROUNDS} rounds: rounds won");
-    for (share, names) in rows {
-        println!("{share:>5.1}%  {names}");
+    rows.sort_by(|a, b| b.0.0.total_cmp(&a.0.0));
+    println!(
+        "\na {}-like player against each line-up, {games} games of 5 rounds",
+        PRESETS[standin].name
+    );
+    println!("{:>6} {:>7} {:>7}  line-up", "won", "shared", "rounds");
+    for ((won, shared, rounds), names) in rows {
+        println!("{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {names}");
     }
+}
+
+/// The ladder's rungs: whole games of a Shooter-like stand-in for the player against every line-up of one to three
+/// bots (see `ladder_games`). Prints the share of games it wins outright, hardest line-up last. Takes about ten
+/// minutes. Run by hand: `make balance`.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the ladder, the bots or the economy"]
+fn balance_ladder() {
+    ladder_table(1, 200);
+}
+
+/// The same against a Sniper-like stand-in: a ladder has to work for a strong player too. About ten minutes more.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the ladder, the bots or the economy"]
+fn balance_ladder_sniper() {
+    ladder_table(2, 200);
 }

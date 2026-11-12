@@ -6,18 +6,20 @@ use serde::{Deserialize, Serialize};
 use crate::ai::{AiProfile, PRESETS};
 
 /// The bots to beat on each rung (indices into `ai::PRESETS`: 0 Moron, 1 Shooter, 2 Sniper). The order comes from
-/// `balance_ladder`: the share of rounds a Shooter-like player wins falls rung by rung, from 88% to 8%. More bots is
-/// not always harder (they also fight each other), which is why a Sniper and a Shooter come before three Shooters.
+/// `balance_ladder`, which plays whole games against every line-up: the share of games won outright falls rung by
+/// rung, from 100% to 24% for a Sniper-like player and from 99% to about 10% for a Shooter-like one (who meets a wall
+/// at the first Sniper, whatever comes with it). More bots is not always harder, since they also fight each other:
+/// three Morons come before one Shooter.
 const RUNGS: [&[usize]; 10] = [
     &[0],
     &[0, 0],
+    &[0, 0, 0],
     &[1],
-    &[1, 1],
-    &[2, 1],
+    &[1, 0, 0],
+    &[1, 1, 0],
     &[1, 1, 1],
-    &[2, 1, 0],
+    &[2, 0],
     &[2, 1, 1],
-    &[2, 2, 1],
     &[2, 2, 2],
 ];
 
