@@ -83,7 +83,7 @@ setup-bots = Bots
 setup-difficulty = Difficulty
 setup-edit-custom = Edit custom bot
 setup-ladder = Ladder
-setup-ladder-at = Ladder (now { $level })
+setup-ladder-solo = Ladder (1 player only)
 setup-rounds = Rounds
 setup-power-limit = Health limits power
 setup-sudden-death = Sudden death
@@ -254,6 +254,9 @@ stats-damage = Damage dealt
 stats-damage-per-shot = Damage per shot
 stats-best-hit = Biggest single hit
 stats-money = Money earned
+stats-ladder = Best ladder rung
+stats-ladder-rung = { $rung } of { $of }
+stats-ladder-champion = Ladder champion (times)
 
 ## Battle
 
@@ -394,8 +397,23 @@ weapon-deaths-head = Death's Head
 final-title = FINAL STANDINGS
 final-play-again = Play again
 final-main-menu = Main menu
-ladder-up = Ladder: up to { $level } next game
-ladder-down = Ladder: down to { $level } next game
+ladder-rung = Rung { $rung } of { $of }
+ladder-opponents = Against: { $bots }
+ladder-rule = Win the game outright to go up a rung. Two losses in a row on a rung take you down one.
+ladder-warned = One more loss on this rung and you go down one.
+ladder-no-count = With the { $help } aiming help this game doesn't count for the ladder.
+ladder-best = Best so far: rung { $rung }
+ladder-best-champion = Best so far: rung { $rung }. Champion { $n ->
+    [1] once
+   *[other] { $n } times
+}.
+ladder-up = Ladder: up to rung { $rung } of { $of }
+ladder-down = Ladder: two losses in a row, down to rung { $rung } of { $of }
+ladder-champion = Ladder: you beat the top rung. Champion!
+ladder-shared = Ladder: a shared first place keeps you on rung { $rung }
+ladder-lost-warned = Ladder: lost on rung { $rung }. One more loss here and you go down.
+ladder-lost = Ladder: lost on rung { $rung }
+ladder-not-counted = Ladder: this game didn't count (a path preview was on)
 
 ## Updates
 

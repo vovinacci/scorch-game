@@ -228,7 +228,7 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
 ### Weapons
 
 - The table is `WEAPONS` in `src/weapons.rs`; saves store ammo by index, so new weapons go at the end.
-- Balance: `make balance` prints four tables (ignored tests in `src/battle/tests/balance.rs`; they assert nothing, and
+- Balance: `make balance` prints its tables (ignored tests in `src/battle/tests/balance.rs`; they assert nothing, and
   give the same numbers on every run):
   - `balance_table` fires every weapon 300 times per aim through the real physics (perfect aim, about 1 degree / 15
     power off, about 3 degrees / 45 off) in three scenarios: one tank 700 px away on flat ground, three tanks 60 px
@@ -243,28 +243,11 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   - `balance_buried` puts a tank under a direct Dirt Bomb hit and fires each weapon straight up until the barrel is
     clear: shots taken and health left.
   - `balance_deflector` sends one Missile at a full Mag Deflector on five paths: energy and health left.
-- Utility weapons do no damage: Dirt Bomb, Digger, Tracer, Riot Bomb. Bots don't buy or fire them, and they don't add to
-  the death blast.
-- MIRV-type weapons split when the shell starts to fall: `warheads` shells with extra sideways speeds `spread` apart,
-  centred on the shell's (MIRV 5 x 45 px/s, Death's Head 9 x 30 px/s).
-- Tracer is a probe: no shot in accuracy stats, no "missed" in the log, no Mag Deflector charge. It doesn't end the turn
-  (`TracerTurn`): once it lands, the same tank aims again with its last real weapon, no turn passes and sudden death
-  doesn't drain; a second one that turn is blocked (fired anyway, it becomes a Baby Missile). Balance: a look turns a
-  rough shot into a close one, worth +15 to +39 damage depending on the weapon (0 for a Roller), against $25. Its path
-  is kept in `Battle::tracers` (saved with the battle) with points thinned to 6 px apart, and drawn every phase until
-  the round ends: every other 6 px segment in the shooter's colour (alpha 0.85, 1.5 px) over a dark edge (3.5 px, alpha
-  0.45); segments above the screen are skipped. It doesn't replace the shooter's last real shot path (every 6th point in
-  white, alpha 0.3, while aiming).
-- Riot Bomb carves a circle of radius 60. When a Riot Bomb lands or a Digger finishes its trench, every enemy tank over
-  the changed ground that is no longer held up (the same support test as falling: the highest ground under its 24 px
-  width) gets the shooter as last hitter and revenge target, and the log says its ground gave way. So a deadly fall is
-  the shooter's kill, and the shot isn't logged as a miss.
-- Weapon strip: up to 7 boxes per row (at most 150 px wide), extra rows above; keys 1-9, 0, -, = for the first 12. The
-  boxes are opaque. Generated ground reaches y 690 and craters go lower, so a tank whose area (its name's width, 76 px
-  tall) overlaps a box is drawn again on top of the strip, body only (`draw_tank_body`).
-- Over the battlefield, the log feed, the top-right lines and the coaching line sit on `backing`: the panel colour at
-  40% on the Day sky, nothing on Night and Sunset (`backing_alpha`), where the text outline is enough. Aiming dots are
-  `guide_dot`s with a dark edge.
+  - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
+    rounds as bots do) of a stand-in for the player against every line-up of one to three bots, 200 games each: the
+    share of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a
+    Shooter or a Sniper whose aim the bots can't see, as they can't see a human's. These two take about ten minutes
+    each.
 
 ### Parachutes and shields
 
@@ -315,6 +298,23 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   instead of a third (the others avoid its target, which leaves only itself, and whoever it hits takes revenge too);
   with it, 36-38%, about the edge the first shot gives with two tanks (`balance_order`). With a human or four tanks
   alive the rules don't apply.
+
+### Ladder
+
+- Ten rungs (`ladder::RUNGS`), each a fixed line-up of bots; the Bots and Difficulty settings aren't used. The order
+  comes from `balance_ladder` (whole games, see Weapons): against the ten line-ups a Sniper-like player wins 100, 97,
+  89, 91, 72, 53, 46, 39, 31 and 24% of games outright, a Shooter-like one 99, 73, 59, 43, 31, 30, 21, 9, 11 and 11%.
+  The Shooter-like player meets a wall at the first Sniper, whatever comes with it. More bots is not always harder,
+  because they also fight each other: three Morons are easier than one Shooter, and a Sniper with a Moron is harder for
+  a Shooter-like player than three Snipers.
+- Only with one human player; with two the switch does nothing.
+- After a game: more round wins than the best bot is a win (up a rung; on rung 10, champion + 1 and stay); the same
+  number is a shared first place (no change); fewer is a loss. Two losses in a row on a rung go down one and start the
+  count afresh; a win clears the count, a shared first place doesn't; rung 1 has no way down.
+- Abandoning a ladder game is a loss, also when a new game replaces a saved one.
+- A game with a path preview (Short path, Full path) is on the ladder's rung but isn't recorded, won or lost.
+- The player's place (rung, losses in a row, best rung, champion count) is `Profile::ladder` in `profile.json`, apart
+  from the setup, so switching the ladder off and on keeps it.
 
 ### Battle log
 
@@ -415,6 +415,7 @@ dirty.
 | `economy.rs` | Money rules |
 | `weapons.rs` | Weapon table |
 | `items.rs` | Parachutes and shields: item table, which shield goes up |
+| `ladder.rs` | The ladder: its ten rungs, the player's place on it, what a won, shared or lost game does |
 | `shop.rs` | Shop screen, bot shopping |
 | `stats.rs` | All-time stats |
 | `crash.rs` | Version string, crash reports |

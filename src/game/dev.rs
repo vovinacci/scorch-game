@@ -106,8 +106,12 @@ impl Game {
                 self.has_saved_run = true;
                 Screen::ConfirmNewGame
             }
+            // A game the player lost 2 rounds to 3, so a ladder game shows its note.
             "final" => {
                 game_screen(self, false);
+                self.players[0].wins = 2;
+                self.players[1].wins = 3;
+                self.end_game();
                 Screen::Final
             }
             _ => Screen::Menu,

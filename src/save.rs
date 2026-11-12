@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ai::AiProfile;
 use crate::battle::Battle;
+use crate::ladder::Ladder;
 use crate::player::Player;
 use crate::settings::Settings;
 use crate::setup::Setup;
@@ -102,6 +103,8 @@ pub struct Profile {
     pub custom: AiProfile,
     /// The start-up dedication was shown (it shows on the first run only).
     pub intro_seen: bool,
+    /// Where the player stands on the ladder.
+    pub ladder: Ladder,
 }
 
 impl Default for Profile {
@@ -112,6 +115,7 @@ impl Default for Profile {
             settings: Settings::default(),
             custom: AiProfile::custom(),
             intro_seen: false,
+            ladder: Ladder::default(),
         }
     }
 }

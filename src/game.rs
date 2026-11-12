@@ -9,6 +9,7 @@ use crate::choice::Choice;
 use crate::economy::Income;
 use crate::i18n::Language;
 use crate::i18n::t;
+use crate::ladder::{Ladder, Move, Outcome};
 use crate::player::Player;
 use crate::save::Profile;
 use crate::save::RunOut;
@@ -95,7 +96,7 @@ struct Game {
     /// Settings, last setup and all-time stats, saved to disk.
     profile: Profile,
     has_saved_run: bool,
-    /// Shown on the final screen when ladder mode changed the difficulty.
+    /// Shown on the final screen after a ladder game: what it did to the player's rung.
     ladder_note: Option<String>,
     preview: Preview,
     /// Crash report from a previous run, offered on the main menu.
@@ -118,12 +119,22 @@ impl Game {
     }
 
     fn start_with(&mut self, setup: Setup) -> Screen {
-        // A new game replaces the saved one: that one counts as abandoned.
+        // A new game replaces the saved one: that one counts as abandoned (and lost, if it was a ladder game).
         if self.has_saved_run {
+            if let Ok(run) = save::load_run() {
+                self.setup = run.setup;
+            }
             self.abandon();
         }
         self.setup = setup;
-        let (humans, bots) = (self.setup.humans, self.setup.bots);
+        // On the ladder the rung sets the opponents.
+        let lineup = if self.setup.on_ladder() {
+            self.profile.ladder.opponents()
+        } else {
+            ai::lineup(self.setup.difficulty, self.setup.bots, self.profile.custom)
+        };
+        self.setup.bots = lineup.len();
+        let humans = self.setup.humans;
         self.players.clear();
         for (i, &color) in COLORS.iter().enumerate().take(humans) {
             let name = if humans == 1 {
@@ -133,7 +144,6 @@ impl Game {
             };
             self.players.push(Player::new(&name, color, None));
         }
-        let lineup = ai::lineup(self.setup.level(), bots, self.profile.custom);
         for (i, (name, profile)) in BOT_NAMES.iter().zip(lineup).enumerate() {
             let name = format!("{name} [{}]", profile.name);
             self.players
@@ -218,6 +228,10 @@ impl Game {
         save::remove_run();
         self.has_saved_run = false;
         self.profile.stats.games_abandoned += 1;
+        // Walking away from a ladder game is a loss.
+        if self.setup.counts_for_ladder() {
+            self.profile.ladder.record(Outcome::Lost);
+        }
         save::store_profile(&self.profile);
         Screen::Menu
     }
@@ -258,27 +272,39 @@ impl Game {
         }
     }
 
+    /// Records a finished ladder game and says what it did to the player's rung, for the final screen. `None` when
+    /// the game wasn't on the ladder.
+    fn ladder_result(&mut self) -> Option<String> {
+        if !self.setup.on_ladder() {
+            return None;
+        }
+        if !self.setup.counts_for_ladder() {
+            return Some(t!("ladder-not-counted"));
+        }
+        let wins = |bot: bool| {
+            let side = self.players.iter().filter(|p| p.is_bot() == bot);
+            side.map(|p| p.wins).max().unwrap_or(0)
+        };
+        let outcome = Outcome::of(wins(false), wins(true));
+        let ladder = &mut self.profile.ladder;
+        let step = ladder.record(outcome);
+        let rung = ladder.rung();
+        Some(match step {
+            Move::Up => t!("ladder-up", rung = rung, of = Ladder::RUNGS),
+            Move::Champion => t!("ladder-champion"),
+            Move::Stay => t!("ladder-shared", rung = rung),
+            Move::Lost { left: 1 } => t!("ladder-lost-warned", rung = rung),
+            Move::Lost { .. } => t!("ladder-lost", rung = rung),
+            Move::Down => t!("ladder-down", rung = rung, of = Ladder::RUNGS),
+        })
+    }
+
     fn end_game(&mut self) {
         let best = self.players.iter().map(|p| p.wins).max().unwrap_or(0);
         for p in self.players.iter().filter(|p| !p.is_bot()) {
             self.profile.stats.add_game(p.wins == best, p.wins);
         }
-        self.ladder_note = None;
-        if self.setup.ladder {
-            let won = self.players.iter().any(|p| !p.is_bot() && p.wins == best);
-            // The step starts from the level this game was played at; the chosen difficulty stays as it is.
-            let before = self.setup.level();
-            let after = ai::ladder_step(before, won);
-            self.profile.setup.ladder_level = Some(after);
-            if after != before {
-                let level = ai::difficulty_text(after);
-                self.ladder_note = Some(if won {
-                    t!("ladder-up", level = level)
-                } else {
-                    t!("ladder-down", level = level)
-                });
-            }
-        }
+        self.ladder_note = self.ladder_result();
         save::store_profile(&self.profile);
         save::remove_run();
         self.has_saved_run = false;
@@ -311,6 +337,7 @@ impl Game {
                 match setup::screen(
                     &mut self.profile.setup,
                     &self.profile.custom,
+                    &self.profile.ladder,
                     &mut self.preview,
                 ) {
                     SetupAction::Stay => Screen::Setup,
@@ -333,7 +360,6 @@ impl Game {
             Screen::CustomBot => {
                 if ai::editor(&mut self.profile.custom) {
                     self.profile.setup.difficulty = CUSTOM;
-                    self.profile.setup.ladder_level = None;
                     save::store_profile(&self.profile);
                     Screen::Setup
                 } else {
@@ -356,7 +382,7 @@ impl Game {
             }
 
             Screen::Stats => {
-                if stats::screen(&self.profile.stats) {
+                if stats::screen(&self.profile.stats, &self.profile.ladder) {
                     Screen::Menu
                 } else {
                     Screen::Stats
@@ -564,6 +590,8 @@ pub async fn run() {
         screen: first_screen,
     };
     if let Some(name) = screen {
+        // A screen may make its texts while it opens: they must be in the player's language already.
+        i18n::set_language(game.profile.settings.language.unwrap_or(Language::English));
         game.screen = game.open_screen(&name);
     }
     // With `--shot <file.png>`, save a screenshot after a moment and quit.

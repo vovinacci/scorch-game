@@ -162,16 +162,6 @@ pub fn lineup(difficulty: usize, bots: usize, custom: AiProfile) -> Vec<AiProfil
     levels.into_iter().map(|l| PRESETS[l]).collect()
 }
 
-/// Ladder step after a finished game: one level up after a win, one down after
-/// a loss, within Easy..Brutal. Custom is never changed.
-pub fn ladder_step(difficulty: usize, won: bool) -> usize {
-    match difficulty {
-        CUSTOM => CUSTOM,
-        d if won => (d + 1).min(CUSTOM - 1),
-        d => d.saturating_sub(1),
-    }
-}
-
 /// One-line explanation for the title screen.
 pub fn describe(difficulty: usize, custom: &AiProfile) -> String {
     if difficulty == CUSTOM {
@@ -361,15 +351,6 @@ mod tests {
         assert_eq!(threat_budget(1, 3), 4);
         // Brutal: all Snipers.
         assert_eq!(threat_budget(3, 3), 9);
-    }
-
-    #[test]
-    fn ladder_moves_one_step_and_stays_in_range() {
-        assert_eq!(ladder_step(1, true), 2);
-        assert_eq!(ladder_step(1, false), 0);
-        assert_eq!(ladder_step(0, false), 0);
-        assert_eq!(ladder_step(CUSTOM - 1, true), CUSTOM - 1);
-        assert_eq!(ladder_step(CUSTOM, true), CUSTOM);
     }
 
     #[test]

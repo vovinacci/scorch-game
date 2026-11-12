@@ -232,7 +232,8 @@ impl Game {
             y += 44.0;
         }
         if let Some(note) = &self.ladder_note {
-            ui::text_centered(note, area.center().x, area.y + 370.0, 24.0, SKYBLUE);
+            let width = area.w - 40.0;
+            ui::text_centered_fit(note, area.center().x, area.y + 370.0, width, 24.0, SKYBLUE);
         }
         let half = Rect::new(area.x + 110.0, area.y + 410.0, 230.0, 56.0);
         if ui::button(half, &t!("final-play-again"), true) {
