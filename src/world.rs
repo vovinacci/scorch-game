@@ -144,9 +144,6 @@ pub enum Flight {
 pub fn step_shell(pos: &mut Vec2, vel: &mut Vec2, wind: f32, world: World, dt: f32) -> Flight {
     *vel += vec2(wind, world.gravity()) * dt;
     *pos += *vel * dt;
-    if pos.y > HEIGHT {
-        return Flight::Lost;
-    }
     let w = WIDTH as f32;
     match world.walls {
         Walls::Open | Walls::Random => {
@@ -170,6 +167,14 @@ pub fn step_shell(pos: &mut Vec2, vel: &mut Vec2, wind: f32, world: World, dt: f
             }
         }
         Walls::Wrap => pos.x = pos.x.rem_euclid(w),
+    }
+    // The bottom of the screen is solid rock: where the ground is blown away down to it, a shell still lands (the
+    // ground test then sees it as a hit). Beside the field there is no bottom.
+    if pos.y > HEIGHT {
+        if !(0.0..w).contains(&pos.x) {
+            return Flight::Lost;
+        }
+        pos.y = HEIGHT;
     }
     Flight::Flying
 }
@@ -365,6 +370,25 @@ mod tests {
         let mut vel = vec2(240.0, 0.0);
         let flight = step_shell(&mut pos, &mut vel, 0.0, world, 0.1);
         (flight, pos, vel)
+    }
+
+    #[test]
+    fn the_bottom_of_the_screen_is_solid_but_only_under_the_field() {
+        let world = World::default();
+        let fall = |x: f32| {
+            let mut pos = vec2(x, HEIGHT - 1.0);
+            let mut vel = vec2(0.0, 600.0);
+            (step_shell(&mut pos, &mut vel, 0.0, world, 0.1), pos)
+        };
+        let (flight, pos) = fall(300.0);
+        assert!(matches!(flight, Flight::Flying));
+        assert!(
+            (pos.y - HEIGHT).abs() < 0.001,
+            "stopped on the bottom: {}",
+            pos.y
+        );
+        // Open walls: beside the field a shell falls out of the world.
+        assert!(matches!(fall(-20.0).0, Flight::Lost));
     }
 
     #[test]

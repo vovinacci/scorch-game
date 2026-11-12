@@ -97,6 +97,8 @@ reach. The power never drops below 50, so even a badly damaged tank can lob a sh
   you too, so don't fire at something right next to you.
 - Explosions dig craters. When the ground under a tank is blown away, the tank falls. A short drop is harmless; a long
   fall costs health.
+- The **bottom of the screen** is solid rock. Where the ground is blown away down to it, shells still land and explode
+  there, so a tank sitting on the bottom is no safer than any other.
 - **Wrecks** of destroyed tanks stay on the ground.
 - If every tank is destroyed, the round is a draw and nobody wins it.
 
