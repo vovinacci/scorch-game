@@ -629,6 +629,9 @@ pub async fn run() {
         ui::script_key(scripted);
         ui::begin_frame(!in_play);
 
+        game.sounds
+            .keep_awake(game.profile.settings.sound.level() > 0.0);
+
         // Take the screen out, run it, put the next one back.
         let screen = std::mem::replace(&mut game.screen, Screen::Menu);
         let before = std::mem::discriminant(&screen);

@@ -55,7 +55,7 @@ Command line options:
 | `--version`, `-V` | Print the version and exit |
 | `--crash-test` | Crash on purpose, to check crash reports |
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
-| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, over (a round just won), defence (every tank with a shield), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
+| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, watch (you flee and the bots play the round out, with sound), over (a round just won), defence (every tank with a shield), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit. The name must end in `.png` and its folder must exist, or the game says so and exits with status 2 before opening the window |
 | `--keys <keys>` | With `--screen`: press menu keys before the screenshot, one every 4 frames: a comma-separated list of up, down, left, right, enter (`--screen shop --keys down,down,right --shot shop.png`) |
 
@@ -362,6 +362,11 @@ one more. A sound therefore started 0.1 to 0.2 s after its event, though the gam
 repository carries quad-snd 0.2.8 in `third_party/quad-snd` with the Linux (ALSA) buffer at 1024 frames, a quarter of
 that, and `Cargo.toml` puts it in place of the published crate with `[patch.crates-io]`. `third_party/README.md` says
 what was changed and what to do when macroquad updates. The macOS and Windows buffers are as published.
+
+Bluetooth headphones and some USB sound devices go to sleep while nothing plays and take a moment to wake: the start of
+the next sound is cut, short sounds are lost, the rest comes late. So while sound is on, the game loops a 10 Hz hum at
+1% of full level (`Sounds::keep_awake`): too low to hear, loud enough to survive the system's volume control, a whole
+number of waves a second so the loop has no click. With sound Off it stops.
 
 ## Font
 

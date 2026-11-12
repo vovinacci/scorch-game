@@ -8,8 +8,9 @@ use crate::{crash, items, save, ui};
 impl Game {
     /// Developer aid: `scorch --screen <name> [--shot file.png]` opens one
     /// screen directly with a fresh game, to check layouts (for example in
-    /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, pause-settings, stats, crash, unreadable, arsenal, buried,
+    /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, pause-settings, stats, crash, unreadable, arsenal, buried, watch,
     /// battle, pause, over, defence, log, shop, abandon, final.
+    #[expect(clippy::too_many_lines, reason = "one arm for each developer screen")]
     pub(super) fn open_screen(&mut self, name: &str) -> Screen {
         self.has_saved_run = false;
         let game_screen = |game: &mut Game, paused: bool| match game.start() {
@@ -79,11 +80,14 @@ impl Game {
                 }
                 other => other,
             },
-            // A bot just won the round: you flee, the bots finish it.
-            "over" => match game_screen(self, false) {
+            // You flee: `watch` lets the bots play the round out, with sound (a battle that runs by itself); `over`
+            // skips to the bot that wins it.
+            "watch" | "over" => match game_screen(self, false) {
                 Screen::Battle { mut battle, .. } => {
                     battle.flee(&mut self.players);
-                    battle.skip_to_end(&mut self.players);
+                    if name == "over" {
+                        battle.skip_to_end(&mut self.players);
+                    }
                     Screen::Battle {
                         battle,
                         paused: false,

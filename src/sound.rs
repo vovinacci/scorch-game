@@ -1,9 +1,10 @@
 //! Sound effects, made in code when the game starts in the style of an 8-bit console (pulse, triangle
 //! and noise voices), with no sound files to ship. The battle only lists what happened (`Sfx`); the main loop plays it.
 
+use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use macroquad::audio::{PlaySoundParams, Sound, load_sound_from_bytes, play_sound};
+use macroquad::audio::{PlaySoundParams, Sound, load_sound_from_bytes, play_sound, stop_sound};
 
 /// Set when there's no working sound device (the audio thread gave up); the game then stays silent.
 pub static AUDIO_OFF: AtomicBool = AtomicBool::new(false);
@@ -39,7 +40,16 @@ const ALL: [Sfx; 10] = [
 
 pub struct Sounds {
     bank: Vec<Option<Sound>>,
+    /// A hum too low to hear, looped while sound is on (see `keep_awake`), and whether it is playing.
+    hum: Option<Sound>,
+    humming: Cell<bool>,
 }
+
+/// The hum that keeps the sound device awake: 10 Hz, under what ears and most speakers reach. Loud enough to still
+/// be there after the system's volume control has turned it down, and a whole number of waves a second, so it
+/// loops without a click.
+const HUM_HZ: f32 = 10.0;
+const HUM_LEVEL: f32 = 0.01;
 
 impl Sounds {
     pub async fn load() -> Self {
@@ -52,7 +62,38 @@ impl Sounds {
             };
             bank.push(sound);
         }
-        Self { bank }
+        let hum = if AUDIO_OFF.load(Ordering::Relaxed) {
+            None
+        } else {
+            load_sound_from_bytes(&wav(&hum())).await.ok()
+        };
+        Self {
+            bank,
+            hum,
+            humming: Cell::new(false),
+        }
+    }
+
+    /// Call every frame. While sound is `on`, a hum nobody hears plays without a break. Bluetooth headphones and
+    /// some USB sound devices go to sleep in silence and take a moment to wake, which cuts the start of the next
+    /// sound, swallows short ones and makes the rest late; with something always playing they stay awake.
+    pub fn keep_awake(&self, on: bool) {
+        let on = on && !AUDIO_OFF.load(Ordering::Relaxed);
+        let Some(hum) = &self.hum else {
+            return;
+        };
+        if on && !self.humming.get() {
+            play_sound(
+                hum,
+                PlaySoundParams {
+                    looped: true,
+                    volume: 1.0,
+                },
+            );
+        } else if !on && self.humming.get() {
+            stop_sound(hum);
+        }
+        self.humming.set(on);
     }
 
     /// Plays `sfx` at `volume` (0 = silent).
@@ -282,6 +323,13 @@ impl Noise {
 }
 
 /// A mono 16-bit WAV file of `samples`.
+/// One second of the hum (see `Sounds::keep_awake`).
+fn hum() -> Vec<f32> {
+    (0..RATE)
+        .map(|i| HUM_LEVEL * (std::f32::consts::TAU * HUM_HZ * i as f32 / RATE as f32).sin())
+        .collect()
+}
+
 fn wav(samples: &[f32]) -> Vec<u8> {
     let data_len = (samples.len() * 2) as u32;
     let mut out = Vec::with_capacity(44 + data_len as usize);
@@ -337,6 +385,21 @@ mod tests {
     #[test]
     fn effects_sound_the_same_every_time() {
         assert_eq!(synth(Sfx::Blast), synth(Sfx::Blast));
+    }
+
+    #[test]
+    fn the_hum_is_quiet_never_silent_and_loops_without_a_step() {
+        let hum = hum();
+        assert_eq!(hum.len(), RATE as usize, "one second");
+        let peak = hum.iter().fold(0.0_f32, |m, v| m.max(v.abs()));
+        assert!((0.005..=0.02).contains(&peak), "{peak}");
+        // The last sample leads into the first: no jump where the loop starts over.
+        let step = (hum[0] - hum[hum.len() - 1]).abs();
+        let usual = (hum[1] - hum[0]).abs();
+        assert!(step < 2.0 * usual, "{step} vs {usual}");
+        // As 16-bit sound it is still well above nothing.
+        let as_16_bit = peak * f32::from(i16::MAX);
+        assert!(as_16_bit > 100.0, "{as_16_bit}");
     }
 
     #[test]
