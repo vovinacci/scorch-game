@@ -30,6 +30,18 @@ pub enum Targets {
     Leader,
 }
 
+/// Which shots a bot looks for.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Shots {
+    /// The one that lands closest, at any angle.
+    #[default]
+    Any,
+    /// High lobs only, while one of them gets near the target.
+    Lobs,
+    /// Off a wall where the walls bounce or wrap and such a shot lands about as close.
+    Walls,
+}
+
 #[derive(Clone, Copy, Serialize)]
 pub struct AiProfile {
     pub name: &'static str,
@@ -40,16 +52,18 @@ pub struct AiProfile {
     /// L: fraction of the error kept after each shot. Lower = learns faster.
     pub learning: f32,
     pub targets: Targets,
+    pub shots: Shots,
 }
 
 /// The bot types. The first three keep their places: the ladder's rungs and older code count on them.
-pub const PRESETS: [AiProfile; 5] = [
+pub const PRESETS: [AiProfile; 7] = [
     AiProfile {
         name: "Moron",
         first_angle_error: 25.0,
         first_power_error: 300.0,
         learning: 0.8,
         targets: Targets::Usual,
+        shots: Shots::Any,
     },
     AiProfile {
         name: "Shooter",
@@ -57,6 +71,7 @@ pub const PRESETS: [AiProfile; 5] = [
         first_power_error: 180.0,
         learning: 0.5,
         targets: Targets::Usual,
+        shots: Shots::Any,
     },
     AiProfile {
         name: "Sniper",
@@ -64,6 +79,7 @@ pub const PRESETS: [AiProfile; 5] = [
         first_power_error: 90.0,
         learning: 0.3,
         targets: Targets::Usual,
+        shots: Shots::Any,
     },
     // Between a Shooter and a Sniper in aim, but always after whoever is winning.
     AiProfile {
@@ -72,6 +88,7 @@ pub const PRESETS: [AiProfile; 5] = [
         first_power_error: 135.0,
         learning: 0.4,
         targets: Targets::Leader,
+        shots: Shots::Any,
     },
     // Close to perfect: its first shot nearly hits.
     AiProfile {
@@ -80,11 +97,30 @@ pub const PRESETS: [AiProfile; 5] = [
         first_power_error: 45.0,
         learning: 0.2,
         targets: Targets::Usual,
+        shots: Shots::Any,
+    },
+    // A Shooter that only lobs its shells high.
+    AiProfile {
+        name: "Tosser",
+        first_angle_error: 12.0,
+        first_power_error: 180.0,
+        learning: 0.5,
+        targets: Targets::Usual,
+        shots: Shots::Lobs,
+    },
+    // Aims like a Spoiler, and plays the walls where they bounce or wrap.
+    AiProfile {
+        name: "Poolshark",
+        first_angle_error: 9.0,
+        first_power_error: 135.0,
+        learning: 0.4,
+        targets: Targets::Usual,
+        shots: Shots::Walls,
     },
 ];
 
 /// Threat points each type costs in a line-up, in the order of `PRESETS`.
-const THREAT: [usize; PRESETS.len()] = [1, 2, 3, 3, 4];
+const THREAT: [usize; PRESETS.len()] = [1, 2, 3, 3, 4, 2, 3];
 /// The most one bot can cost.
 const MAX_THREAT: usize = 4;
 
@@ -166,7 +202,7 @@ pub fn skill_text(name: &str) -> String {
 }
 
 /// Threat budget per difficulty: (points for one bot, points per extra bot).
-/// Each bot costs its type's threat: Moron 1, Shooter 2, Sniper or Spoiler 3, Cyborg 4.
+/// Each bot costs its type's threat: Moron 1, Shooter or Tosser 2, Sniper, Spoiler or Poolshark 3, Cyborg 4.
 /// Extra bots add less than the first one, so more opponents is harder
 /// but not overwhelming.
 const BUDGETS: [(f32, f32); 4] = [(1.0, 0.5), (2.0, 1.0), (3.0, 1.5), (3.0, 3.0)];
@@ -238,6 +274,8 @@ struct SavedProfile {
     learning: f32,
     #[serde(default)]
     targets: Targets,
+    #[serde(default)]
+    shots: Shots,
 }
 
 // Written by hand: a derived impl would require the input to live for 'static.
@@ -260,6 +298,7 @@ impl From<SavedProfile> for AiProfile {
             first_power_error: saved.first_power_error,
             learning: saved.learning,
             targets: saved.targets,
+            shots: saved.shots,
         }
     }
 }
@@ -426,16 +465,17 @@ mod tests {
             seen.extend(lineup(3, 3, AiProfile::custom()).iter().map(|p| p.name));
         }
         assert_eq!(seen.len(), PRESETS.len(), "{seen:?}");
-        // Easy stays all Morons, and a lone Normal bot a Shooter.
+        // Easy stays all Morons, and a lone Normal bot costs 2.
         assert!(
             lineup(0, 3, AiProfile::custom())
                 .iter()
                 .all(|p| p.name == "Moron")
         );
-        assert_eq!(lineup(1, 1, AiProfile::custom())[0].name, "Shooter");
+        let lone = lineup(1, 1, AiProfile::custom())[0].name;
+        assert!(["Shooter", "Tosser"].contains(&lone), "{lone}");
         // A lone bot is never a Spoiler: with one enemy there is no leader to pick.
         for _ in 0..50 {
-            assert_eq!(lineup(3, 1, AiProfile::custom())[0].name, "Sniper");
+            assert_ne!(lineup(3, 1, AiProfile::custom())[0].name, "Spoiler");
         }
     }
 

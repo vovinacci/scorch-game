@@ -18,6 +18,7 @@ use crate::terrain::WIDTH;
 use crate::weapons::Kind;
 use crate::weapons::WEAPONS;
 use crate::world::Flight;
+use crate::world::Walls;
 use crate::world::World;
 use crate::world::step_shell;
 
@@ -559,8 +560,13 @@ pub(super) fn fly(
     deflectors: &[Vec2],
     mut each: impl FnMut(Vec2),
 ) -> Option<Landing> {
+    let mut off_wall = false;
     for _ in 0..2400 {
+        // Where the step would take the shell if there were no walls.
+        let free = pos.x + (vel.x + wind * STEP) * STEP;
         let flight = step_shell(&mut pos, &mut vel, wind, world, STEP);
+        off_wall |= matches!(world.walls, Walls::Bouncy | Walls::Wrap)
+            && !(0.0..WIDTH as f32).contains(&free);
         deflect(pos, &mut vel, deflectors);
         each(pos);
         match flight {
@@ -569,6 +575,7 @@ pub(super) fn fly(
                     pos,
                     vel,
                     ground: false,
+                    off_wall,
                 });
             }
             Flight::Lost => return None,
@@ -577,6 +584,7 @@ pub(super) fn fly(
                     pos,
                     vel,
                     ground: true,
+                    off_wall,
                 });
             }
             Flight::Flying => {}
