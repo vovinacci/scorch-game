@@ -117,6 +117,8 @@ struct Nav {
     panels: Vec<Rect>,
     /// A new screen: the focus has yet to settle on its first widget that works.
     fresh: bool,
+    /// Where the focused widget is, to find it again when widgets come and go around it.
+    focus_rect: Option<Rect>,
     enabled: bool,
     activate: bool,
     left: bool,
@@ -176,6 +178,14 @@ pub fn begin_frame(keyboard: bool) {
         nav.count = 0;
         nav.last_places = std::mem::take(&mut nav.places);
         nav.panels.clear();
+        // The focus is kept as a place in drawing order. When a screen shows or hides widgets (the ladder card in
+        // place of three rows), the same place is another widget: follow the one that had the focus.
+        if let Some(index) = nav
+            .focus_rect
+            .and_then(|rect| moved_to(&nav.last_places, nav.focus, rect))
+        {
+            nav.focus = index;
+        }
         nav.enabled = keyboard && widgets > 0;
         nav.activate = false;
         nav.left = false;
@@ -208,6 +218,7 @@ pub fn begin_frame(keyboard: bool) {
         if let Some(next) = dir.and_then(|dir| step(&nav.last_places, nav.focus, dir)) {
             nav.focus = next;
         }
+        nav.focus_rect = nav.last_places.get(nav.focus).map(|p| p.rect);
         nav.activate = pressed(KeyCode::Enter) || pressed(KeyCode::Space);
         nav.left = selector && left;
         nav.right = selector && right;
@@ -219,6 +230,7 @@ pub fn reset_focus() {
     NAV.with_borrow_mut(|nav| {
         nav.focus = 0;
         nav.fresh = true;
+        nav.focus_rect = None;
         // The old screen's widgets say nothing about the new one: no keyboard focus until it has been drawn once.
         nav.count = 0;
         nav.places.clear();
@@ -318,6 +330,18 @@ fn step(places: &[Place], from: usize, dir: Vec2) -> Option<usize> {
         .or_else(|| vertical.then(in_drawing_order).flatten())
 }
 
+/// The new index of the widget that was at `rect`, if it is no longer at index `focus` but still on screen.
+fn moved_to(places: &[Place], focus: usize, rect: Rect) -> Option<usize> {
+    let same = |p: &Place| {
+        let (a, b) = (p.rect, rect);
+        (a.x - b.x).abs() < 0.5 && (a.y - b.y).abs() < 0.5 && (a.w - b.w).abs() < 0.5
+    };
+    if places.get(focus).is_some_and(same) {
+        return None;
+    }
+    places.iter().position(same)
+}
+
 fn register(hovered: bool, rect: Rect, selector: bool, enabled: bool) -> Focus {
     NAV.with_borrow_mut(|nav| {
         let id = nav.count;
@@ -337,6 +361,7 @@ fn register(hovered: bool, rect: Rect, selector: bool, enabled: bool) -> Focus {
         nav.places.push(place);
         if hovered && place.enabled && mouse_delta_position() != Vec2::ZERO {
             nav.focus = id;
+            nav.focus_rect = Some(rect);
         }
         let focused = nav.enabled && nav.focus == id;
         Focus {
@@ -612,6 +637,19 @@ mod tests {
         assert_eq!(step(&shop, 10, LEFT), Some(7));
         // Down from the last switch wraps inside the inventory, not over to the shop's buttons.
         assert_eq!(step(&shop, 10, DOWN), Some(9));
+    }
+
+    #[test]
+    fn the_focus_follows_its_widget_when_others_come_and_go() {
+        let shop = shop();
+        let focused = shop[6].rect;
+        assert_eq!(moved_to(&shop, 6, focused), None, "still in its place");
+        // Three widgets before it are gone: it is now the fourth.
+        let fewer: Vec<Place> = shop[3..].to_vec();
+        assert_eq!(moved_to(&fewer, 6, focused), Some(3));
+        // It is gone itself: the focus stays where it is.
+        let without: Vec<Place> = shop.iter().filter(|p| p.rect != focused).copied().collect();
+        assert_eq!(moved_to(&without, 6, focused), None);
     }
 
     #[test]

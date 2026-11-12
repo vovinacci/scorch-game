@@ -133,7 +133,9 @@ order, the focus goes to:
 
 Left/Right never leave the row. On a setting (a selector) they change its value instead. A new screen starts on its
 first widget that works. Hovering doesn't focus a greyed-out button, but a focused button that greys out (bought, and
-now too dear) keeps the focus until you move away; it just can't be pressed.
+now too dear) keeps the focus until you move away; it just can't be pressed. When a screen shows or hides widgets
+(switching the ladder on swaps three rows for a card), the focus follows the widget it was on, found again by its place
+on screen.
 
 ### Mouse aiming
 
