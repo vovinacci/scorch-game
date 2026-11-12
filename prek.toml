@@ -5,8 +5,8 @@
 # Hooks run on commit unless they say otherwise (tests on push, the message check on commit-msg).
 default_stages = ["pre-commit"]
 
-# Third-party licence text stays exactly as published.
-exclude = '^assets/fonts/LICENSE-OFL\.txt$'
+# Third-party licence text and another project's crate stay exactly as published.
+exclude = '^(assets/fonts/LICENSE-OFL\.txt$|third_party/quad-snd/)'
 
 [[repos]]
 repo = "builtin"
