@@ -92,6 +92,9 @@ pub fn measure(text: impl AsRef<str>, size: f32) -> TextDimensions {
 
 /// Mouse position in virtual screen coordinates.
 pub fn mouse() -> Vec2 {
+    if !POINTER.get() {
+        return vec2(-1000.0, -1000.0);
+    }
     let (x, y) = mouse_position();
     camera().screen_to_world(vec2(x, y))
 }
@@ -158,6 +161,14 @@ thread_local! {
     static NAV: RefCell<Nav> = RefCell::new(Nav::default());
     /// A menu key pressed for this frame by `--keys` (a developer aid), as if on the keyboard.
     static SCRIPTED: Cell<Option<KeyCode>> = const { Cell::new(None) };
+    /// Off for screenshots (`ignore_pointer`).
+    static POINTER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// For a screenshot (`--shot`): the pointer counts as off the screen, so a shot looks the same wherever the pointer
+/// happens to be (a window manager may put it in the middle of a new window, over a button).
+pub fn ignore_pointer() {
+    POINTER.set(false);
 }
 
 /// Presses `key` in the menus for the frame about to start (`--keys`).
