@@ -497,6 +497,7 @@ dirty.
 | `ai.rs` | Bot profiles, aim math, difficulty budget, ladder, custom editor |
 | `economy.rs` | Money rules |
 | `weapons.rs` | Weapon table |
+| `icons.rs` | The small icons of weapons and items, drawn from lines and dots (no image files) |
 | `items.rs` | Items (parachutes, shields, batteries, guidance): item table, which shield goes up |
 | `ladder.rs` | The ladder: its ten rungs, the player's place on it, what a won, shared or lost game does |
 | `shop.rs` | Shop screen, bot shopping |

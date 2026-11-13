@@ -5,6 +5,7 @@ use macroquad::prelude::*;
 
 use crate::economy;
 use crate::i18n::t;
+use crate::icons;
 use crate::items::ITEMS;
 use crate::player::Player;
 use crate::ui;
@@ -59,10 +60,10 @@ fn shop_panel(player: &mut Player) -> ShopAction {
     );
 
     // Two columns of buttons, filled row by row.
-    let col_w = (area.w - 90.0) / 2.0;
+    let col_w = (area.w - 50.0) / 2.0;
     let cell = |top: f32, k: usize| {
         Rect::new(
-            area.x + 40.0 + (k % 2) as f32 * (col_w + 10.0),
+            area.x + 20.0 + (k % 2) as f32 * (col_w + 10.0),
             top + (k / 2) as f32 * ROW,
             col_w,
             ROW - 6.0,
@@ -92,45 +93,42 @@ fn shop_panel(player: &mut Player) -> ShopAction {
         .chain(&item_rows)
         .map(|(name, price)| format!("{name} {price}"))
         .collect();
-    let size = ui::common_size(&lines, 20.0, col_w - 16.0);
+    let size = ui::common_size(&lines, 20.0, col_w - 16.0 - ui::row_icon_space(ROW - 6.0));
     for (k, (&w, (name, price))) in weapons.iter().zip(&weapon_rows).enumerate() {
         let can_pay = player.money >= WEAPONS[w].price;
-        if ui::button_row(cell(top, k), name, price, size, can_pay) {
+        let icon = |centre, across, color| icons::weapon(w, centre, across, color);
+        if ui::button_row(cell(top, k), icon, (name, price), size, can_pay) {
             buy(player, w);
         }
     }
     let mut y = top + weapons.len().div_ceil(2) as f32 * ROW;
-    ui::text_at(t!("shop-items"), area.x + 40.0, y + 20.0, 22.0, GOLD);
+    ui::text_at(t!("shop-items"), area.x + 20.0, y + 20.0, 22.0, GOLD);
     y += 28.0;
     for (i, (name, price)) in item_rows.iter().enumerate() {
-        if ui::button_row(
-            cell(y, i),
-            name,
-            price,
-            size,
-            player.money >= ITEMS[i].price,
-        ) {
+        let icon = |centre, across, color| icons::item(i, centre, across, color);
+        let can_pay = player.money >= ITEMS[i].price;
+        if ui::button_row(cell(y, i), icon, (name, price), size, can_pay) {
             buy_item(player, i);
         }
     }
     y += ITEMS.len().div_ceil(2) as f32 * ROW;
 
-    let half = (area.w - 90.0) / 2.0;
+    let half = col_w;
     if ui::button(
-        Rect::new(area.x + 40.0, y + 6.0, half, 42.0),
+        Rect::new(area.x + 20.0, y + 6.0, half, 42.0),
         &t!("shop-done"),
         true,
     ) {
         ShopAction::Done
     } else if ui::button(
-        Rect::new(area.x + 50.0 + half, y + 6.0, half, 42.0),
+        Rect::new(area.x + 30.0 + half, y + 6.0, half, 42.0),
         &t!("save-exit-menu"),
         true,
     ) || is_key_pressed(KeyCode::Escape)
     {
         ShopAction::SaveAndExit
     } else if ui::button(
-        Rect::new(area.x + 40.0, y + 56.0, area.w - 80.0, 38.0),
+        Rect::new(area.x + 20.0, y + 56.0, area.w - 40.0, 38.0),
         &t!("abandon-game"),
         true,
     ) {
@@ -159,11 +157,12 @@ fn draw_inventory(player: &mut Player) {
         } else {
             GRAY
         };
+        icons::weapon(w, vec2(area.x + 27.0, y - 6.0), 13.0, color);
         ui::text_fit(
             &weapon.text(),
-            area.x + 20.0,
+            area.x + 42.0,
             y,
-            area.w - 100.0,
+            area.w - 122.0,
             18.0,
             color,
         );
@@ -180,11 +179,12 @@ fn draw_inventory(player: &mut Player) {
         let count = owned.to_string();
         if !item.automatic() {
             // Used by hand in battle: nothing to switch, so a plain line like a weapon's.
+            icons::item(i, vec2(area.x + 27.0, y + 13.0), 13.0, color);
             ui::text_fit(
                 &item.text(),
-                area.x + 20.0,
+                area.x + 42.0,
                 y + 19.0,
-                area.w - 100.0,
+                area.w - 122.0,
                 18.0,
                 color,
             );
@@ -193,11 +193,12 @@ fn draw_inventory(player: &mut Player) {
             y += 19.0;
             continue;
         }
+        icons::item(i, vec2(area.x + 27.0, y + 13.0), 13.0, color);
         ui::text_fit(
             &item.text(),
-            area.x + 20.0,
+            area.x + 42.0,
             y + 19.0,
-            area.w - 170.0,
+            area.w - 192.0,
             18.0,
             color,
         );

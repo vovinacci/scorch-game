@@ -16,6 +16,7 @@ mod crash;
 mod economy;
 mod game;
 mod i18n;
+mod icons;
 mod items;
 mod ladder;
 mod logo;
