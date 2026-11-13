@@ -336,17 +336,18 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   Spoiler 3, Cyborg 4. A line-up starts everyone as a Moron, moves random bots up to the next dearer cost while the
   budget lasts, then makes each bot a random type of its cost; the budget is always spent exactly. A lone bot is never a
   Spoiler: alone it is only a worse shot than a Sniper.
-- The costs come from `balance_types` (whole games, as `balance_ladder`). Share of games won outright by a Shooter-like
-  and a Sniper-like player against one bot: Moron 100% / 100%, Tosser 64 / 95, Shooter 46 / 92, Chooser 36 / 84, Spoiler
-  25 / 81, Poolshark 23 / 75, Sniper 7 / 50, Cyborg 1 / 23. With two Morons beside it: Tosser 46 / 78, Shooter 28 / 68,
-  Poolshark 26 / 49, Chooser 24 / 60, Spoiler 13 / 41, Sniper 11 / 32, Cyborg 4 / 23. A Spoiler is worth a Sniper only
-  in company, where it hunts the player who leads. `balance_shots` puts a Tosser beside a Shooter and a Poolshark beside
-  a Sniper behind Open, Bouncy and Wrap-around walls: the walls change little.
+- The costs come from `balance_types` (whole games, as `balance_ladder`; everyone shops, batteries and guidance
+  included). Share of games won outright by a Shooter-like and a Sniper-like player against one bot: Moron 95% / 100%,
+  Tosser 59 / 89, Shooter 50 / 83, Chooser 38 / 80, Spoiler 27 / 70, Poolshark 23 / 71, Sniper 12 / 48, Cyborg 5 / 28.
+  With two Morons beside it: Tosser 39 / 70, Shooter 37 / 64, Poolshark 29 / 64, Chooser 26 / 53, Spoiler 17 / 37,
+  Sniper 11 / 36, Cyborg 7 / 21. A Spoiler is worth a Sniper only in company, where it hunts the player who leads.
+  `balance_shots` puts a Tosser beside a Shooter and a Poolshark beside a Sniper behind Open, Bouncy and Wrap-around
+  walls: the walls change little.
 - Difficulty budgets (`ai::BUDGETS`, threat points for 1 / 2 / 3 bots): Easy 1 / 2 / 3, Normal 2 / 3 / 4, Hard 3 / 4 /
   6, Brutal 4 / 6 / 9. `balance_difficulty` plays line-ups drawn as the game draws them: a Shooter-like player wins
-  about 97 / 70 / 59% of games outright on Easy, 51 / 34 / 29% on Normal, 9 / 12 / 18% on Hard and 1 / 6 / 7% on Brutal;
-  a Sniper-like one 100 / 95 / 90%, 91 / 73 / 68%, 48 / 27 / 43% and 23 / 18 / 19%. With two bots many games end in a
-  shared first place, which is why Hard with two looks harder than with three.
+  about 99 / 67 / 61% of games outright on Easy, 50 / 37 / 33% on Normal, 14 / 18 / 21% on Hard and 1 / 5 / 8% on
+  Brutal; a Sniper-like one 100 / 93 / 85%, 89 / 66 / 65%, 52 / 46 / 31% and 25 / 19 / 20%. With two bots many games end
+  in a shared first place.
 - Weapon: 60% chance of its weapon with the highest price per shot (`Weapon::shot_price`) that isn't a utility one,
   otherwise a Baby Missile. Shots landing closer to the bot than the weapon's radius + 25 px are ruled out; for
   MIRV-type weapons add the outer warhead's drift: its sideways speed x the fall time from the top of the arc (landing
@@ -371,9 +372,9 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 
 - Ten rungs (`ladder::RUNGS`), each a fixed line-up of bots; the Bots and Difficulty settings aren't used. The order
   comes from `balance_ladder` (whole games, see Weapons), which plays 38 line-ups a rung could be made of: against the
-  ten chosen a Sniper-like player wins 100, 97, 95, 92, 84, 68, 43, 31, 27 and 17% of games outright, a Shooter-like one
-  100, 73, 64, 46, 36, 28, 20, 12, 7 and 5%. Every bot type has a rung. More bots is not always harder, because they
-  also fight each other: three Morons (60% for a Shooter-like player) are easier than one Shooter.
+  ten chosen a Sniper-like player wins 100, 91, 89, 83, 80, 64, 52, 29, 23 and 15% of games outright, a Shooter-like one
+  95, 70, 59, 50, 38, 37, 15, 12, 5 and 7%. Every bot type has a rung. More bots is not always harder, because they also
+  fight each other: three Morons (65% for a Shooter-like player) are easier than one Shooter.
 - Only with one human player; with two the switch does nothing.
 - After a game: more round wins than the best bot is a win (up a rung; on rung 10, champion + 1 and stay); the same
   number is a shared first place (no change); fewer is a loss. Two losses in a row on a rung go down one and start the
