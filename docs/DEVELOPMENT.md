@@ -56,7 +56,7 @@ Command line options:
 | `--crash-test` | Crash on purpose, to check crash reports |
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
 | `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, watch (you flee and the bots play the round out, with sound), over (a round just won), defence (every tank with a shield), guidance (your turn with Vertical guidance on), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
-| `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit. The name must end in `.png` and its folder must exist, or the game says so and exits with status 2 before opening the window |
+| `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit. The pointer is ignored, so nothing is highlighted by where it happens to be. The name must end in `.png` and its folder must exist, or the game says so and exits with status 2 before opening the window |
 | `--keys <keys>` | With `--screen`: press menu keys before the screenshot, one every 4 frames: a comma-separated list of up, down, left, right, enter (`--screen shop --keys down,down,right --shot shop.png`) |
 
 Self-update is off in development builds (`make run`, versions with `+`), so its question, setting and About button are

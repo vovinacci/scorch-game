@@ -596,6 +596,9 @@ pub async fn run() {
     }
     // With `--shot <file.png>`, save a screenshot after a moment and quit.
     let shot = arg_after("--shot");
+    if shot.is_some() {
+        ui::ignore_pointer();
+    }
     if game.profile.settings.check_updates == Some(true) {
         game.updater.check();
     }
