@@ -243,3 +243,51 @@ fn a_spent_deflector_absorbs_nothing_and_adds_nothing() {
     b.drop_spent_deflectors(&players);
     assert!(b.tanks[1].shield.is_none());
 }
+
+#[test]
+fn a_battery_gives_health_back_up_to_full() {
+    use crate::items::BATTERY;
+    let mut players = bots(2);
+    players[0].items[BATTERY] = 3;
+    let mut b = battle(&players, Setup::default().rules());
+    assert!(
+        !b.use_battery(0, &mut players),
+        "nothing to mend at full health"
+    );
+    assert_eq!(players[0].items[BATTERY], 3, "and it isn't used up");
+    b.tanks[0].health = 40.0;
+    let weak = b.max_power(&b.tanks[0]);
+    assert!(b.use_battery(0, &mut players));
+    assert_eq!((b.tanks[0].health, players[0].items[BATTERY]), (65.0, 2));
+    assert_eq!(
+        b.max_power(&b.tanks[0]),
+        weak + 250.0,
+        "health limits power"
+    );
+    b.tanks[0].health = 90.0;
+    assert!(b.use_battery(0, &mut players));
+    assert_eq!(b.tanks[0].health, 100.0, "never past full");
+    // No battery, no health; and none for the dead.
+    b.tanks[1].health = 10.0;
+    assert!(!b.use_battery(1, &mut players));
+    b.tanks[0].health = 0.0;
+    b.tanks[0].alive = false;
+    assert!(!b.use_battery(0, &mut players));
+    assert_eq!(players[0].items[BATTERY], 1);
+}
+
+#[test]
+fn a_bot_uses_its_batteries_once_none_of_one_is_wasted() {
+    use crate::items::BATTERY;
+    let mut players = bots(2);
+    players[0].items[BATTERY] = 3;
+    let mut b = battle(&players, Setup::default().rules());
+    b.current = 0;
+    b.tanks[0].health = 80.0;
+    b.aim(0.0, 1.0, None, &mut players);
+    assert_eq!((b.tanks[0].health, players[0].items[BATTERY]), (80.0, 3));
+    // Two bring it from 30 to 80; a third would give only 20 of its 25.
+    b.tanks[0].health = 30.0;
+    b.aim(0.0, 1.0, None, &mut players);
+    assert_eq!((b.tanks[0].health, players[0].items[BATTERY]), (80.0, 1));
+}

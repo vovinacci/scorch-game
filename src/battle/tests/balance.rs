@@ -345,9 +345,8 @@ fn balance_deflector() {
 /// wins per game.
 fn ladder_games(standin: usize, lineup: &[usize], games: u64, walls: Walls) -> (f32, f32, f32) {
     let seed = 1_000 * lineup.iter().map(|&p| p as u64 + 1).sum::<u64>();
-    drawn_games(standin, seed, games, walls, || {
-        lineup.iter().map(|&p| PRESETS[p]).collect()
-    })
+    let draw = || lineup.iter().map(|&p| PRESETS[p]).collect();
+    drawn_games(standin, seed, games, walls, draw, |_, _, _| {})
 }
 
 /// `ladder_games` against a line-up that `draw` makes afresh for every game.
@@ -357,6 +356,7 @@ fn drawn_games(
     games: u64,
     walls: Walls,
     draw: impl Fn() -> Vec<AiProfile>,
+    prepare: impl Fn(u32, &mut [Player], &mut Battle),
 ) -> (f32, f32, f32) {
     const ROUNDS: u32 = 5;
     let mut setup = Setup::default();
@@ -375,6 +375,7 @@ fn drawn_games(
             }
             let order = crate::setup::turn_order(setup.turn_order, &players, round);
             let mut b = Battle::new(&players, order, round, ROUNDS, setup.rules());
+            prepare(round, &mut players, &mut b);
             b.raise_shields(&mut players);
             for _ in 0..200_000 {
                 if matches!(b.phase, Phase::Over { .. }) {
@@ -537,10 +538,14 @@ fn balance_difficulty() {
         for difficulty in 0..crate::ai::CUSTOM {
             for bots in 1..=3 {
                 let seed = 10_000 * (difficulty as u64 + 1) + 1_000 * bots as u64;
-                let (won, shared, rounds) =
-                    drawn_games(standin, seed, 200, Setup::default().world.walls, || {
-                        crate::ai::lineup(difficulty, bots, PRESETS[1])
-                    });
+                let (won, shared, rounds) = drawn_games(
+                    standin,
+                    seed,
+                    200,
+                    Setup::default().world.walls,
+                    || crate::ai::lineup(difficulty, bots, PRESETS[1]),
+                    |_, _, _| {},
+                );
                 println!(
                     "{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {}, {bots}",
                     crate::ai::DIFFICULTIES[difficulty]
@@ -567,6 +572,67 @@ fn balance_shots() {
     for walls in [Walls::Open, Walls::Bouncy, Walls::Wrap] {
         for standin in [SHOOTER, SNIPER] {
             games_table(standin, &lineups, 150, walls);
+        }
+    }
+}
+
+/// What batteries are worth, and when a bot should use them. Whole games of a Shooter-like stand-in against one
+/// and against three Shooters (see `ladder_games`). Nobody else has batteries, and the stand-in has no shields
+/// but the ones a row gives it.
+///   - Each round it is given some items for nothing: the gain over "nothing" is what they are worth a round,
+///     next to shields of a known price.
+///   - It is given four batteries once, to last the game, and uses one when its health is at or under a limit:
+///     the best limit is the bots' rule (`BOT_BATTERY_HEALTH`).
+///
+/// About ten minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the batteries"]
+fn balance_batteries() {
+    use crate::items::BATTERY;
+    const SHIELD: usize = 1;
+    const HEAVY_SHIELD: usize = 2;
+    // (label, item given each round, how many, batteries for the whole game, health limit for using one)
+    let rows: [(&str, usize, u32, u32, f32); 9] = [
+        ("nothing", SHIELD, 0, 0, 75.0),
+        ("a Shield each round", SHIELD, 1, 0, 75.0),
+        ("a Heavy Shield each round", HEAVY_SHIELD, 1, 0, 75.0),
+        ("1 battery each round", BATTERY, 1, 0, 75.0),
+        ("2 batteries each round", BATTERY, 2, 0, 75.0),
+        ("4 batteries each round", BATTERY, 4, 0, 75.0),
+        ("4 batteries for the game, used at 75", SHIELD, 0, 4, 75.0),
+        ("4 batteries for the game, used at 50", SHIELD, 0, 4, 50.0),
+        ("4 batteries for the game, used at 25", SHIELD, 0, 4, 25.0),
+    ];
+    for lineup in [vec![1], vec![1, 1, 1]] {
+        println!(
+            "\na Shooter-like player against {} Shooter(s), 200 games of 5 rounds",
+            lineup.len()
+        );
+        println!("{:>6} {:>7} {:>7}  given", "won", "shared", "rounds");
+        for (label, item, each_round, for_game, limit) in rows {
+            let left = std::cell::Cell::new(0);
+            let draw = || lineup.iter().map(|&p| PRESETS[p]).collect();
+            let prepare = |round: u32, players: &mut [Player], b: &mut Battle| {
+                if round == 1 {
+                    left.set(for_game);
+                } else {
+                    left.set(left.get().min(players[0].items[BATTERY]));
+                }
+                for player in players.iter_mut() {
+                    player.items[BATTERY] = 0;
+                }
+                players[0].items[SHIELD] = 0;
+                players[0].items[HEAVY_SHIELD] = 0;
+                players[0].items[3] = 0;
+                players[0].items[BATTERY] = left.get();
+                if each_round > 0 {
+                    players[0].items[item] = each_round;
+                }
+                b.battery_health = vec![limit];
+            };
+            let (won, shared, rounds) =
+                drawn_games(1, 77_000, 200, Setup::default().world.walls, draw, prepare);
+            println!("{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {label}");
         }
     }
 }

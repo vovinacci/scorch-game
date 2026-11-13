@@ -40,7 +40,7 @@ pub fn frame(player: &mut Player, shoots_first: bool) -> ShopAction {
 /// The middle panel: weapons and items to buy, and Done / Save & exit / Abandon.
 fn shop_panel(player: &mut Player) -> ShopAction {
     /// Height of a row of buy buttons, gap included.
-    const ROW: f32 = 40.0;
+    const ROW: f32 = 37.0;
     let area = Rect::new(370.0, 70.0, 540.0, 620.0);
     ui::panel(area);
     // Hotseat players need to see whose turn it is to shop.
@@ -175,11 +175,14 @@ fn draw_inventory(player: &mut Player) {
         ui::text_at(&count, area.x + area.w - 112.0 - cw, y + 25.0, 22.0, color);
         let on = &mut player.items_on[i];
         let label = if *on { t!("on") } else { t!("off") };
-        if ui::button(
-            Rect::new(area.x + area.w - 100.0, y + 4.0, 80.0, 28.0),
-            &label,
-            true,
-        ) {
+        // A battery is used by hand in battle: nothing to switch.
+        if item.automatic()
+            && ui::button(
+                Rect::new(area.x + area.w - 100.0, y + 4.0, 80.0, 28.0),
+                &label,
+                true,
+            )
+        {
             *on = !*on;
         }
         y += 34.0;

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::choice::Choice;
 use crate::economy;
 use crate::i18n::t;
-use crate::items::{ITEMS, PARACHUTE, Use, shield_to_raise};
+use crate::items::{BATTERY, BATTERY_HEALTH, ITEMS, PARACHUTE, Use, shield_to_raise};
 use crate::player::Player;
 use crate::save::Vec2Def;
 use crate::settings::Settings;
@@ -40,6 +40,10 @@ const SPEED_PER_POWER: f32 = 0.75;
 pub const MAX_POWER: f32 = 1000.0;
 /// With "Health limits power" on: max power = health x this (100 HP = 1000).
 pub const POWER_PER_HEALTH: f32 = 10.0;
+/// What a tank starts a round with, and the most a battery brings it back to.
+const FULL_HEALTH: f32 = 100.0;
+/// A bot uses a battery once its health is this low: the whole of it then counts.
+const BOT_BATTERY_HEALTH: f32 = FULL_HEALTH - BATTERY_HEALTH;
 /// Even a nearly dead tank can lob a short shot.
 pub const MIN_POWER_LIMIT: f32 = 50.0;
 const TANK_RADIUS: f32 = 12.0;
@@ -467,6 +471,10 @@ pub struct Battle {
     burns: Vec<f32>,
     #[serde(skip)]
     burn_clock: f32,
+    /// Per tank, the health at or under which a bot uses a battery; `BOT_BATTERY_HEALTH` where there is none.
+    /// Only the balance tools set it, to compare rules.
+    #[serde(skip)]
+    battery_health: Vec<f32>,
     #[serde(skip)]
     accumulator: f32,
     round: u32,
@@ -547,7 +555,7 @@ impl Battle {
                 terrain.flatten(x, TANK_RADIUS + 2.0);
                 Tank {
                     pos: vec2(x, terrain.height_at(x)),
-                    health: 100.0,
+                    health: FULL_HEALTH,
                     angle: if x < WIDTH as f32 / 2.0 { 60.0 } else { 120.0 },
                     power: 500.0,
                     weapon: 0,
@@ -585,6 +593,7 @@ impl Battle {
             fire_owner: 0,
             burns: Vec::new(),
             burn_clock: 0.0,
+            battery_health: Vec::new(),
             accumulator: 0.0,
             round,
             rounds,
@@ -666,6 +675,28 @@ impl Battle {
             );
             self.note(text, player.color);
         }
+    }
+
+    /// Tank `i` uses a battery, if its player has one and the tank is short of full health: `BATTERY_HEALTH`
+    /// back, up to full. Says whether one was used.
+    fn use_battery(&mut self, i: usize, players: &mut [Player]) -> bool {
+        let tank = &mut self.tanks[i];
+        if players[i].items[BATTERY] == 0 || !tank.alive || tank.health >= FULL_HEALTH {
+            return false;
+        }
+        players[i].items[BATTERY] -= 1;
+        let before = tank.health;
+        tank.health = (tank.health + BATTERY_HEALTH).min(FULL_HEALTH);
+        let text = t!(
+            "log-battery",
+            name = players[i].label(),
+            you = you(&players[i]),
+            health = (tank.health - before).round(),
+            now = tank.health.round()
+        );
+        self.log(text, players[i].color);
+        self.sounds.push(Sfx::Shield);
+        true
     }
 
     fn world(&self) -> World {
@@ -770,11 +801,16 @@ impl Battle {
 
     fn aim(&mut self, dt: f32, think: f32, plan: Option<Shot>, players: &mut [Player]) {
         let i = self.current;
-        let max_power = self.max_power(&self.tanks[i]);
         if players[i].is_bot() {
-            let plan = match plan {
-                Some(plan) => plan,
-                None => self.plan_shot(i, players),
+            let plan = if let Some(plan) = plan {
+                plan
+            } else {
+                // Before aiming: health sets how far it can shoot.
+                let below = self.battery_health.get(i).copied();
+                while self.tanks[i].health <= below.unwrap_or(BOT_BATTERY_HEALTH)
+                    && self.use_battery(i, players)
+                {}
+                self.plan_shot(i, players)
             };
             let tank = &mut self.tanks[i];
             tank.weapon = plan.weapon;
@@ -794,6 +830,10 @@ impl Battle {
             return;
         }
 
+        if is_key_pressed(KeyCode::B) {
+            self.use_battery(i, players);
+        }
+        let max_power = self.max_power(&self.tanks[i]);
         let player = &players[i];
         let strip = weapon_strip(player);
         self.mouse_aim(&strip, max_power);

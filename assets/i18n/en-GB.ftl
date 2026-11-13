@@ -234,6 +234,8 @@ controls-mouse-key = Mouse drag / right
 controls-mouse = Aim / fire
 controls-fire-key = Space
 controls-fire = Fire
+controls-battery-key = B
+controls-battery = Use a battery
 controls-log-key = L (hold)
 controls-log = Full battle log
 controls-pause-key = Esc
@@ -450,6 +452,12 @@ item-parachute = Parachute
 item-shield = Shield
 item-heavy-shield = Heavy Shield
 item-mag-deflector = Mag Deflector
+item-battery = Battery
+log-battery = { $you ->
+    [yes] You use a battery: +{ $health } health, now { $now }
+   *[no] { $name } uses a battery: +{ $health } health, now { $now }
+}
+hud-battery = B: use a battery ({ $n } left)
 log-shield-up = { $you ->
     [yes] You raise a { $item }
    *[no] { $name } raises a { $item }

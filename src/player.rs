@@ -27,6 +27,29 @@ fn ammo_from_any_length<'de, D: serde::Deserializer<'de>>(
     Ok(ammo)
 }
 
+/// Saves from before an item was added hold fewer counts and switches: the new items start at none, switched on.
+fn items_from_any_length<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<[u32; ITEM_COUNT], D::Error> {
+    let counts = Vec::<u32>::deserialize(d)?;
+    let mut items = [0; ITEM_COUNT];
+    for (slot, n) in items.iter_mut().zip(counts) {
+        *slot = n;
+    }
+    Ok(items)
+}
+
+fn switches_from_any_length<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<[bool; ITEM_COUNT], D::Error> {
+    let saved = Vec::<bool>::deserialize(d)?;
+    let mut on = all_on();
+    for (slot, switch) in on.iter_mut().zip(saved) {
+        *slot = switch;
+    }
+    Ok(on)
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Player {
     pub name: String,
@@ -37,11 +60,11 @@ pub struct Player {
     pub money: i32,
     #[serde(deserialize_with = "ammo_from_any_length")]
     pub ammo: [u32; WEAPON_COUNT],
-    /// Parachutes and shields owned (see `items::ITEMS`).
-    #[serde(default)]
+    /// Items owned (see `items::ITEMS`).
+    #[serde(default, deserialize_with = "items_from_any_length")]
     pub items: [u32; ITEM_COUNT],
     /// Per item: may it be used? Switched in the inventory.
-    #[serde(default = "all_on")]
+    #[serde(default = "all_on", deserialize_with = "switches_from_any_length")]
     pub items_on: [bool; ITEM_COUNT],
     pub wins: u32,
     pub kills: u32,
