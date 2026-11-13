@@ -428,16 +428,33 @@ pub fn common_size(texts: &[String], size: f32, width: f32) -> f32 {
         .fold(size, f32::min)
 }
 
-/// A button with `left` at its left edge and `right` at its right one, both at `size`: a row of a table that can
-/// be pressed.
-pub fn button_row(r: Rect, left: &str, right: &str, size: f32, enabled: bool) -> bool {
+/// Width a `button_row` keeps for its icon and the gaps around it, for a row `h` high.
+pub fn row_icon_space(h: f32) -> f32 {
+    h - 2.0
+}
+
+/// A button with an icon and `left` at its left edge and `right` at its right one, the texts at `size`: a row of
+/// a table that can be pressed. `icon` draws itself around a centre, so many px across, in the row's colour.
+pub fn button_row(
+    r: Rect,
+    icon: impl Fn(Vec2, f32, Color),
+    (left, right): (&str, &str),
+    size: f32,
+    enabled: bool,
+) -> bool {
     let hovered = r.contains(mouse());
     let focus = register(hovered, r, false, enabled);
     widget_background(r, enabled, hovered || focus.focused, focus.focused);
     let color = if enabled { WHITE } else { GRAY };
+    let space = row_icon_space(r.h);
+    icon(
+        vec2(r.x + 6.0 + space / 2.0, r.y + r.h / 2.0),
+        space - 10.0,
+        color,
+    );
     let dims = measure(right, size);
     let y = r.y + f32::midpoint(r.h, dims.offset_y);
-    text_at(left, r.x + 8.0, y, size, color);
+    text_at(left, r.x + 8.0 + space, y, size, color);
     text_at(right, r.x + r.w - 8.0 - dims.width, y, size, color);
     note_click(
         enabled && ((hovered && is_mouse_button_pressed(MouseButton::Left)) || focus.activate),
