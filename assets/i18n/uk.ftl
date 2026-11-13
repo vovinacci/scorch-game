@@ -242,6 +242,8 @@ controls-fire-key = Пробіл
 controls-fire = Вогонь
 controls-battery-key = B
 controls-battery = Використати батарею
+controls-guidance-key = G / T
+controls-guidance = Наведення / його ціль
 controls-log-key = L (тримати)
 controls-log = Повний журнал бою
 controls-pause-key = Esc
@@ -389,7 +391,8 @@ new-game-text = Збережену гру буде покинуто, щойно 
 shop-title = Крамниця
 shop-title-for = Крамниця: { $name }
 shop-money = Гроші: ${ $money }
-shop-buy = { $weapon } x{ $bundle }  -  ${ $price }
+shop-buy = { $weapon } x{ $bundle }
+shop-price = ${ $price }
 shop-done = Наступний раунд
 inventory-title = Інвентар
 inventory-death-blast = Якщо танк знищать, боєкомплект вибухне: радіус { $radius }, шкода { $damage }.
@@ -489,6 +492,13 @@ log-battery = { $you ->
    *[no] { $name } використовує батарею: +{ $health } здоров'я, тепер { $now }
 }
 hud-battery = B: використати батарею (лишилось { $n })
+item-heat-guidance = Теплове наведення
+item-horizontal-guidance = Горизонтальне наведення
+item-vertical-guidance = Вертикальне наведення
+log-guided = { $weapon } + { $item }
+hud-guidance-off = G: наведення вимкнено
+hud-guidance = G: { $item } (лишилось { $n })
+hud-guidance-target = T: наводить на { $target }
 log-shield-up = { $you ->
     [yes] Ви піднімаєте захист: { $item }
    *[no] { $name } піднімає захист: { $item }

@@ -269,7 +269,10 @@ impl Battle {
             let muzzle = shooter.barrel_base() + direction(angle as f32) * BARREL;
             self.terrain.is_solid(muzzle)
         });
+        // Guidance steers for the tank the bot is after; a shot to dig out needs none.
+        self.tanks[me].guide_target = Some(memory.target);
         if buried {
+            self.tanks[me].guidance = None;
             return Shot {
                 angle: 90.0,
                 power: max_power.min(500.0),

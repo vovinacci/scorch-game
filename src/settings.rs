@@ -98,7 +98,7 @@ impl Default for Settings {
 }
 
 /// Translation keys: `controls-<name>-key` and `controls-<name>`.
-pub const CONTROLS: [&str; 14] = [
+pub const CONTROLS: [&str; 15] = [
     "aim",
     "power",
     "fine",
@@ -107,6 +107,7 @@ pub const CONTROLS: [&str; 14] = [
     "mouse",
     "fire",
     "battery",
+    "guidance",
     "log",
     "pause",
     "skip",
@@ -193,7 +194,7 @@ pub fn screen(settings: &mut Settings) -> bool {
         ui::text_fit(&key, right.x + 24.0, y, 190.0, 20.0, SKYBLUE);
         let action = t!(&format!("controls-{name}"));
         ui::text_fit(&action, right.x + 230.0, y, right.w - 254.0, 20.0, WHITE);
-        y += 33.0;
+        y += 31.0;
     }
 
     ui::button(

@@ -408,6 +408,31 @@ pub fn text_fit(text: &str, x: f32, y: f32, max_w: f32, size: f32, color: Color)
     text_at(text, x, y, size, color);
 }
 
+/// The largest text size, `size` at most, at which every one of `texts` fits within `width`: one size for a set
+/// of labels that belong together.
+pub fn common_size(texts: &[String], size: f32, width: f32) -> f32 {
+    texts
+        .iter()
+        .map(|text| fit(text, size, width).0)
+        .fold(size, f32::min)
+}
+
+/// A button with `left` at its left edge and `right` at its right one, both at `size`: a row of a table that can
+/// be pressed.
+pub fn button_row(r: Rect, left: &str, right: &str, size: f32, enabled: bool) -> bool {
+    let hovered = r.contains(mouse());
+    let focus = register(hovered, r, false, enabled);
+    widget_background(r, enabled, hovered || focus.focused, focus.focused);
+    let color = if enabled { WHITE } else { GRAY };
+    let dims = measure(right, size);
+    let y = r.y + f32::midpoint(r.h, dims.offset_y);
+    text_at(left, r.x + 8.0, y, size, color);
+    text_at(right, r.x + r.w - 8.0 - dims.width, y, size, color);
+    note_click(
+        enabled && ((hovered && is_mouse_button_pressed(MouseButton::Left)) || focus.activate),
+    )
+}
+
 pub fn button(r: Rect, label: &str, enabled: bool) -> bool {
     let hovered = r.contains(mouse());
     let focus = register(hovered, r, false, enabled);

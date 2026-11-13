@@ -55,7 +55,7 @@ Command line options:
 | `--version`, `-V` | Print the version and exit |
 | `--crash-test` | Crash on purpose, to check crash reports |
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
-| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, watch (you flee and the bots play the round out, with sound), over (a round just won), defence (every tank with a shield), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
+| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, watch (you flee and the bots play the round out, with sound), over (a round just won), defence (every tank with a shield), guidance (your turn with Vertical guidance on), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit. The name must end in `.png` and its folder must exist, or the game says so and exits with status 2 before opening the window |
 | `--keys <keys>` | With `--screen`: press menu keys before the screenshot, one every 4 frames: a comma-separated list of up, down, left, right, enter (`--screen shop --keys down,down,right --shot shop.png`) |
 
@@ -255,16 +255,18 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     Wrap-around walls. About a quarter of an hour.
   - `balance_batteries` gives the stand-in shields or batteries for nothing, each round or once for the game, and tries
     three health limits for using them: what a battery is worth and when to use it. About seven minutes.
+  - `balance_guidance` gives the stand-in two or five of each guidance each round, next to a shield given the same way:
+    what guidance is worth. About nine minutes.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
     or a Sniper whose aim the bots can't see, as they can't see a human's. These two take about a quarter of an hour
     each.
 
-### Parachutes, shields and batteries
+### Items
 
 - Items live in `src/items.rs`: Parachute $40 x2, Shield 50 energy $120, Heavy Shield 100 $200, Mag Deflector 40 $150,
-  Battery 25 health $60.
+  Battery 25 health $60, Heat and Horizontal Guidance $50 x2, Vertical Guidance $60 x2.
 - Battery (`Battle::use_battery`): the **B** key while a human aims, as often as there are batteries; +25 health up to
   100, not used at full health; the turn goes on. No switch in the inventory (`Item::automatic`). A bot uses one at the
   start of its turn while its health is 75 or less (`BOT_BATTERY_HEALTH`), so none of a battery is wasted.
@@ -275,6 +277,20 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   whole game, used once health is at or under 75 / 50 / 25: 76 / 58 / 36% against one Shooter, 22 / 16 / 12% against
   three. Waiting costs more than a wasted point or two saves: a tank kept low shoots short and dies to the next hit with
   batteries left.
+- Guidance (`battle/guidance.rs`): **G** steps through the kinds owned and off (`Tank::guidance`), **T** through the
+  living enemies (`Tank::guide_target`; the nearest while none is picked). Firing anything but a Tracer uses one up and
+  gives the shell a `Guide`, which `steer` is called on after every physics step, in real flight and in the aiming
+  preview alike (`shells::fly`). Heat turns onto the nearest enemy centre within 100 px (`HEAT_RANGE`); Vertical turns
+  straight down on the step that crosses the target's x while above it; Horizontal turns level towards the target on the
+  step that crosses its y. A turned shell keeps its line at the speed it had, 250 px/s at least, with no wind or
+  gravity. Guidance ends at the first impact (no guided hops, bomblets or warheads) and inside any deflector field that
+  would push the shell (`in_field`). A bot switches on the first it has of Vertical, Heat, Horizontal (`BOT_GUIDANCE`)
+  for every shot but one to dig out, for the tank it is after.
+- The prices come from `balance_guidance` (whole games of a Shooter-like stand-in given guidance for nothing each round,
+  share of games won outright against one / three Shooters): nothing 53 / 22%; 2 Heat 70 / 29%, 5 Heat 90 / 34%; 2
+  Horizontal 71 / 22%, 5 Horizontal 80 / 36%; 2 Vertical 78 / 27%, 5 Vertical 84 / 39%; one more Shield 90 / 36%; one
+  more Heavy Shield 98 / 59%. Five of any kind are worth about a Shield ($120), so a pack of two costs $50, Vertical a
+  little more.
 - Round start: the switched-on shield with the most energy is raised and used up (`items::shield_to_raise`).
 - A blast's damage to a tank goes to its shield first; the rest to health. Damage pay and stats count shield damage too,
   so shields don't shut down the catch-up money.
@@ -470,6 +486,7 @@ dirty.
 | `battle/shells.rs` | Shells: flight, what happens where they land, fire, Mag Deflectors, blasts and damage; the flight simulation bots and the aiming help share |
 | `battle/bots.rs` | Bots: whom they shoot at, what with, how they find the aim and dig out |
 | `battle/coach.rs` | The coaching advice of the aiming help |
+| `battle/guidance.rs` | Guidance: when a guided shell turns and how it flies on |
 | `battle/draw.rs` | Drawing the battle: scene, HUD, tanks, flames, weapon strip, full battle log |
 | `battle/tests.rs`, `battle/tests/` | The battle's unit tests: shared helpers, then one file each for rules, weapons, shields, bots, coaching, what is on screen, and the balance tools (other files keep their tests in a `tests` module at the bottom) |
 | `world.rs` | World settings, shell physics (`step_shell`), sky |
@@ -479,7 +496,7 @@ dirty.
 | `ai.rs` | Bot profiles, aim math, difficulty budget, ladder, custom editor |
 | `economy.rs` | Money rules |
 | `weapons.rs` | Weapon table |
-| `items.rs` | Parachutes, shields and batteries: item table, which shield goes up |
+| `items.rs` | Items (parachutes, shields, batteries, guidance): item table, which shield goes up |
 | `ladder.rs` | The ladder: its ten rungs, the player's place on it, what a won, shared or lost game does |
 | `shop.rs` | Shop screen, bot shopping |
 | `stats.rs` | All-time stats |

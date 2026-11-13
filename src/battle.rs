@@ -9,13 +9,14 @@
 
 use crate::ai::AiProfile;
 use crate::rng::gen_range;
+use guidance::Guide;
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::choice::Choice;
 use crate::economy;
 use crate::i18n::t;
-use crate::items::{BATTERY, BATTERY_HEALTH, ITEMS, PARACHUTE, Use, shield_to_raise};
+use crate::items::{BATTERY, BATTERY_HEALTH, ITEMS, PARACHUTE, Steer, Use, shield_to_raise};
 use crate::player::Player;
 use crate::save::Vec2Def;
 use crate::settings::Settings;
@@ -29,6 +30,7 @@ use crate::world::World;
 mod bots;
 mod coach;
 mod draw;
+mod guidance;
 mod shells;
 #[cfg(test)]
 mod tests;
@@ -42,6 +44,9 @@ pub const MAX_POWER: f32 = 1000.0;
 pub const POWER_PER_HEALTH: f32 = 10.0;
 /// What a tank starts a round with, and the most a battery brings it back to.
 const FULL_HEALTH: f32 = 100.0;
+/// The guidance a bot switches on, the first of these it has (indices into `items::ITEMS`): Vertical, Heat,
+/// Horizontal. The order is by what each is worth (`balance_guidance`).
+const BOT_GUIDANCE: [usize; 3] = [7, 5, 6];
 /// A bot uses a battery once its health is this low: the whole of it then counts.
 const BOT_BATTERY_HEALTH: f32 = FULL_HEALTH - BATTERY_HEALTH;
 /// Even a nearly dead tank can lob a short shot.
@@ -178,6 +183,12 @@ struct Tank {
     /// A parachute is open (only while falling).
     #[serde(default)]
     parachute: bool,
+    /// The guidance item switched on for the next shot (index into `items::ITEMS`).
+    #[serde(default)]
+    guidance: Option<usize>,
+    /// The tank Horizontal or Vertical guidance steers for; the nearest enemy while there is none.
+    #[serde(default)]
+    guide_target: Option<usize>,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -309,6 +320,8 @@ struct PreviewKey {
     angle: f32,
     power: f32,
     wind: f32,
+    /// The guidance switched on and the tank it is for.
+    guided: (Option<usize>, Option<usize>),
 }
 
 /// Power per pixel between the tank and the cursor when aiming with the mouse: 500 px is full power.
@@ -353,6 +366,8 @@ struct Projectile {
     motion: Motion,
     /// Leapfrog: hops made so far.
     hops: u8,
+    /// Guidance that still steers it.
+    guide: Option<Guide>,
 }
 
 impl Projectile {
@@ -367,6 +382,7 @@ impl Projectile {
             charged: 0,
             motion: Motion::Flying,
             hops: 0,
+            guide: None,
         }
     }
 }
@@ -575,6 +591,8 @@ impl Battle {
                     coach_target: None,
                     shield: None,
                     parachute: false,
+                    guidance: None,
+                    guide_target: None,
                 }
             })
             .collect();
@@ -675,6 +693,65 @@ impl Battle {
             );
             self.note(text, player.color);
         }
+    }
+
+    /// The guidance items `player` has, in the order of `items::ITEMS`.
+    fn guidance_owned(player: &Player) -> Vec<usize> {
+        (0..ITEMS.len())
+            .filter(|&item| ITEMS[item].steer().is_some() && player.items[item] > 0)
+            .collect()
+    }
+
+    /// Switches tank `i` to the next guidance its player has; after the last one, to none.
+    fn next_guidance(&mut self, i: usize, player: &Player) {
+        let owned = Self::guidance_owned(player);
+        let tank = &mut self.tanks[i];
+        tank.guidance = match tank.guidance {
+            None => owned.first().copied(),
+            Some(now) => owned.into_iter().find(|&item| item > now),
+        };
+    }
+
+    /// The enemy tank that tank `i`'s Horizontal or Vertical guidance steers for: the one picked while it lives,
+    /// else the nearest.
+    fn guide_target(&self, i: usize) -> Option<usize> {
+        let enemy = |j: &usize| *j != i && self.tanks[*j].alive;
+        let from = self.tanks[i].pos;
+        self.tanks[i].guide_target.filter(enemy).or_else(|| {
+            (0..self.tanks.len()).filter(enemy).min_by(|&a, &b| {
+                let far = |j: usize| self.tanks[j].pos.distance(from);
+                far(a).total_cmp(&far(b))
+            })
+        })
+    }
+
+    /// Picks the next living enemy as the target of tank `i`'s guidance.
+    fn next_guide_target(&mut self, i: usize) {
+        let n = self.tanks.len();
+        let now = self.guide_target(i).unwrap_or(i);
+        self.tanks[i].guide_target = (1..n)
+            .map(|step| (now + step) % n)
+            .find(|&j| j != i && self.tanks[j].alive);
+    }
+
+    /// What steers tank `i`'s next shot: the guidance switched on, if its player still has one.
+    fn guide_for(&self, i: usize, player: &Player) -> Option<(usize, Guide)> {
+        let item = self.tanks[i]
+            .guidance
+            .filter(|&item| player.items[item] > 0)?;
+        let steer = ITEMS[item].steer()?;
+        let targets = if steer == Steer::Heat {
+            let enemy = |(j, tank): &(usize, &Tank)| *j != i && tank.alive;
+            self.tanks
+                .iter()
+                .enumerate()
+                .filter(enemy)
+                .map(|(_, tank)| tank.center())
+                .collect()
+        } else {
+            vec![self.tanks[self.guide_target(i)?].center()]
+        };
+        Some((item, Guide::new(steer, targets)))
     }
 
     /// Tank `i` uses a battery, if its player has one and the tank is short of full health: `BATTERY_HEALTH`
@@ -810,6 +887,10 @@ impl Battle {
                 while self.tanks[i].health <= below.unwrap_or(BOT_BATTERY_HEALTH)
                     && self.use_battery(i, players)
                 {}
+                // Guidance for every shot it has some for; `plan_shot` says whom the shot is for.
+                self.tanks[i].guidance = BOT_GUIDANCE
+                    .into_iter()
+                    .find(|&item| players[i].items[item] > 0);
                 self.plan_shot(i, players)
             };
             let tank = &mut self.tanks[i];
@@ -832,6 +913,12 @@ impl Battle {
 
         if is_key_pressed(KeyCode::B) {
             self.use_battery(i, players);
+        }
+        if is_key_pressed(KeyCode::G) {
+            self.next_guidance(i, &players[i]);
+        }
+        if is_key_pressed(KeyCode::T) {
+            self.next_guide_target(i);
         }
         let max_power = self.max_power(&self.tanks[i]);
         let player = &players[i];
@@ -952,13 +1039,24 @@ impl Battle {
         }
         let pos = tank.muzzle();
         let vel = launch_velocity(tank.angle, tank.power);
+        let (angle, power) = (tank.angle, tank.power);
+        // A Tracer flies unguided, and the guidance stays switched on for the real shot.
+        let guide = (!probe).then(|| self.guide_for(i, &players[i])).flatten();
+        let mut armed = WEAPONS[weapon].text();
+        if let Some((item, _)) = guide {
+            players[i].items[item] -= 1;
+            if players[i].items[item] == 0 {
+                self.tanks[i].guidance = None;
+            }
+            armed = t!("log-guided", weapon = armed, item = ITEMS[item].text());
+        }
         let text = t!(
             "log-fires",
             name = players[i].label(),
             you = you(&players[i]),
-            weapon = WEAPONS[weapon].text(),
-            angle = tank.angle.round(),
-            power = tank.power.round()
+            weapon = armed,
+            angle = angle.round(),
+            power = power.round()
         );
         // A probe's line gets no "missed": it wasn't aimed at anyone.
         self.shot_line = (!probe).then_some(self.history.len());
@@ -975,8 +1073,9 @@ impl Battle {
             });
         }
         self.note(text, players[i].color);
-        self.projectiles
-            .push(Projectile::new(pos, vel, weapon, i, false));
+        let mut shell = Projectile::new(pos, vel, weapon, i, false);
+        shell.guide = guide.map(|(_, guide)| guide);
+        self.projectiles.push(shell);
         self.sounds.push(Sfx::Fire);
         self.phase = Phase::Flight;
     }
@@ -1219,6 +1318,16 @@ impl Battle {
     /// The current tank retreats. It counts as a lost round, but the tank survives
     /// (no kill for anyone). If no human is left, the round ends right away and the
     /// healthiest survivor takes it.
+    /// Developer aid (`--screen guidance`): the first player's turn, with batteries and Vertical guidance switched
+    /// on.
+    pub fn arm_guidance(&mut self, players: &mut [Player]) {
+        const VERTICAL: usize = 7;
+        self.current = 0;
+        players[0].items[BATTERY] = 2;
+        players[0].items[VERTICAL] = 3;
+        self.tanks[0].guidance = Some(VERTICAL);
+    }
+
     /// Developer aid (`--screen buried`): a Dirt Bomb's worth of dirt on every tank.
     pub fn bury_all(&mut self) {
         let radius = WEAPONS

@@ -277,15 +277,18 @@ mod tests {
     #[test]
     fn a_save_from_before_an_item_existed_still_loads() {
         let mut player = Player::new("You", RED, None);
-        player.items = [2, 1, 0, 1, 3];
-        player.items_on = [true, false, true, true, true];
+        player.items = [2, 1, 0, 1, 3, 0, 0, 0];
+        player.items_on = [true, false, true, true, true, true, true, true];
         let mut saved = serde_json::to_value(&player).unwrap();
         // Four items then: the fifth starts at none, switched on.
         saved["items"].as_array_mut().unwrap().truncate(4);
         saved["items_on"].as_array_mut().unwrap().truncate(4);
         let loaded: Player = serde_json::from_value(saved).unwrap();
-        assert_eq!(loaded.items, [2, 1, 0, 1, 0]);
-        assert_eq!(loaded.items_on, [true, false, true, true, true]);
+        assert_eq!(loaded.items, [2, 1, 0, 1, 0, 0, 0, 0]);
+        assert_eq!(
+            loaded.items_on,
+            [true, false, true, true, true, true, true, true]
+        );
     }
 
     #[test]

@@ -2,6 +2,7 @@
 
 use macroquad::prelude::*;
 
+use super::guidance::Guide;
 use super::{
     BIG_BLAST, BOMBLET_SPEED, Battle, DEFLECT_CLEAR, DEFLECT_COST, DEFLECT_FORCE, DEFLECT_RADIUS,
     DIG_DEPTH, DIG_LENGTH, DIG_SPEED, Explosion, FIRE_DROPS, FIRE_FLOW, FIRE_REACH, FIRE_SINGE,
@@ -30,7 +31,11 @@ impl Battle {
                 Motion::Rolling { dir, time } => self.roll(p, dir, time, players),
                 Motion::Digging { dir, left } => self.dig(p, dir, left, players),
                 Motion::Flying => {
+                    let from = p.pos;
                     let flight = step_shell(&mut p.pos, &mut p.vel, self.wind, world, STEP);
+                    if let Some(guide) = &mut p.guide {
+                        guide.steer(from, &mut p.pos, &mut p.vel);
+                    }
                     p.trail.push(p.pos);
 
                     if let Kind::Mirv { warheads, spread } = WEAPONS[p.weapon].kind
@@ -51,6 +56,9 @@ impl Battle {
 
                     self.charge_deflectors(&mut p);
                     let pushing = self.deflectors_for(&p);
+                    if in_field(p.pos, &pushing) {
+                        p.guide = None;
+                    }
                     deflect(p.pos, &mut p.vel, &pushing);
 
                     let hit_tank = self
@@ -99,6 +107,8 @@ impl Battle {
         ground: bool,
         players: &mut [Player],
     ) -> Option<Projectile> {
+        // Guidance steers a shell to where it comes down, no further.
+        p.guide = None;
         // A shell fired from under the dirt (a buried tank) never got out of the ground. It goes off once, where
         // it is: nothing rolls, hops, scatters or runs out to the surface.
         let buried = p.trail.iter().all(|&q| self.terrain.is_solid(q));
@@ -533,7 +543,7 @@ pub(super) fn simulate(
     terrain: &Terrain,
     deflectors: &[Vec2],
 ) -> Option<Landing> {
-    fly(pos, vel, wind, world, terrain, deflectors, |_| {})
+    fly(pos, vel, wind, world, terrain, deflectors, None, |_| {})
 }
 
 /// The path a shot would take (ignoring tanks), every physics step: the aiming help's preview.
@@ -544,13 +554,20 @@ pub(super) fn predict_path(
     world: World,
     terrain: &Terrain,
     deflectors: &[Vec2],
+    guide: Option<Guide>,
 ) -> Vec<Vec2> {
     let mut path = Vec::new();
-    fly(pos, vel, wind, world, terrain, deflectors, |p| path.push(p));
+    fly(pos, vel, wind, world, terrain, deflectors, guide, |p| {
+        path.push(p);
+    });
     path
 }
 
 /// Flies a shell like `simulate`, telling `each` every position on the way.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a shell, the air, the ground, what steers it and who watches: grouping them would only rename them"
+)]
 pub(super) fn fly(
     mut pos: Vec2,
     mut vel: Vec2,
@@ -558,13 +575,21 @@ pub(super) fn fly(
     world: World,
     terrain: &Terrain,
     deflectors: &[Vec2],
+    mut guide: Option<Guide>,
     mut each: impl FnMut(Vec2),
 ) -> Option<Landing> {
     let mut off_wall = false;
     for _ in 0..2400 {
         // Where the step would take the shell if there were no walls.
         let free = pos.x + (vel.x + wind * STEP) * STEP;
+        let from = pos;
         let flight = step_shell(&mut pos, &mut vel, wind, world, STEP);
+        if let Some(guide) = &mut guide {
+            guide.steer(from, &mut pos, &mut vel);
+        }
+        if in_field(pos, deflectors) {
+            guide = None;
+        }
         off_wall |= matches!(world.walls, Walls::Bouncy | Walls::Wrap)
             && !(0.0..WIDTH as f32).contains(&free);
         deflect(pos, &mut vel, deflectors);
@@ -660,6 +685,13 @@ pub(super) fn sign(v: f32) -> f32 {
 }
 
 /// Mag Deflector push for one physics step: away from each deflector within `DEFLECT_RADIUS`, strongest close by.
+/// Is `pos` inside the field of one of `deflectors`? Guidance stops working there.
+pub(super) fn in_field(pos: Vec2, deflectors: &[Vec2]) -> bool {
+    deflectors
+        .iter()
+        .any(|centre| centre.distance(pos) < DEFLECT_RADIUS)
+}
+
 pub(super) fn deflect(pos: Vec2, vel: &mut Vec2, deflectors: &[Vec2]) {
     for &centre in deflectors {
         let away = pos - centre;

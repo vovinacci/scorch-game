@@ -27,6 +27,8 @@ The game is dedicated to the memory of Joseph Rivkind (1952–2026), who taught 
 | Space | Fire | Choose |
 | Enter | Skip to the end of the round (only bots left) | Choose |
 | B | Use a battery: 25 health back, and your turn goes on | |
+| G | Switch guidance for your next shot: each kind you own in turn, then off | |
+| T | Pick the tank that Horizontal or Vertical guidance steers for | |
 | L (hold) | Full battle log of this round | |
 | Esc | Pause menu | Back |
 | Mouse: drag (left button) | Aim: the barrel points at the cursor, power grows with the distance | |
@@ -153,9 +155,9 @@ not before every one. A Tracer doesn't count as a shot in your accuracy and does
 Napalm find the low ground, so they're best against a tank in a valley. Napalm burns any tank close to the fire, yours
 too, and shields soak up the burn like any other damage.
 
-## Parachutes, shields and batteries
+## Items
 
-Besides weapons, the shop sells items that protect or repair your tank:
+Besides weapons, the shop sells items that protect or repair your tank, or steer your shells:
 
 | Item | What it does | Price | You get |
 |---|---|---|---|
@@ -164,6 +166,9 @@ Besides weapons, the shop sells items that protect or repair your tank:
 | Heavy Shield | Takes up to 100 damage before your health does | $200 | 1 |
 | Mag Deflector | Pushes enemy shells away as they come close; 40 energy, 10 each time it pushes a shell away | $150 | 1 |
 | Battery | Gives 25 health back when you press **B** on your turn | $60 | 1 |
+| Heat Guidance | Your shell turns onto the first enemy tank it comes within 100 px of | $50 | 2 |
+| Horizontal Guidance | At the height of the tank you picked, your shell turns and flies level towards it | $50 | 2 |
+| Vertical Guidance | Above the tank you picked, your shell turns and drops straight down | $60 | 2 |
 
 - At the start of every round, your strongest shield goes up by itself (Heavy Shield, then Shield, then Mag Deflector)
   and lasts until its energy is used up or the round ends. It's used up either way, so a new round needs a new shield. A
@@ -181,8 +186,23 @@ Besides weapons, the shop sells items that protect or repair your tank:
   Batteries you don't use stay with you for the next rounds; while you have some, the top right of the screen reminds
   you of the key during your turn. A battery does nothing for a tank at full health and isn't used up then. Bots use
   theirs as soon as they are 25 health short.
-- Each other item has an on/off switch in the inventory. Switched off, it stays in your inventory unused, for example to
-  save your only Heavy Shield for later rounds.
+- **Guidance** steers one shell, once. Press **G** while you aim to switch it on: each kind you own in turn, then off
+  again. The top right of the screen shows what is on and how many you have left. Firing uses one up; it stays on for
+  your next shots while you have more.
+  - **Heat Guidance** needs no target: the shell turns onto the first enemy tank it comes close to. It makes a near miss
+    a hit, and does nothing for a wide one.
+  - **Horizontal** and **Vertical Guidance** steer for one tank: the nearest enemy, or press **T** to pick another. Gold
+    corners mark it, and a dotted line shows where a shell turns: the tank's level, or the column above it. A Vertical
+    shell has to fly over the tank, at any height; a Horizontal one has to pass through its level, going up or coming
+    down, and then needs a clear run, since a hill in between stops it.
+  - A turned shell flies in a straight line: wind and gravity no longer move it, the ground still stops it. With aiming
+    help that shows the shot's path, the path shows the turn.
+  - A **Mag Deflector** switches guidance off: inside its field a shell flies free again and is pushed like any other.
+  - A MIRV's warheads, a Funky Bomb's bomblets and a Leapfrog's hops are not guided: guidance takes the shell to where
+    it first comes down. A Tracer flies unguided and uses none up.
+  - Bots switch on the guidance they have for every shot.
+- Parachutes and shields each have an on/off switch in the inventory. Switched off, an item stays in your inventory
+  unused, for example to save your only Heavy Shield for later rounds.
 - Shields stop every kind of damage from blasts, including death blasts and self-destructs, but not falls (that's what
   parachutes are for) or sudden death.
 
