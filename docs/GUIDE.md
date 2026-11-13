@@ -319,10 +319,10 @@ Difficulty options don't apply, and the setup screen shows your rung, whom you a
 | 3 | Tosser |
 | 4 | Shooter |
 | 5 | Chooser |
-| 6 | Shooter, Moron, Moron |
-| 7 | Poolshark, Shooter, Moron |
-| 8 | Spoiler, Shooter, Moron |
-| 9 | Sniper, Spoiler, Poolshark |
+| 6 | Poolshark, Moron, Moron |
+| 7 | Shooter, Shooter, Moron |
+| 8 | Chooser, Shooter, Moron |
+| 9 | Spoiler, Shooter, Moron |
 | 10 | Cyborg, Sniper, Spoiler |
 
 - **Win the game outright** (more round wins than any bot) and you go up a rung.

@@ -7,7 +7,8 @@ use crate::ai::{AiProfile, PRESETS};
 
 /// The bots to beat on each rung (indices into `ai::PRESETS`). The order comes from `balance_ladder`, which plays
 /// whole games against the line-ups a rung could be made of: the share of games won outright falls rung by rung,
-/// from 100% to 15% for a Sniper-like player and from 95% to about 6% for a Shooter-like one. Every bot type is met on
+/// from 100% to 15% for a Sniper-like player and from 95% to 7% for a Shooter-like one, in steps of about the
+/// same size. Every bot type is met on
 /// the way. More bots is not always harder, since they also fight each other.
 const RUNGS: [&[usize]; 10] = [
     &[MORON],
@@ -15,10 +16,10 @@ const RUNGS: [&[usize]; 10] = [
     &[TOSSER],
     &[SHOOTER],
     &[CHOOSER],
-    &[SHOOTER, MORON, MORON],
-    &[POOLSHARK, SHOOTER, MORON],
+    &[POOLSHARK, MORON, MORON],
+    &[SHOOTER, SHOOTER, MORON],
+    &[CHOOSER, SHOOTER, MORON],
     &[SPOILER, SHOOTER, MORON],
-    &[SNIPER, SPOILER, POOLSHARK],
     &[CYBORG, SNIPER, SPOILER],
 ];
 const MORON: usize = 0;
