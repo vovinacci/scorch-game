@@ -372,9 +372,10 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 
 - Ten rungs (`ladder::RUNGS`), each a fixed line-up of bots; the Bots and Difficulty settings aren't used. The order
   comes from `balance_ladder` (whole games, see Weapons), which plays 38 line-ups a rung could be made of: against the
-  ten chosen a Sniper-like player wins 100, 91, 89, 83, 80, 64, 52, 29, 23 and 15% of games outright, a Shooter-like one
-  95, 70, 59, 50, 38, 37, 15, 12, 5 and 7%. Every bot type has a rung. More bots is not always harder, because they also
-  fight each other: three Morons (65% for a Shooter-like player) are easier than one Shooter.
+  ten chosen a Sniper-like player wins 100, 91, 89, 83, 80, 64, 54, 45, 29 and 15% of games outright, a Shooter-like one
+  95, 70, 59, 50, 38, 29, 24, 19, 12 and 7%: no rung is a cliff for either. Every bot type has a rung. More bots is not
+  always harder, because they also fight each other: three Morons (65% for a Shooter-like player) are easier than one
+  Shooter.
 - Only with one human player; with two the switch does nothing.
 - After a game: more round wins than the best bot is a win (up a rung; on rung 10, champion + 1 and stay); the same
   number is a shared first place (no change); fewer is a loss. Two losses in a row on a rung go down one and start the
