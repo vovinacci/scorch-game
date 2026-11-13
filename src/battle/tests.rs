@@ -11,6 +11,7 @@ use crate::world::{GravityLevel, Sky, Walls, WindLevel};
 mod balance;
 mod bots;
 mod coach;
+mod guidance;
 mod rules;
 mod screen;
 mod shields;

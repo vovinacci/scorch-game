@@ -5,11 +5,11 @@ use macroquad::prelude::*;
 use super::shells::predict_path;
 use super::{
     Battle, EXPLOSION_TIME, FIRE_TIME, Fire, HUD_HEIGHT, LOG_ROW, LOG_TIME, NAME_SIZE, Phase,
-    PreviewKey, STRIP_KEYS, SUDDEN_DEATH_DRAIN, Tank, TracerTurn, covers_a_tank, launch_velocity,
-    weapon_strip, wraps, you,
+    PreviewKey, STRIP_KEYS, SUDDEN_DEATH_DRAIN, TANK_RADIUS, Tank, TracerTurn, covers_a_tank,
+    launch_velocity, weapon_strip, wraps, you,
 };
 use crate::i18n::t;
-use crate::items::{BATTERY, ITEMS};
+use crate::items::{BATTERY, ITEMS, Steer};
 use crate::player::Player;
 use crate::settings::HealthDisplay;
 use crate::settings::Settings;
@@ -44,6 +44,7 @@ impl Battle {
                 angle: tank.angle,
                 power: tank.power,
                 wind: self.wind,
+                guided: (tank.guidance, self.guide_target(self.current)),
             };
             let mut cache = self.preview.borrow_mut();
             if cache.as_ref().is_none_or(|(k, _)| *k != key) {
@@ -55,6 +56,8 @@ impl Battle {
                     self.world(),
                     &self.terrain,
                     &self.deflectors(self.current),
+                    self.guide_for(self.current, &players[self.current])
+                        .map(|(_, guide)| guide),
                 );
                 *cache = Some((key, path));
             }
@@ -86,6 +89,73 @@ impl Battle {
                 guide_dot(*p, Color::new(1.0, 1.0, 1.0, 0.45));
             }
         }
+        self.draw_guidance_mark(players);
+    }
+
+    /// While a human aims with Horizontal or Vertical guidance on: corners around the tank it steers for, and a
+    /// dotted line where a shell turns (the level of the tank, or the column above it).
+    fn draw_guidance_mark(&self, players: &[Player]) {
+        let i = self.current;
+        if players[i].is_bot() || !matches!(self.phase, Phase::Aim { .. }) {
+            return;
+        }
+        let steer = self.tanks[i]
+            .guidance
+            .filter(|&item| players[i].items[item] > 0)
+            .and_then(|item| ITEMS[item].steer());
+        let (Some(steer), Some(target)) = (steer, self.guide_target(i)) else {
+            return;
+        };
+        if steer == Steer::Heat {
+            return;
+        }
+        let at = self.tanks[target].center();
+        let (reach, arm) = (TANK_RADIUS + 8.0, 7.0);
+        for (sx, sy) in [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
+            let corner = at + vec2(sx * reach, sy * reach);
+            draw_line(corner.x, corner.y, corner.x - sx * arm, corner.y, 2.0, GOLD);
+            draw_line(corner.x, corner.y, corner.x, corner.y - sy * arm, 2.0, GOLD);
+        }
+        let faint = Color { a: 0.5, ..GOLD };
+        if steer == Steer::Vertical {
+            let mut y = at.y - reach - 6.0;
+            while y > HUD_HEIGHT {
+                guide_dot(vec2(at.x, y), faint);
+                y -= 14.0;
+            }
+        } else {
+            let mut x = 7.0;
+            while x < ui::WIDTH {
+                if (x - at.x).abs() > reach + 6.0 {
+                    guide_dot(vec2(x, at.y), faint);
+                }
+                x += 14.0;
+            }
+        }
+    }
+
+    /// The lines under the turn counter about the current tank's guidance: what is on and how many are left, then,
+    /// where it matters, which tank it steers for.
+    fn guidance_lines(&self, players: &[Player]) -> Vec<String> {
+        let i = self.current;
+        let player = &players[i];
+        let Some(item) = self.tanks[i]
+            .guidance
+            .filter(|&item| player.items[item] > 0)
+        else {
+            return vec![t!("hud-guidance-off")];
+        };
+        let mut lines = vec![t!(
+            "hud-guidance",
+            item = ITEMS[item].text(),
+            n = player.items[item]
+        )];
+        if ITEMS[item].steer() != Some(Steer::Heat)
+            && let Some(target) = self.guide_target(i)
+        {
+            lines.push(t!("hud-guidance-target", target = players[target].label()));
+        }
+        lines
     }
 
     /// Every Tracer path fired this round, in its shooter's colour over a dark edge (readable on any sky), for
@@ -329,11 +399,16 @@ impl Battle {
             lines.push((text, shield.color()));
         }
         let batteries = players[self.current].items[BATTERY];
-        if batteries > 0
-            && !players[self.current].is_bot()
-            && matches!(self.phase, Phase::Aim { .. })
-        {
+        let human_aims = !players[self.current].is_bot() && matches!(self.phase, Phase::Aim { .. });
+        if batteries > 0 && human_aims {
             lines.push((t!("hud-battery", n = batteries), GREEN));
+        }
+        if human_aims && !Self::guidance_owned(&players[self.current]).is_empty() {
+            lines.extend(
+                self.guidance_lines(players)
+                    .into_iter()
+                    .map(|line| (line, GOLD)),
+            );
         }
         if self.aiming_into_dirt(players) {
             lines.push((t!("hud-buried"), ORANGE));

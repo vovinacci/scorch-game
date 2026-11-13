@@ -40,7 +40,7 @@ pub fn frame(player: &mut Player, shoots_first: bool) -> ShopAction {
 /// The middle panel: weapons and items to buy, and Done / Save & exit / Abandon.
 fn shop_panel(player: &mut Player) -> ShopAction {
     /// Height of a row of buy buttons, gap included.
-    const ROW: f32 = 37.0;
+    const ROW: f32 = 34.0;
     let area = Rect::new(370.0, 70.0, 540.0, 620.0);
     ui::panel(area);
     // Hotseat players need to see whose turn it is to shop.
@@ -72,29 +72,44 @@ fn shop_panel(player: &mut Player) -> ShopAction {
     // Cheapest first.
     let mut weapons: Vec<usize> = (1..WEAPONS.len()).collect();
     weapons.sort_by_key(|&w| WEAPONS[w].price);
-    for (k, &w) in weapons.iter().enumerate() {
-        let weapon = &WEAPONS[w];
-        let label = t!(
-            "shop-buy",
-            weapon = weapon.text(),
-            bundle = weapon.bundle,
-            price = weapon.price
-        );
-        if ui::button(cell(top, k), &label, player.money >= weapon.price) {
+    // Every row in one text size, the one its longest line needs.
+    let goods = |name: String, bundle: u32, price: i32| {
+        (
+            t!("shop-buy", weapon = name, bundle = bundle),
+            t!("shop-price", price = price),
+        )
+    };
+    let weapon_rows: Vec<(String, String)> = weapons
+        .iter()
+        .map(|&w| goods(WEAPONS[w].text(), WEAPONS[w].bundle, WEAPONS[w].price))
+        .collect();
+    let item_rows: Vec<(String, String)> = ITEMS
+        .iter()
+        .map(|item| goods(item.text(), item.bundle, item.price))
+        .collect();
+    let lines: Vec<String> = weapon_rows
+        .iter()
+        .chain(&item_rows)
+        .map(|(name, price)| format!("{name} {price}"))
+        .collect();
+    let size = ui::common_size(&lines, 20.0, col_w - 16.0);
+    for (k, (&w, (name, price))) in weapons.iter().zip(&weapon_rows).enumerate() {
+        let can_pay = player.money >= WEAPONS[w].price;
+        if ui::button_row(cell(top, k), name, price, size, can_pay) {
             buy(player, w);
         }
     }
     let mut y = top + weapons.len().div_ceil(2) as f32 * ROW;
     ui::text_at(t!("shop-items"), area.x + 40.0, y + 20.0, 22.0, GOLD);
     y += 28.0;
-    for (i, item) in ITEMS.iter().enumerate() {
-        let label = t!(
-            "shop-buy",
-            weapon = item.text(),
-            bundle = item.bundle,
-            price = item.price
-        );
-        if ui::button(cell(y, i), &label, player.money >= item.price) {
+    for (i, (name, price)) in item_rows.iter().enumerate() {
+        if ui::button_row(
+            cell(y, i),
+            name,
+            price,
+            size,
+            player.money >= ITEMS[i].price,
+        ) {
             buy_item(player, i);
         }
     }
@@ -136,7 +151,7 @@ fn draw_inventory(player: &mut Player) {
         28.0,
         GOLD,
     );
-    let mut y = area.y + 72.0;
+    let mut y = area.y + 66.0;
     for (w, weapon) in WEAPONS.iter().enumerate() {
         let count = player.ammo_label(w);
         let color = if w == 0 || player.ammo[w] > 0 {
@@ -154,38 +169,50 @@ fn draw_inventory(player: &mut Player) {
         );
         let cw = ui::measure(&count, 18.0).width;
         ui::text_at(&count, area.x + area.w - 20.0 - cw, y, 18.0, color);
-        y += 21.0;
+        y += 19.0;
     }
     // Items: one on/off switch each (off = keep them, don't use them).
     ui::text_at(t!("shop-items"), area.x + 20.0, y + 8.0, 22.0, GOLD);
-    y += 22.0;
+    y += 20.0;
     for (i, item) in ITEMS.iter().enumerate() {
         let owned = player.items[i];
         let color = if owned > 0 { WHITE } else { GRAY };
+        let count = owned.to_string();
+        if !item.automatic() {
+            // Used by hand in battle: nothing to switch, so a plain line like a weapon's.
+            ui::text_fit(
+                &item.text(),
+                area.x + 20.0,
+                y + 19.0,
+                area.w - 100.0,
+                18.0,
+                color,
+            );
+            let cw = ui::measure(&count, 18.0).width;
+            ui::text_at(&count, area.x + area.w - 20.0 - cw, y + 19.0, 18.0, color);
+            y += 19.0;
+            continue;
+        }
         ui::text_fit(
             &item.text(),
             area.x + 20.0,
-            y + 25.0,
+            y + 19.0,
             area.w - 170.0,
-            22.0,
+            18.0,
             color,
         );
-        let count = owned.to_string();
-        let cw = ui::measure(&count, 22.0).width;
-        ui::text_at(&count, area.x + area.w - 112.0 - cw, y + 25.0, 22.0, color);
+        let cw = ui::measure(&count, 18.0).width;
+        ui::text_at(&count, area.x + area.w - 112.0 - cw, y + 19.0, 18.0, color);
         let on = &mut player.items_on[i];
         let label = if *on { t!("on") } else { t!("off") };
-        // A battery is used by hand in battle: nothing to switch.
-        if item.automatic()
-            && ui::button(
-                Rect::new(area.x + area.w - 100.0, y + 4.0, 80.0, 28.0),
-                &label,
-                true,
-            )
-        {
+        if ui::button(
+            Rect::new(area.x + area.w - 100.0, y + 3.0, 80.0, 22.0),
+            &label,
+            true,
+        ) {
             *on = !*on;
         }
-        y += 34.0;
+        y += 25.0;
     }
     let (radius, damage) = crate::battle::death_blast(player);
     ui::text_wrapped(

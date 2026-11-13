@@ -636,3 +636,48 @@ fn balance_batteries() {
         }
     }
 }
+
+/// What guidance is worth. Whole games of a Shooter-like stand-in against one and against three Shooters (see
+/// `ladder_games`). Nobody else has guidance; each round the stand-in is given some of one kind for nothing and
+/// switches it on for every shot, as bots do. Next to it: a shield of a known price given the same way. About ten
+/// minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the guidance items"]
+fn balance_guidance() {
+    const SHIELD: usize = 1;
+    const HEAVY_SHIELD: usize = 2;
+    const GUIDANCE: std::ops::Range<usize> = 5..8;
+    let mut rows = vec![("nothing".to_string(), SHIELD, 0)];
+    for item in GUIDANCE {
+        for n in [2, 5] {
+            rows.push((format!("{n} {} each round", ITEMS[item].name), item, n));
+        }
+    }
+    rows.push(("a Shield more each round".to_string(), SHIELD, 1));
+    rows.push((
+        "a Heavy Shield more each round".to_string(),
+        HEAVY_SHIELD,
+        1,
+    ));
+    for lineup in [vec![1], vec![1, 1, 1]] {
+        println!(
+            "\na Shooter-like player against {} Shooter(s), 200 games of 5 rounds",
+            lineup.len()
+        );
+        println!("{:>6} {:>7} {:>7}  given", "won", "shared", "rounds");
+        for (label, item, n) in &rows {
+            let draw = || lineup.iter().map(|&p| PRESETS[p]).collect();
+            let prepare = |_: u32, players: &mut [Player], _: &mut Battle| {
+                for player in players.iter_mut() {
+                    for item in GUIDANCE {
+                        player.items[item] = 0;
+                    }
+                }
+                players[0].items[*item] += n;
+            };
+            let (won, shared, rounds) =
+                drawn_games(1, 88_000, 200, Setup::default().world.walls, draw, prepare);
+            println!("{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {label}");
+        }
+    }
+}

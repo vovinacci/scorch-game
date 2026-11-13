@@ -9,7 +9,7 @@ impl Game {
     /// Developer aid: `scorch --screen <name> [--shot file.png]` opens one
     /// screen directly with a fresh game, to check layouts (for example in
     /// every language); `--shot` saves a screenshot and quits. Saving is off. Names: intro, menu, about, setup, custom, settings, pause-settings, stats, crash, unreadable, arsenal, buried, watch,
-    /// battle, pause, over, defence, log, shop, abandon, final.
+    /// battle, pause, over, defence, guidance, log, shop, abandon, final.
     #[expect(clippy::too_many_lines, reason = "one arm for each developer screen")]
     pub(super) fn open_screen(&mut self, name: &str) -> Screen {
         self.has_saved_run = false;
@@ -60,6 +60,17 @@ impl Game {
             "buried" => match game_screen(self, false) {
                 Screen::Battle { mut battle, .. } => {
                     battle.bury_all();
+                    Screen::Battle {
+                        battle,
+                        paused: false,
+                    }
+                }
+                other => other,
+            },
+            // Your turn, with Vertical guidance switched on.
+            "guidance" => match game_screen(self, false) {
+                Screen::Battle { mut battle, .. } => {
+                    battle.arm_guidance(&mut self.players);
                     Screen::Battle {
                         battle,
                         paused: false,

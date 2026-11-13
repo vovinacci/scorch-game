@@ -80,7 +80,7 @@ fn mouse_aiming_below_the_barrel_stays_flat_and_power_is_capped() {
 fn the_aiming_preview_follows_the_real_shot() {
     let (_, b) = range(|_| 600.0);
     let (pos, vel) = (vec2(200.0, 580.0), launch_velocity(50.0, 600.0));
-    let path = predict_path(pos, vel, 30.0, b.world(), &b.terrain, &[]);
+    let path = predict_path(pos, vel, 30.0, b.world(), &b.terrain, &[], None);
     let landing = simulate(pos, vel, 30.0, b.world(), &b.terrain, &[]).unwrap();
     assert_eq!(
         *path.last().unwrap(),

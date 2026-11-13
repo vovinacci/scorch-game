@@ -236,6 +236,8 @@ controls-fire-key = Space
 controls-fire = Fire
 controls-battery-key = B
 controls-battery = Use a battery
+controls-guidance-key = G / T
+controls-guidance = Guidance / its target
 controls-log-key = L (hold)
 controls-log = Full battle log
 controls-pause-key = Esc
@@ -364,7 +366,8 @@ new-game-text = Your saved game will be abandoned when the new one starts. Round
 shop-title = Shop
 shop-title-for = Shop: { $name }
 shop-money = Money: ${ $money }
-shop-buy = { $weapon } x{ $bundle }  -  ${ $price }
+shop-buy = { $weapon } x{ $bundle }
+shop-price = ${ $price }
 shop-done = Done - next round
 inventory-title = Inventory
 inventory-death-blast = Ammo aboard cooks off if your tank dies: death blast radius { $radius }, damage { $damage }.
@@ -458,6 +461,13 @@ log-battery = { $you ->
    *[no] { $name } uses a battery: +{ $health } health, now { $now }
 }
 hud-battery = B: use a battery ({ $n } left)
+item-heat-guidance = Heat Guidance
+item-horizontal-guidance = Horizontal Guidance
+item-vertical-guidance = Vertical Guidance
+log-guided = { $weapon } with { $item }
+hud-guidance-off = G: guidance off
+hud-guidance = G: { $item } ({ $n } left)
+hud-guidance-target = T: steers for { $target }
 log-shield-up = { $you ->
     [yes] You raise a { $item }
    *[no] { $name } raises a { $item }

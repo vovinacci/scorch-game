@@ -13,6 +13,16 @@ pub enum Use {
     Deflector { energy: u32 },
     /// Used by hand on the owner's turn: gives this much health back, up to full. The turn goes on.
     Battery { health: u32 },
+    /// Switched on by hand for a shot: steers the shell once on its way. One per shot.
+    Guidance(Steer),
+}
+
+/// How a guidance item steers a shell (see `battle::guidance`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Steer {
+    Heat,
+    Horizontal,
+    Vertical,
 }
 
 pub struct Item {
@@ -32,13 +42,20 @@ impl Item {
     pub fn shield_energy(&self) -> Option<f32> {
         match self.kind {
             Use::Shield { energy } | Use::Deflector { energy } => Some(energy as f32),
-            Use::Parachute | Use::Battery { .. } => None,
+            Use::Parachute | Use::Battery { .. } | Use::Guidance(_) => None,
         }
     }
 
     /// Does it work by itself, so that the inventory has a switch for it?
     pub fn automatic(&self) -> bool {
-        !matches!(self.kind, Use::Battery { .. })
+        !matches!(self.kind, Use::Battery { .. } | Use::Guidance(_))
+    }
+
+    pub fn steer(&self) -> Option<Steer> {
+        match self.kind {
+            Use::Guidance(steer) => Some(steer),
+            _ => None,
+        }
     }
 }
 
@@ -47,7 +64,7 @@ pub const BATTERY: usize = 4;
 /// Health one battery gives back.
 pub const BATTERY_HEALTH: f32 = 25.0;
 
-pub const ITEMS: [Item; 5] = [
+pub const ITEMS: [Item; 8] = [
     Item {
         name: "Parachute",
         kind: Use::Parachute,
@@ -78,6 +95,24 @@ pub const ITEMS: [Item; 5] = [
         price: 60,
         bundle: 1,
     },
+    Item {
+        name: "Heat Guidance",
+        kind: Use::Guidance(Steer::Heat),
+        price: 50,
+        bundle: 2,
+    },
+    Item {
+        name: "Horizontal Guidance",
+        kind: Use::Guidance(Steer::Horizontal),
+        price: 50,
+        bundle: 2,
+    },
+    Item {
+        name: "Vertical Guidance",
+        kind: Use::Guidance(Steer::Vertical),
+        price: 60,
+        bundle: 2,
+    },
 ];
 
 pub const ITEM_COUNT: usize = ITEMS.len();
@@ -97,19 +132,19 @@ mod tests {
 
     #[test]
     fn the_strongest_switched_on_shield_goes_up() {
-        let owned = [3, 1, 1, 1, 2];
+        let owned = [3, 1, 1, 1, 2, 1, 1, 1];
         assert_eq!(
             shield_to_raise(&owned, [true; ITEM_COUNT]),
             Some(2),
             "Heavy Shield"
         );
         assert_eq!(
-            shield_to_raise(&owned, [true, true, false, true, true]),
+            shield_to_raise(&owned, [true, true, false, true, true, true, true, true]),
             Some(1),
             "Shield beats Deflector"
         );
         assert_eq!(
-            shield_to_raise(&owned, [true, false, false, false, true]),
+            shield_to_raise(&owned, [true, false, false, false, true, true, true, true]),
             None,
             "parachutes aren't shields"
         );
