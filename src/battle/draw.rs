@@ -9,7 +9,7 @@ use super::{
     weapon_strip, wraps, you,
 };
 use crate::i18n::t;
-use crate::items::ITEMS;
+use crate::items::{BATTERY, ITEMS};
 use crate::player::Player;
 use crate::settings::HealthDisplay;
 use crate::settings::Settings;
@@ -327,6 +327,13 @@ impl Battle {
                 full = ITEMS[shield.item].shield_energy().unwrap_or(0.0)
             );
             lines.push((text, shield.color()));
+        }
+        let batteries = players[self.current].items[BATTERY];
+        if batteries > 0
+            && !players[self.current].is_bot()
+            && matches!(self.phase, Phase::Aim { .. })
+        {
+            lines.push((t!("hud-battery", n = batteries), GREEN));
         }
         if self.aiming_into_dirt(players) {
             lines.push((t!("hud-buried"), ORANGE));

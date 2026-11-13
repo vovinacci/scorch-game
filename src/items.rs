@@ -1,5 +1,5 @@
-//! Defence items: parachutes and shields. Bought in the shop like weapons, switched on or off per item in the
-//! inventory. Adding an item = one new entry here (plus a `Use` if it behaves differently).
+//! Items: parachutes, shields and batteries. Bought in the shop like weapons; the ones that work by themselves are
+//! switched on or off per item in the inventory. Adding an item = one new entry here (plus a `Use` if it behaves differently).
 
 use crate::i18n::t;
 
@@ -11,6 +11,8 @@ pub enum Use {
     Shield { energy: u32 },
     /// A weaker shield that also pushes incoming enemy shells away.
     Deflector { energy: u32 },
+    /// Used by hand on the owner's turn: gives this much health back, up to full. The turn goes on.
+    Battery { health: u32 },
 }
 
 pub struct Item {
@@ -30,14 +32,22 @@ impl Item {
     pub fn shield_energy(&self) -> Option<f32> {
         match self.kind {
             Use::Shield { energy } | Use::Deflector { energy } => Some(energy as f32),
-            Use::Parachute => None,
+            Use::Parachute | Use::Battery { .. } => None,
         }
+    }
+
+    /// Does it work by itself, so that the inventory has a switch for it?
+    pub fn automatic(&self) -> bool {
+        !matches!(self.kind, Use::Battery { .. })
     }
 }
 
 pub const PARACHUTE: usize = 0;
+pub const BATTERY: usize = 4;
+/// Health one battery gives back.
+pub const BATTERY_HEALTH: f32 = 25.0;
 
-pub const ITEMS: [Item; 4] = [
+pub const ITEMS: [Item; 5] = [
     Item {
         name: "Parachute",
         kind: Use::Parachute,
@@ -62,6 +72,12 @@ pub const ITEMS: [Item; 4] = [
         price: 150,
         bundle: 1,
     },
+    Item {
+        name: "Battery",
+        kind: Use::Battery { health: 25 },
+        price: 60,
+        bundle: 1,
+    },
 ];
 
 pub const ITEM_COUNT: usize = ITEMS.len();
@@ -81,22 +97,28 @@ mod tests {
 
     #[test]
     fn the_strongest_switched_on_shield_goes_up() {
-        let owned = [3, 1, 1, 1];
+        let owned = [3, 1, 1, 1, 2];
         assert_eq!(
             shield_to_raise(&owned, [true; ITEM_COUNT]),
             Some(2),
             "Heavy Shield"
         );
         assert_eq!(
-            shield_to_raise(&owned, [true, true, false, true]),
+            shield_to_raise(&owned, [true, true, false, true, true]),
             Some(1),
             "Shield beats Deflector"
         );
         assert_eq!(
-            shield_to_raise(&owned, [true, false, false, false]),
+            shield_to_raise(&owned, [true, false, false, false, true]),
             None,
             "parachutes aren't shields"
         );
         assert_eq!(shield_to_raise(&[0; ITEM_COUNT], [true; ITEM_COUNT]), None);
+        assert_eq!(
+            ITEMS[BATTERY].kind,
+            Use::Battery {
+                health: BATTERY_HEALTH as u32
+            }
+        );
     }
 }

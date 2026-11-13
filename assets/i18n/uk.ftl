@@ -240,6 +240,8 @@ controls-mouse-key = Миша: тягнути / права
 controls-mouse = Цілитися / вогонь
 controls-fire-key = Пробіл
 controls-fire = Вогонь
+controls-battery-key = B
+controls-battery = Використати батарею
 controls-log-key = L (тримати)
 controls-log = Повний журнал бою
 controls-pause-key = Esc
@@ -481,6 +483,12 @@ item-parachute = Парашут
 item-shield = Щит
 item-heavy-shield = Важкий щит
 item-mag-deflector = Магнітний відбивач
+item-battery = Батарея
+log-battery = { $you ->
+    [yes] Ви використовуєте батарею: +{ $health } здоров'я, тепер { $now }
+   *[no] { $name } використовує батарею: +{ $health } здоров'я, тепер { $now }
+}
+hud-battery = B: використати батарею (лишилось { $n })
 log-shield-up = { $you ->
     [yes] Ви піднімаєте захист: { $item }
    *[no] { $name } піднімає захист: { $item }

@@ -70,7 +70,9 @@ impl Game {
             "defence" => match game_screen(self, false) {
                 Screen::Battle { mut battle, .. } => {
                     for (i, p) in self.players.iter_mut().enumerate() {
-                        p.items[1 + i % (items::ITEM_COUNT - 1)] = 1;
+                        // A shield of each kind, and batteries for the hint on the player's turn.
+                        p.items[1 + i % 3] = 1;
+                        p.items[items::BATTERY] = 2;
                     }
                     battle.raise_shields(&mut self.players);
                     Screen::Battle {

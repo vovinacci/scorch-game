@@ -26,6 +26,7 @@ The game is dedicated to the memory of Joseph Rivkind (1952–2026), who taught 
 | 1-9, 0, -, = | Pick a weapon from the weapon strip (or click it) | |
 | Space | Fire | Choose |
 | Enter | Skip to the end of the round (only bots left) | Choose |
+| B | Use a battery: 25 health back, and your turn goes on | |
 | L (hold) | Full battle log of this round | |
 | Esc | Pause menu | Back |
 | Mouse: drag (left button) | Aim: the barrel points at the cursor, power grows with the distance | |
@@ -89,7 +90,8 @@ before each shot.
 
 Every tank starts each round with 100 health. With **Health limits power** on (the default, as in the original game),
 your maximum power is your health x 10: at 30 health you can shoot at most 300, which makes distant targets hard to
-reach. The power never drops below 50, so even a badly damaged tank can lob a short shot.
+reach. The power never drops below 50, so even a badly damaged tank can lob a short shot. A battery (see below) gives
+health back, and reach with it.
 
 ### Damage
 
@@ -151,9 +153,9 @@ not before every one. A Tracer doesn't count as a shot in your accuracy and does
 Napalm find the low ground, so they're best against a tank in a valley. Napalm burns any tank close to the fire, yours
 too, and shields soak up the burn like any other damage.
 
-## Parachutes and shields
+## Parachutes, shields and batteries
 
-Besides weapons, the shop sells items that protect your tank:
+Besides weapons, the shop sells items that protect or repair your tank:
 
 | Item | What it does | Price | You get |
 |---|---|---|---|
@@ -161,6 +163,7 @@ Besides weapons, the shop sells items that protect your tank:
 | Shield | Takes up to 50 damage before your health does | $120 | 1 |
 | Heavy Shield | Takes up to 100 damage before your health does | $200 | 1 |
 | Mag Deflector | Pushes enemy shells away as they come close; 40 energy, 10 each time it pushes a shell away | $150 | 1 |
+| Battery | Gives 25 health back when you press **B** on your turn | $60 | 1 |
 
 - At the start of every round, your strongest shield goes up by itself (Heavy Shield, then Shield, then Mag Deflector)
   and lasts until its energy is used up or the round ends. It's used up either way, so a new round needs a new shield. A
@@ -173,8 +176,13 @@ Besides weapons, the shop sells items that protect your tank:
   warhead counts, and so does a shell that is pushed out and falls back in. So it pushes shells away about four times,
   fewer if blasts land near you. The shell that takes its last energy is still pushed until it leaves the field; if it
   comes back, nothing stops it. Once that turn's shells are done, the deflector goes down like any shield.
-- Each item has an on/off switch in the inventory. Switched off, it stays in your inventory unused, for example to save
-  your only Heavy Shield for later rounds.
+- A **Battery** works only when you say so: press **B** while you aim. It gives 25 health back, never past 100, and your
+  turn goes on, so you can use several and still fire. With **Health limits power** on, that is also 250 more power.
+  Batteries you don't use stay with you for the next rounds; while you have some, the top right of the screen reminds
+  you of the key during your turn. A battery does nothing for a tank at full health and isn't used up then. Bots use
+  theirs as soon as they are 25 health short.
+- Each other item has an on/off switch in the inventory. Switched off, it stays in your inventory unused, for example to
+  save your only Heavy Shield for later rounds.
 - Shields stop every kind of damage from blasts, including death blasts and self-destructs, but not falls (that's what
   parachutes are for) or sudden death.
 
@@ -200,9 +208,9 @@ The game helps whoever is behind, so one bad start doesn't decide the whole game
 
 Between rounds each human player gets a screen with three panels: what you earned last round (left: every source of
 money with what it pays, earned or not), the **Shop** (middle: weapons and items) and your **Inventory** (right: what
-you own, a switch for each item, and your death blast). In a two-player game the shop title shows whose turn it is to
-buy. Bots shop too: first a pack of Riot Bombs if they have none (their way out from under a Dirt Bomb), then random
-weapons (never Dirt Bombs or Diggers) and items they can afford, and they use them like you do.
+you own, a switch for each item that works by itself, and your death blast). In a two-player game the shop title shows
+whose turn it is to buy. Bots shop too: first a pack of Riot Bombs if they have none (their way out from under a Dirt
+Bomb), then random weapons (never Dirt Bombs or Diggers) and items they can afford, and they use them like you do.
 
 ## Opponents
 

@@ -253,15 +253,28 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     budgets. About ten minutes.
   - `balance_shots` does the same for the types that aim differently (Tosser, Poolshark) behind Open, Bouncy and
     Wrap-around walls. About a quarter of an hour.
+  - `balance_batteries` gives the stand-in shields or batteries for nothing, each round or once for the game, and tries
+    three health limits for using them: what a battery is worth and when to use it. About seven minutes.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
     or a Sniper whose aim the bots can't see, as they can't see a human's. These two take about a quarter of an hour
     each.
 
-### Parachutes and shields
+### Parachutes, shields and batteries
 
-- Items live in `src/items.rs`: Parachute $40 x2, Shield 50 energy $120, Heavy Shield 100 $200, Mag Deflector 40 $150.
+- Items live in `src/items.rs`: Parachute $40 x2, Shield 50 energy $120, Heavy Shield 100 $200, Mag Deflector 40 $150,
+  Battery 25 health $60.
+- Battery (`Battle::use_battery`): the **B** key while a human aims, as often as there are batteries; +25 health up to
+  100, not used at full health; the turn goes on. No switch in the inventory (`Item::automatic`). A bot uses one at the
+  start of its turn while its health is 75 or less (`BOT_BATTERY_HEALTH`), so none of a battery is wasted.
+- The price and the bots' rule come from `balance_batteries` (whole games of a Shooter-like stand-in with no shields of
+  its own, share of games won outright against one / three Shooters): nothing 36 / 9%; a Shield each round 79 / 30%; a
+  Heavy Shield each round 99 / 54%; 1 battery each round 62 / 18%; 2 batteries 86 / 37%; 4 batteries 98 / 53%. So two
+  batteries are worth about a Shield and four a Heavy Shield, and a battery costs half a Shield. Four batteries for a
+  whole game, used once health is at or under 75 / 50 / 25: 76 / 58 / 36% against one Shooter, 22 / 16 / 12% against
+  three. Waiting costs more than a wasted point or two saves: a tank kept low shoots short and dies to the next hit with
+  batteries left.
 - Round start: the switched-on shield with the most energy is raised and used up (`items::shield_to_raise`).
 - A blast's damage to a tank goes to its shield first; the rest to health. Damage pay and stats count shield damage too,
   so shields don't shut down the catch-up money.
@@ -466,7 +479,7 @@ dirty.
 | `ai.rs` | Bot profiles, aim math, difficulty budget, ladder, custom editor |
 | `economy.rs` | Money rules |
 | `weapons.rs` | Weapon table |
-| `items.rs` | Parachutes and shields: item table, which shield goes up |
+| `items.rs` | Parachutes, shields and batteries: item table, which shield goes up |
 | `ladder.rs` | The ladder: its ten rungs, the player's place on it, what a won, shared or lost game does |
 | `shop.rs` | Shop screen, bot shopping |
 | `stats.rs` | All-time stats |
