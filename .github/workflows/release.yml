@@ -41,12 +41,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           cache: false
       - name: Release (if a release PR was just merged)
         id: release
-        uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
+        uses: release-plz/action@66b324fd6c72d05d2a08568492ecdd62bfb8a62b # v0.5.148
         with:
           command: release
         env:
@@ -54,7 +54,7 @@ jobs:
           # A personal token lets the release PR trigger CI; the built-in token works, but its PRs skip CI.
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
       - name: Update the release PR
-        uses: release-plz/action@f67a7e724bdad4a0f6875f186060a0ca2770d76c # v0.5.147
+        uses: release-plz/action@66b324fd6c72d05d2a08568492ecdd62bfb8a62b # v0.5.148
         with:
           command: release-pr
         env:
@@ -103,7 +103,7 @@ jobs:
           ref: ${{ needs.plan.outputs.tag }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           cache: false
       - name: Install appimagetool
@@ -155,7 +155,7 @@ jobs:
           ref: ${{ needs.plan.outputs.tag }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           cache: false
       - run: cargo build --release --locked
@@ -184,7 +184,7 @@ jobs:
           ref: ${{ needs.plan.outputs.tag }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           cache: false
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
