@@ -317,7 +317,12 @@ reason-nearest = найближчий
 log-fires = { $you ->
     [yes] Ви стріляєте
    *[no] { $name } стріляє
-}: { $weapon }, кут { $angle }, сила { $power }
+}: { $weapon }, кут { $angle }, сила { $power }, { $wind }
+log-wind = { $way ->
+    [left] вітер { $speed } ліворуч
+    [right] вітер { $speed } праворуч
+   *[none] без вітру
+}
 log-miss = {"  "}- мимо
 log-smothered = Напалм згас під землею
 coach-more-little = { $name }: трохи більше сили

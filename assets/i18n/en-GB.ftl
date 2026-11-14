@@ -307,7 +307,12 @@ reason-nearest = nearest
 log-fires = { $you ->
     [yes] You fire
    *[no] { $name } fires
-} { $weapon }: angle { $angle }, power { $power }
+} { $weapon }: angle { $angle }, power { $power }, { $wind }
+log-wind = { $way ->
+    [left] wind { $speed } left
+    [right] wind { $speed } right
+   *[none] no wind
+}
 log-miss = {"  "}- miss
 log-smothered = The napalm is smothered by the dirt
 coach-more-little = { $name }: a little more power
