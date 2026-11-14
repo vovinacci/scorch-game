@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/vovinacci/scorch-game/compare/v0.9.0...v0.10.0) - 2026-11-14
+
+### Features
+
+- *(log)* say the wind a shot was fired in ([#122](https://github.com/vovinacci/scorch-game/pull/122))
+
 ## [0.9.0](https://github.com/vovinacci/scorch-game/compare/v0.8.0...v0.9.0) - 2026-11-14
 
 ### Documentation
