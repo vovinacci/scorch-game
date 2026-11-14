@@ -776,6 +776,17 @@ impl Battle {
         true
     }
 
+    /// The wind as the log says it: its speed as the HUD shows it, and the way it blows.
+    fn wind_text(&self) -> String {
+        let speed = self.wind.abs().round();
+        let way = match self.wind {
+            _ if speed == 0.0 => "none",
+            wind if wind < 0.0 => "left",
+            _ => "right",
+        };
+        t!("log-wind", way = way, speed = speed)
+    }
+
     fn world(&self) -> World {
         self.rules.world
     }
@@ -1056,7 +1067,8 @@ impl Battle {
             you = you(&players[i]),
             weapon = armed,
             angle = angle.round(),
-            power = power.round()
+            power = power.round(),
+            wind = self.wind_text()
         );
         // A probe's line gets no "missed": it wasn't aimed at anyone.
         self.shot_line = (!probe).then_some(self.history.len());

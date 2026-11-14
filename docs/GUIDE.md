@@ -420,8 +420,8 @@ hills on the horizon. It's only a backdrop: shots fly straight through it.
 - **Feed** (top left): the last few events, fading after 8 seconds: hits with their damage, kills, fleeing,
   self-destructs and the start of sudden death. You can turn it off in Settings ("Battle log").
 - **Full log:** hold **L**, or choose **Battle log** in the pause menu. It lists everything in this round by turn: every
-  shot (weapon, angle, power, and "miss" if it hit nobody), every hit and kill, and each bot's choice of target with the
-  reason. It starts empty each round.
+  shot (weapon, angle, power, the wind at that moment, and "miss" if it hit nobody), every hit and kill, and each bot's
+  choice of target with the reason. It starts empty each round.
 
 All text over the battlefield has a thin dark outline, so it's readable over any sky or ground. On the bright day sky,
 the lines at the top (the battle log on the left, the turn and shield on the right) and the coaching line also sit on a

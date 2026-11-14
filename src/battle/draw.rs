@@ -509,7 +509,7 @@ pub fn draw_history(battle: &Battle) {
         ui::HEIGHT,
         Color::new(0.0, 0.0, 0.0, 0.6),
     );
-    let r = Rect::new(240.0, 60.0, 800.0, 600.0);
+    let r = Rect::new(160.0, 60.0, 960.0, 600.0);
     ui::panel(r);
     ui::text_centered(
         &t!("history-title", round = battle.round),

@@ -212,3 +212,22 @@ fn random_picks_only_real_values_and_feeling_lucky_does_too() {
     }
     assert!(TerrainKind::Random.is_random() && !TerrainKind::Canyon.is_random());
 }
+
+#[test]
+fn the_log_says_the_wind_a_shot_was_fired_in() {
+    let (mut players, mut b) = range(|_| 600.0);
+    let mut fired_in = |wind: f32| {
+        b.current = 0;
+        b.wind = wind;
+        b.fire(&mut players);
+        b.projectiles.clear();
+        b.history.last().unwrap().text.clone()
+    };
+    let line = fired_in(-12.4);
+    assert!(line.ends_with("power 500, wind 12 left"), "{line}");
+    let line = fired_in(7.6);
+    assert!(line.ends_with("wind 8 right"), "{line}");
+    // As the HUD shows it: under half a unit is no wind.
+    let line = fired_in(0.3);
+    assert!(line.ends_with("no wind"), "{line}");
+}
