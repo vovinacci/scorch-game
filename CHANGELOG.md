@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/vovinacci/scorch-game/compare/v0.8.0...v0.9.0) - 2026-11-14
+
+### Documentation
+
+- *(readme)* retake the screenshots for 0.9.0 ([#116](https://github.com/vovinacci/scorch-game/pull/116))
+- *(balance)* re-measure bot types, difficulty and the ladder with items ([#115](https://github.com/vovinacci/scorch-game/pull/115))
+- *(roadmap)* drop the items that have shipped ([#112](https://github.com/vovinacci/scorch-game/pull/112))
+
+### Features
+
+- *(shop)* give every weapon and item a small icon ([#118](https://github.com/vovinacci/scorch-game/pull/118))
+- *(ladder)* even out the steps between the rungs ([#117](https://github.com/vovinacci/scorch-game/pull/117))
+- *(items)* add heat, horizontal and vertical guidance ([#114](https://github.com/vovinacci/scorch-game/pull/114))
+- *(items)* add batteries ([#113](https://github.com/vovinacci/scorch-game/pull/113))
+- *(bots)* add the Chooser and re-measure difficulty and the ladder ([#111](https://github.com/vovinacci/scorch-game/pull/111))
+- *(bots)* add the Tosser and the Poolshark ([#110](https://github.com/vovinacci/scorch-game/pull/110))
+- *(bots)* add the Spoiler and the Cyborg ([#108](https://github.com/vovinacci/scorch-game/pull/108))
+
 ## [0.8.0](https://github.com/vovinacci/scorch-game/compare/v0.7.0...v0.8.0) - 2026-11-12
 
 ### Features
