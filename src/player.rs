@@ -68,6 +68,9 @@ pub struct Player {
     pub items_on: [bool; ITEM_COUNT],
     pub wins: u32,
     pub kills: u32,
+    /// Money earned over the game, all of it (what spending can't take away): what "most money" counts.
+    #[serde(default)]
+    pub earned: i32,
     pub loss_streak: u32,
     /// Earned in the current (or just finished) round.
     pub income: Income,
@@ -90,6 +93,7 @@ impl Player {
             items_on: all_on(),
             wins: 0,
             kills: 0,
+            earned: 0,
             loss_streak: 0,
             income: Income::default(),
             round_stats: RoundStats::default(),

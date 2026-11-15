@@ -20,6 +20,7 @@ unit-kills = { $n } { $n ->
     [one] kill
    *[other] kills
 }
+unit-earned = ${ $money } earned
 
 ## Players
 
@@ -110,6 +111,10 @@ setup-walls = Walls
 setup-sky = Sky
 setup-hazards = Hazards
 setup-interest = Interest
+setup-scoring = Game won by
+Scoring-Rounds = Most rounds
+Scoring-Money = Most money
+Scoring-Kills = Most kills
 Interest-Off = Off
 Interest-Low = 5%
 Interest-High = 10%

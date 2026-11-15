@@ -95,16 +95,22 @@ impl Battle {
         memory
     }
 
-    /// The living enemy of `me` with the most round wins, the nearer one of two level; `None` while nobody has won
+    /// Tank `j`'s player's points towards winning the game, as the game counts them (`Scoring`).
+    fn points(&self, j: usize, players: &[Player]) -> i64 {
+        self.rules.scoring.points(&players[j])
+    }
+
+    /// The living enemy of `me` with the most points towards winning the game (round wins, unless the game counts
+    /// money or kills), the nearer one of two level; `None` while nobody has won
     /// a round.
     fn leader(&self, me: usize, players: &[Player]) -> Option<usize> {
         let from = self.tanks[me].center();
         (0..self.tanks.len())
-            .filter(|&j| j != me && self.tanks[j].alive && players[j].wins > 0)
+            .filter(|&j| j != me && self.tanks[j].alive && self.points(j, players) > 0)
             .max_by(|&a, &b| {
                 let near = |j: usize| -from.distance(self.tanks[j].center());
-                (players[a].wins, near(a))
-                    .partial_cmp(&(players[b].wins, near(b)))
+                (self.points(a, players), near(a))
+                    .partial_cmp(&(self.points(b, players), near(b)))
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
     }
@@ -170,7 +176,11 @@ impl Battle {
     /// bots from being predictable.
     pub(super) fn score_targets(&self, me: usize, players: &[Player]) -> (usize, &'static str) {
         let from = self.tanks[me].center();
-        let most_wins = players.iter().map(|p| p.wins).max().unwrap_or(0).max(1) as f32;
+        let most = (0..players.len())
+            .map(|j| self.points(j, players))
+            .max()
+            .unwrap_or(0)
+            .max(1) as f32;
         let mut best = (me, "", f32::MIN);
         for (j, tank) in self.tanks.iter().enumerate() {
             if j == me || !tank.alive {
@@ -179,7 +189,7 @@ impl Battle {
             let near =
                 PREFER_NEAREST * (1.0 - from.distance(tank.center()) / WIDTH as f32).max(0.0);
             let weak = PREFER_WEAKEST * (1.0 - tank.health / 100.0).clamp(0.0, 1.0);
-            let leader = PREFER_LEADER * players[j].wins as f32 / most_wins;
+            let leader = PREFER_LEADER * self.points(j, players) as f32 / most;
             let crowd = self.aimed_at(j, me) as f32;
             // Three bots left: rather not the one that aims at this bot (see `three_bots_left`).
             let facing = self.tanks[j].aim.is_some_and(|m| m.target == me);
