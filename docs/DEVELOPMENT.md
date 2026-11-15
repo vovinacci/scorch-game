@@ -275,6 +275,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     minutes.
   - `balance_market` plays four Shooters with market prices: where each price ends up and the money left unspent. About
     four minutes.
+  - `balance_driving` drives tanks from their starting spots on each terrain with 100 units of fuel: how far they get,
+    the fuel a px costs, and how often the ground stops them first. A few seconds.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
@@ -315,6 +317,15 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   rise of more than 1.5 px in one px (about 56°) or a drop of more than 15 px (the height a fall starts to hurt from)
   stops it, as do another living tank within 28 px ahead, the edge of the field and dirt over the tank's centre. Fuel is
   an item counted in units (`items::FUEL`), 100 a purchase.
+- Starting pads (`Terrain::flatten`): each tank's spot is levelled 14 px either side of it, and the ground beyond is
+  eased for up to 48 px (`PAD_RAMP`) into a ramp of at most 1 px per px (`PAD_RAMP_SLOPE`), dug down uphill and filled
+  downhill, stopping where the ground is already that gentle. Without the ramps a pad cut into a steep slope left a wall
+  and a drop that boxed the tank in.
+- `balance_driving` (tanks at their starting spot on freshly made fields, 100 units of fuel, 300 starts per terrain):
+  they get 81 px on Rolling ground, 72 on Mountains, 96 on Flatlands and 80 in a Canyon, at 1.24, 1.35, 1.05 and 1.23
+  units a px, and the ground stops 0, 9, 0 and 6% of the drives before the fuel runs out. Without the ramps it stopped
+  43, 57, 5 and 45% (56, 45, 92 and 55 px): boxed in on their pads. Climbing costs enough to make high ground a choice
+  (a third less reach in the mountains than on the flat) without walls of price; it stays as it is.
 - A bot drives once a turn, before it aims (`bot_drives`, `better_ground`): if a Baby Missile from where it stands can't
   land within 40 px of the tank it is likely to shoot at (`likely_target`), it tries the places every 25 px up to 300 px
   each way that its fuel reaches and drives to the one from where a shot lands closest, if that is 30 px closer or more.
