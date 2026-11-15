@@ -42,6 +42,13 @@ choice!(Walls {
     Random,
 });
 
+choice!(Weather {
+    Clear,
+    Windy,
+    Storm,
+    Random,
+});
+
 choice!(Hazards {
     Off,
     Rare,
@@ -73,6 +80,8 @@ pub struct World {
     pub sky: Sky,
     /// Meteors and lightning between turns (see `battle::hazards`).
     pub hazards: Hazards,
+    /// Clear leaves the wind as set; Windy and Storm make it strong, and a Storm brings rain and lightning.
+    pub weather: Weather,
 }
 
 impl Default for World {
@@ -85,6 +94,7 @@ impl Default for World {
             walls: Walls::Open,
             sky: Sky::Night,
             hazards: Hazards::Off,
+            weather: Weather::Clear,
         }
     }
 }
@@ -99,6 +109,7 @@ impl World {
             walls: self.walls.roll(),
             sky: self.sky.roll(),
             hazards: self.hazards.roll(),
+            weather: self.weather.roll(),
             ..self
         }
     }
@@ -115,6 +126,10 @@ impl World {
 
     /// Strongest possible wind (sideways acceleration, pixels per second squared).
     pub fn max_wind(self) -> f32 {
+        // Windy and stormy rounds blow hard, whatever the Wind setting says (Random is resolved by then).
+        if matches!(self.weather, Weather::Windy | Weather::Storm) {
+            return 70.0;
+        }
         match self.wind {
             WindLevel::Off => 0.0,
             WindLevel::Calm => 20.0,

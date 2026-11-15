@@ -182,6 +182,7 @@ impl Battle {
 
     pub(super) fn draw_scene(&self, players: &[Player], settings: &Settings) {
         self.world().sky.draw();
+        self.draw_overcast();
         self.terrain.draw();
 
         self.draw_tracers(players);

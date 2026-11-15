@@ -447,17 +447,23 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 - Meteors: one on Rare, 1 to 3 on Often, from 20 px above the screen at a random x (40 px in from each side), sideways
   speed up to 160 px/s either way, falling at 120 to 260 px/s; wind, gravity and walls as for a shell. Every Mag
   Deflector with energy pushes them, at no cost. Where one lands it goes off with a Missile's radius and damage.
-- Lightning: the highest point within 150 px either side of a random x, a living tank's top counting as ground. Up to 35
-  damage, falling to 30% of that at 42 px (30 + the tank's radius) and nothing beyond; a burn mark, no crater.
+- Lightning: under a cell at a random x, the highest of six random spots within 150 px either side (`BOLT_TRIES`) and of
+  the tops of the living tanks there. Up to 35 damage, falling to 30% of that at 42 px (30 + the tank's radius) and
+  nothing beyond; a burn mark, no crater.
+- Lightning gathers first (`hazards::Storm`): the cell's light dims over 0.9 s (`GATHER`) to a grey overlay of 0.6, the
+  bolt falls from the cell's base (`strike`) with a 0.12 s flash, and the cell clears over 1 s (`CLEAR`); the turn waits
+  for it (`hazards_busy`).
+- Weather (`world::Weather`: Clear, Windy, Storm, Random; Clear by default): Windy and Storm make `max_wind` 70 (as
+  Strong) whatever the Wind setting; Storm draws a grey overcast of 0.5 over the sky (`draw_overcast`) and rain over the
+  field (looks only), and after each turn has a 35% chance of lightning (`STORM_LIGHTNING`) before the Hazards setting's
+  own roll, which then waits for the next turn.
 - Hazard damage has no owner (`hurt` with `None`): no pay, no shot marked as a hit, no `last_hit_by` and no revenge, so
   a tank they finish off counts for the last enemy who hit it. Shields absorb it as any damage.
 - How much luck they bring (`balance_hazards`, whole games of a Shooter-like stand-in, share of games won outright with
-  hazards off / rare / often): against a Moron 99 / 97 / 93%, against a Shooter 49 / 51 / 50%, against three Shooters 24
-  / 20 / 21%. Skill still decides: on Often about one game in fifteen that the better player would have won goes the
-  other way, and even games stay even. Hence games with hazards count for the ladder.
-
-### Ladder
-
+  hazards off / rare / often, and with a storm and hazards off): against a Moron 98 / 96 / 91 / 93%, against a Shooter
+  45 / 48 / 54 / 46%, against three Shooters 21 / 25 / 19 / 19%. Skill still decides: on Often about one game in twelve
+  that the better player would have won goes the other way, in a storm one in twenty, and even games stay even. Hence
+  games with hazards or storms count for the ladder.
 - Ten rungs (`ladder::RUNGS`), each a fixed line-up of bots; the Bots and Difficulty settings aren't used. The order
   comes from `balance_ladder` (whole games, see Weapons), which plays 38 line-ups a rung could be made of: against the
   ten chosen a Sniper-like player wins 100, 91, 89, 83, 80, 64, 54, 45, 29 and 15% of games outright, a Shooter-like one

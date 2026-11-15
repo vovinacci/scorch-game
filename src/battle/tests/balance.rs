@@ -733,22 +733,32 @@ fn balance_fuel() {
 #[test]
 #[ignore = "prints a table; run by hand when tuning the hazards"]
 fn balance_hazards() {
-    use crate::world::Hazards;
+    use crate::world::{Hazards, Weather};
     for lineup in [vec![0], vec![1], vec![1, 1, 1]] {
         let names: Vec<&str> = lineup.iter().map(|&p| PRESETS[p].name).collect();
         println!(
             "\na Shooter-like player against {}, 200 games of 5 rounds",
             names.join(", ")
         );
-        println!("{:>6} {:>7} {:>7}  hazards", "won", "shared", "rounds");
-        for hazards in [Hazards::Off, Hazards::Rare, Hazards::Often] {
+        println!(
+            "{:>6} {:>7} {:>7}  hazards, weather",
+            "won", "shared", "rounds"
+        );
+        let settings = [
+            (Hazards::Off, Weather::Clear),
+            (Hazards::Rare, Weather::Clear),
+            (Hazards::Often, Weather::Clear),
+            (Hazards::Off, Weather::Storm),
+        ];
+        for (hazards, weather) in settings {
             let draw = || lineup.iter().map(|&p| PRESETS[p]).collect();
             let prepare = |_: u32, _: &mut [Player], b: &mut Battle| {
                 b.rules.world.hazards = hazards;
+                b.rules.world.weather = weather;
             };
             let (won, shared, rounds) =
                 drawn_games(1, 111_000, 200, Setup::default().world.walls, draw, prepare);
-            println!("{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {hazards:?}");
+            println!("{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {hazards:?}, {weather:?}");
         }
     }
 }

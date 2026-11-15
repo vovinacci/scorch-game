@@ -169,15 +169,20 @@ pub(super) fn menu_key(name: &str) -> Option<KeyCode> {
 }
 
 /// The 16:9 game area of a screenshot, without the bands around it, so shots look the same in any
-/// window.
+/// window. Every pixel opaque: translucent drawing leaves the frame's alpha below 1 in places, which the window
+/// ignores but an image viewer shows as washed out.
 pub(super) fn game_area(screen: &Image) -> Image {
     let (w, h) = (f32::from(screen.width), f32::from(screen.height));
     let scale = (w / ui::WIDTH).min(h / ui::HEIGHT);
     let (gw, gh) = ((ui::WIDTH * scale).floor(), (ui::HEIGHT * scale).floor());
-    screen.sub_image(Rect::new(
+    let mut area = screen.sub_image(Rect::new(
         ((w - gw) / 2.0).floor(),
         ((h - gh) / 2.0).floor(),
         gw,
         gh,
-    ))
+    ));
+    for pixel in area.bytes.as_chunks_mut::<4>().0 {
+        pixel[3] = 255;
+    }
+    area
 }

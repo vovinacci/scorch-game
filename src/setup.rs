@@ -13,7 +13,7 @@ use crate::ladder::Ladder;
 use crate::player::Player;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
-use crate::world::{GravityLevel, Hazards, Sky, TerrainKind, Walls, WindLevel, World};
+use crate::world::{GravityLevel, Hazards, Sky, TerrainKind, Walls, Weather, WindLevel, World};
 
 choice!(SuddenDeath {
     Off,
@@ -356,6 +356,11 @@ impl Setup {
                 r.hazards.text(),
                 during && w.hazards.is_random(),
             ),
+            (
+                "setup-weather",
+                r.weather.text(),
+                during && w.weather.is_random(),
+            ),
         ]);
         lines
     }
@@ -410,6 +415,7 @@ impl Setup {
             walls: Walls::any_real(),
             sky: Sky::any_real(),
             hazards: Hazards::any_real(),
+            weather: Weather::any_real(),
         };
     }
 }
@@ -509,9 +515,9 @@ pub fn screen(
         ui::text_wrapped(
             &ai::describe(setup.difficulty, setup.bots, custom),
             left.x + 30.0,
-            left.y + 52.0 + 3.0 * STEP + 12.0,
+            left.y + 52.0 + 3.0 * STEP + 9.0,
             left.w - 60.0,
-            16.0,
+            14.0,
             GRAY,
         );
         ui::button(row(left, 4.0), &t!("setup-edit-custom"), true)
@@ -576,16 +582,17 @@ pub fn screen(
     ui::choice(row(right, 3.0), &t!("setup-gravity"), &mut world.gravity);
     ui::choice(row(right, 4.0), &t!("setup-walls"), &mut world.walls);
     ui::choice(row(right, 5.0), &t!("setup-sky"), &mut world.sky);
-    ui::choice(row(right, 6.0), &t!("setup-hazards"), &mut world.hazards);
-    ui::choice(row(right, 7.0), &t!("setup-aim-help"), &mut setup.aim_help);
+    ui::choice(row(right, 6.0), &t!("setup-weather"), &mut world.weather);
+    ui::choice(row(right, 7.0), &t!("setup-hazards"), &mut world.hazards);
+    ui::choice(row(right, 8.0), &t!("setup-aim-help"), &mut setup.aim_help);
     draw_preview(
         preview,
         setup.world,
         Rect::new(
             right.x + 20.0,
-            right.y + 52.0 + 8.0 * STEP + 6.0,
+            right.y + 52.0 + 9.0 * STEP + 6.0,
             right.w - 40.0,
-            right.h - (52.0 + 8.0 * STEP + 6.0) - 20.0,
+            right.h - (52.0 + 9.0 * STEP + 6.0) - 20.0,
         ),
     );
 

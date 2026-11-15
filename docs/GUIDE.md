@@ -413,13 +413,14 @@ and your statistics. The final standings list it first.
 | Gravity | Low, Normal, High, Random | Normal |
 | Walls | Open, Solid, Bouncy, Wrap-around, Random | Open |
 | Sky | Night, Sunset, Day, Random | Night |
+| Weather | Clear, Windy, Storm, Random (see below) | Clear |
 | Hazards | Off, Rare, Often, Random (see below) | Off |
 | Aiming help | Off, Coaching, Short path, Full path | Off |
 
 **Random** picks a new value at the start of every round. During the round, the lines under the turn counter say what
-gravity, walls and hazards came out as (you can see the terrain and sky, and the wind is in the HUD), the pause menu's
-"This game" shows every pick in blue, and the battle log starts the round with the full list. "I'm feeling lucky" sets
-real values, never Random.
+gravity, walls, weather and hazards came out as (you can see the terrain and sky, and the wind is in the HUD), the pause
+menu's "This game" shows every pick in blue, and the battle log starts the round with the full list. "I'm feeling lucky"
+sets real values, never Random.
 
 **Aiming help** is for learning, and it's the same for every player in the game (bots don't need it):
 
@@ -435,14 +436,26 @@ real values, never Random.
 
 The pause menu's "This game" shows the setting, so everyone knows what help was on.
 
+**Weather** sets the mood of a round and what the wind can do:
+
+- **Clear:** the wind as set.
+- **Windy:** strong wind (up to 70), whatever the Wind option says.
+- **Storm:** strong wind, a grey overcast that hides the sun, rain, and lightning after about one turn in three, even
+  with Hazards off (see below). The rain is only a look: it doesn't slow shells or put out napalm.
+- **Random:** a new weather every round.
+
+**Wind changes each turn** stays its own option in any weather: the weather sets how strong the wind can blow, the
+option whether it shifts between turns.
+
 **Hazards** make the sky take part. After a turn's shells have landed, something may come down: about one turn in ten on
 Rare, three in ten on Often.
 
 - **Meteors** fall from above the screen, one on Rare and up to three on Often. The wind moves them like shells, and
   each goes off like a Missile where it lands: a crater, and damage to any tank near it.
-- **Lightning** strikes the highest point of a stretch of the field about 300 px wide: a hilltop, or the tank standing
-  on it. It does up to 35 damage to tanks within about 40 px, leaves a burn mark and no crater. High ground is a good
-  place to shoot from and a bad one to stand on in a storm.
+- **Lightning** comes from a thunderstorm cell: it gathers over part of the field and the light dims for about a second,
+  then a bolt strikes high ground below it, within about 150 px either side: usually the higher spots, and a tank
+  standing high most of all. It does up to 35 damage to tanks within about 40 px, leaves a burn mark and no crater. High
+  ground is a good place to shoot from and a bad one to stand on in a storm.
 - They belong to nobody: a hit pays nobody and no bot takes revenge for it. If one finishes a tank off, the kill goes to
   the last enemy who hit that tank, as with falls and sudden death.
 - Shields take the damage first, a Mag Deflector pushes meteors aside (at no cost to its energy), and a parachute saves
