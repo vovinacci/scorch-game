@@ -23,9 +23,10 @@ pub enum Sfx {
     Dig,
     Click,
     RoundEnd,
+    Thunder,
 }
 
-const ALL: [Sfx; 10] = [
+const ALL: [Sfx; 11] = [
     Sfx::Fire,
     Sfx::Blast,
     Sfx::BigBlast,
@@ -36,6 +37,7 @@ const ALL: [Sfx; 10] = [
     Sfx::Dig,
     Sfx::Click,
     Sfx::RoundEnd,
+    Sfx::Thunder,
 ];
 
 pub struct Sounds {
@@ -119,7 +121,7 @@ impl Sounds {
 fn gain(sfx: Sfx) -> f32 {
     match sfx {
         Sfx::BigBlast => 1.0,
-        Sfx::Blast => 0.85,
+        Sfx::Blast | Sfx::Thunder => 0.85,
         Sfx::Fire | Sfx::Dirt => 0.6,
         Sfx::Shield | Sfx::RoundEnd => 0.5,
         Sfx::Parachute | Sfx::Burn | Sfx::Dig => 0.4,
@@ -173,6 +175,16 @@ fn synth(sfx: Sfx) -> Vec<f32> {
         }),
         // A single blip.
         Sfx::Click => chip.render(0.035, |c, t| c.pulse(0.5, 1046.5, fade(t, 0.035))),
+        // A sharp crack, then a long low rumble.
+        Sfx::Thunder => chip.render(1.3, |c, t| {
+            let crack = c.noise(
+                &mut noise,
+                6000.0 * (-t * 30.0).exp() + 300.0,
+                fade(t, 0.12),
+            );
+            let rumble = c.noise(&mut noise, 160.0 + 60.0 * (t * 9.0).sin(), fade(t, 1.3));
+            0.9 * crack + 0.6 * rumble
+        }),
         // A little fanfare: melody on a pulse wave, bass on the triangle.
         Sfx::RoundEnd => {
             let melody = [(523.25, 0.0), (659.25, 0.1), (783.99, 0.2), (1046.5, 0.3)];

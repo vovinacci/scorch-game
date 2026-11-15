@@ -12,7 +12,7 @@ use crate::ladder::Ladder;
 use crate::player::Player;
 use crate::terrain::{HEIGHT, Terrain, WIDTH};
 use crate::ui;
-use crate::world::{GravityLevel, Sky, TerrainKind, Walls, WindLevel, World};
+use crate::world::{GravityLevel, Hazards, Sky, TerrainKind, Walls, WindLevel, World};
 
 choice!(SuddenDeath {
     Off,
@@ -294,6 +294,11 @@ impl Setup {
             ),
             ("setup-walls", r.walls.text(), during && w.walls.is_random()),
             ("setup-sky", r.sky.text(), during && w.sky.is_random()),
+            (
+                "setup-hazards",
+                r.hazards.text(),
+                during && w.hazards.is_random(),
+            ),
         ]);
         lines
     }
@@ -344,6 +349,7 @@ impl Setup {
             gravity: GravityLevel::any_real(),
             walls: Walls::any_real(),
             sky: Sky::any_real(),
+            hazards: Hazards::any_real(),
         };
     }
 }
@@ -507,15 +513,16 @@ pub fn screen(
     ui::choice(row(right, 3.0), &t!("setup-gravity"), &mut world.gravity);
     ui::choice(row(right, 4.0), &t!("setup-walls"), &mut world.walls);
     ui::choice(row(right, 5.0), &t!("setup-sky"), &mut world.sky);
-    ui::choice(row(right, 6.0), &t!("setup-aim-help"), &mut setup.aim_help);
+    ui::choice(row(right, 6.0), &t!("setup-hazards"), &mut world.hazards);
+    ui::choice(row(right, 7.0), &t!("setup-aim-help"), &mut setup.aim_help);
     draw_preview(
         preview,
         setup.world,
         Rect::new(
             right.x + 20.0,
-            right.y + 52.0 + 7.0 * STEP + 6.0,
+            right.y + 52.0 + 8.0 * STEP + 6.0,
             right.w - 40.0,
-            116.0,
+            116.0 - STEP,
         ),
     );
 

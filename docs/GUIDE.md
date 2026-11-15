@@ -383,12 +383,13 @@ random except the number of human players; you can still check and change it all
 | Gravity | Low, Normal, High, Random | Normal |
 | Walls | Open, Solid, Bouncy, Wrap-around, Random | Open |
 | Sky | Night, Sunset, Day, Random | Night |
+| Hazards | Off, Rare, Often, Random (see below) | Off |
 | Aiming help | Off, Coaching, Short path, Full path | Off |
 
 **Random** picks a new value at the start of every round. During the round, the lines under the turn counter say what
-gravity and walls came out as (you can see the terrain and sky, and the wind is in the HUD), the pause menu's "This
-game" shows every pick in blue, and the battle log starts the round with the full list. "I'm feeling lucky" sets real
-values, never Random.
+gravity, walls and hazards came out as (you can see the terrain and sky, and the wind is in the HUD), the pause menu's
+"This game" shows every pick in blue, and the battle log starts the round with the full list. "I'm feeling lucky" sets
+real values, never Random.
 
 **Aiming help** is for learning, and it's the same for every player in the game (bots don't need it):
 
@@ -403,6 +404,20 @@ values, never Random.
   relaxed game.
 
 The pause menu's "This game" shows the setting, so everyone knows what help was on.
+
+**Hazards** make the sky take part. After a turn's shells have landed, something may come down: about one turn in ten on
+Rare, three in ten on Often.
+
+- **Meteors** fall from above the screen, one on Rare and up to three on Often. The wind moves them like shells, and
+  each goes off like a Missile where it lands: a crater, and damage to any tank near it.
+- **Lightning** strikes the highest point of a stretch of the field about 300 px wide: a hilltop, or the tank standing
+  on it. It does up to 35 damage to tanks within about 40 px, leaves a burn mark and no crater. High ground is a good
+  place to shoot from and a bad one to stand on in a storm.
+- They belong to nobody: a hit pays nobody and no bot takes revenge for it. If one finishes a tank off, the kill goes to
+  the last enemy who hit that tank, as with falls and sudden death.
+- Shields take the damage first, a Mag Deflector pushes meteors aside (at no cost to its energy), and a parachute saves
+  a tank whose ground a meteor knocked away.
+- Games with hazards count for the ladder like any others.
 
 Walls decide what happens at the edges of the screen:
 

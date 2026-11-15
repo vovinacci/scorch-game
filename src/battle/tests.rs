@@ -13,6 +13,7 @@ mod bots;
 mod coach;
 mod drive;
 mod guidance;
+mod hazards;
 mod rules;
 mod screen;
 mod shields;

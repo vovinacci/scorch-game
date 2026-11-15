@@ -32,6 +32,7 @@ mod coach;
 mod draw;
 mod drive;
 mod guidance;
+mod hazards;
 mod shells;
 #[cfg(test)]
 mod tests;
@@ -512,6 +513,13 @@ pub struct Battle {
     drive_checked: Option<u32>,
     #[serde(skip)]
     drive_goal: Option<f32>,
+    /// Hazards in the air or on screen, and the turn that last had its chance of one.
+    #[serde(skip)]
+    meteors: Vec<hazards::Meteor>,
+    #[serde(skip)]
+    bolts: Vec<hazards::Bolt>,
+    #[serde(skip)]
+    hazard_turn: Option<u32>,
     #[serde(skip)]
     accumulator: f32,
     round: u32,
@@ -637,6 +645,9 @@ impl Battle {
             battery_health: Vec::new(),
             drive_checked: None,
             drive_goal: None,
+            meteors: Vec::new(),
+            bolts: Vec::new(),
+            hazard_turn: None,
             accumulator: 0.0,
             round,
             rounds,
@@ -695,6 +706,11 @@ impl Battle {
             ),
             pick(chosen.walls.is_random(), "setup-walls", world.walls.text()),
             pick(all && chosen.sky.is_random(), "setup-sky", world.sky.text()),
+            pick(
+                chosen.hazards.is_random(),
+                "setup-hazards",
+                world.hazards.text(),
+            ),
         ]
         .into_iter()
         .flatten()
@@ -1133,8 +1149,14 @@ impl Battle {
             self.accumulator -= STEP;
             self.step_projectiles(players);
             self.step_fires(players);
+            self.step_meteors(players);
         }
-        if self.projectiles.is_empty() && self.explosions.is_empty() && self.fires.is_empty() {
+        let hazards = self.hazards_busy(dt);
+        if self.projectiles.is_empty()
+            && self.explosions.is_empty()
+            && self.fires.is_empty()
+            && !hazards
+        {
             self.drop_spent_deflectors(players);
             self.phase = Phase::Settle;
         }
@@ -1268,6 +1290,12 @@ impl Battle {
                 think: 0.0,
                 plan: None,
             };
+        } else if self.hazard_turn != Some(self.turns) && {
+            self.hazard_turn = Some(self.turns);
+            self.hazard(players)
+        } {
+            // The sky throws something: the shells' phase runs again until it is over, then things settle anew.
+            self.phase = Phase::Flight;
         } else if self.sudden_death_active() && !self.drained {
             // Sudden death: everyone loses health, then settle again for any deaths.
             self.drained = true;

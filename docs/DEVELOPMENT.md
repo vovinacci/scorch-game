@@ -55,7 +55,7 @@ Command line options:
 | `--version`, `-V` | Print the version and exit |
 | `--crash-test` | Crash on purpose, to check crash reports |
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
-| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, watch (you flee and the bots play the round out, with sound), over (a round just won), defence (every tank with a shield), guidance (your turn with batteries, fuel and Vertical guidance on), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
+| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, watch (you flee and the bots play the round out, with sound), over (a round just won), defence (every tank with a shield), guidance (your turn with batteries, fuel and Vertical guidance on), hazards (a meteor in the air and a bolt of lightning), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit. The pointer is ignored, so nothing is highlighted by where it happens to be. The name must end in `.png` and its folder must exist, or the game says so and exits with status 2 before opening the window |
 | `--keys <keys>` | With `--screen`: press menu keys before the screenshot, one every 4 frames: a comma-separated list of up, down, left, right, enter (`--screen shop --keys down,down,right --shot shop.png`) |
 
@@ -259,6 +259,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     what guidance is worth. About nine minutes.
   - `balance_fuel` gives the stand-in fuel each round on three kinds of ground: what driving is worth to a bot. About
     ten minutes.
+  - `balance_hazards` plays the stand-in against a Moron, a Shooter and three Shooters with the hazards off, rare and
+    often: how much luck they bring. About six minutes.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
@@ -391,6 +393,23 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   with it, 36-38%, about the edge the first shot gives with two tanks (`balance_order`). With a human or four tanks
   alive the rules don't apply.
 
+### Hazards
+
+- The world's Hazards setting (`world::Hazards`: Off, Rare, Often, Random; off by default) is rolled once a turn, when
+  everything has come to rest and before sudden death drains (`Battle::after_settling`, `hazards::hazard`): a 10% chance
+  on Rare, 30% on Often; then meteors or lightning, even odds. The shells' phase runs again while it lasts.
+- Meteors: one on Rare, 1 to 3 on Often, from 20 px above the screen at a random x (40 px in from each side), sideways
+  speed up to 160 px/s either way, falling at 120 to 260 px/s; wind, gravity and walls as for a shell. Every Mag
+  Deflector with energy pushes them, at no cost. Where one lands it goes off with a Missile's radius and damage.
+- Lightning: the highest point within 150 px either side of a random x, a living tank's top counting as ground. Up to 35
+  damage, falling to 30% of that at 42 px (30 + the tank's radius) and nothing beyond; a burn mark, no crater.
+- Hazard damage has no owner (`hurt` with `None`): no pay, no shot marked as a hit, no `last_hit_by` and no revenge, so
+  a tank they finish off counts for the last enemy who hit it. Shields absorb it as any damage.
+- How much luck they bring (`balance_hazards`, whole games of a Shooter-like stand-in, share of games won outright with
+  hazards off / rare / often): against a Moron 99 / 97 / 93%, against a Shooter 49 / 51 / 50%, against three Shooters 24
+  / 20 / 21%. Skill still decides: on Often about one game in fifteen that the better player would have won goes the
+  other way, and even games stay even. Hence games with hazards count for the ladder.
+
 ### Ladder
 
 - Ten rungs (`ladder::RUNGS`), each a fixed line-up of bots; the Bots and Difficulty settings aren't used. The order
@@ -512,6 +531,7 @@ dirty.
 | `battle/bots.rs` | Bots: whom they shoot at, what with, how they find the aim and dig out |
 | `battle/coach.rs` | The coaching advice of the aiming help |
 | `battle/drive.rs` | Driving: where a tank can go and what it costs, the mouse buttons, when a bot drives |
+| `battle/hazards.rs` | Hazards: when the sky throws something, meteors, lightning |
 | `battle/guidance.rs` | Guidance: when a guided shell turns and how it flies on |
 | `battle/draw.rs` | Drawing the battle: scene, HUD, tanks, flames, weapon strip, full battle log |
 | `battle/tests.rs`, `battle/tests/` | The battle's unit tests: shared helpers, then one file each for rules, weapons, shields, bots, coaching, what is on screen, and the balance tools (other files keep their tests in a `tests` module at the bottom) |

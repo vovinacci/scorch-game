@@ -113,6 +113,7 @@ setup-wind-changes = Вітер змінюється щоходу
 setup-gravity = Гравітація
 setup-walls = Стіни
 setup-sky = Небо
+setup-hazards = Небезпеки
 setup-lucky = Мені пощастить
 setup-start = Почати гру
 setup-preview-walls = стіни: { $walls }
@@ -162,6 +163,10 @@ Sky-Night = Ніч
 Sky-Sunset = Захід сонця
 Sky-Day = День
 Sky-Random = Випадково
+Hazards-Off = Вимк.
+Hazards-Rare = Рідко
+Hazards-Often = Часто
+Hazards-Random = Випадково
 
 ## Підсумок гри (меню паузи)
 
@@ -369,6 +374,20 @@ log-self-destructed = { $you ->
    *[no] { $name } підриває свій танк!
 }
 log-sudden-death = Починається раптова смерть!
+log-meteors = { $n ->
+    [one] Падає метеор!
+    [few] Падають { $n } метеори!
+   *[many] Падають { $n } метеорів!
+}
+log-lightning = Блискавка!
+log-hit-by-meteor = { $target_you ->
+    [yes] Метеор влучає у вас
+   *[no] Метеор влучає в танк { $target }
+}: шкода { $dmg }
+log-hit-by-lightning = { $target_you ->
+    [yes] Блискавка б'є у вас
+   *[no] Блискавка б'є в танк { $target }
+}: шкода { $dmg }
 log-targets = { $name } обирає ціль: { $target_you ->
     [yes] ваш танк
    *[no] танк { $target }

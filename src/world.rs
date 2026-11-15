@@ -42,6 +42,13 @@ choice!(Walls {
     Random,
 });
 
+choice!(Hazards {
+    Off,
+    Rare,
+    Often,
+    Random,
+});
+
 choice!(Sky {
     Night,
     Sunset,
@@ -64,6 +71,8 @@ pub struct World {
     pub gravity: GravityLevel,
     pub walls: Walls,
     pub sky: Sky,
+    /// Meteors and lightning between turns (see `battle::hazards`).
+    pub hazards: Hazards,
 }
 
 impl Default for World {
@@ -75,6 +84,7 @@ impl Default for World {
             gravity: GravityLevel::Normal,
             walls: Walls::Open,
             sky: Sky::Night,
+            hazards: Hazards::Off,
         }
     }
 }
@@ -88,6 +98,7 @@ impl World {
             gravity: self.gravity.roll(),
             walls: self.walls.roll(),
             sky: self.sky.roll(),
+            hazards: self.hazards.roll(),
             ..self
         }
     }
