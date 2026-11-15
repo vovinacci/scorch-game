@@ -108,6 +108,7 @@ setup-wind-changes = Wind changes each turn
 setup-gravity = Gravity
 setup-walls = Walls
 setup-sky = Sky
+setup-hazards = Hazards
 setup-lucky = I'm feeling lucky
 setup-start = Start game
 setup-preview-walls = walls: { $walls }
@@ -156,6 +157,10 @@ Sky-Night = Night
 Sky-Sunset = Sunset
 Sky-Day = Day
 Sky-Random = Random
+Hazards-Off = Off
+Hazards-Rare = Rare
+Hazards-Often = Often
+Hazards-Random = Random
 
 ## Game summary (pause menu)
 
@@ -347,6 +352,19 @@ log-self-destructed = { $you ->
    *[no] { $name } self-destructed!
 }
 log-sudden-death = Sudden death begins!
+log-meteors = { $n ->
+    [one] A meteor is coming down!
+   *[other] { $n } meteors are coming down!
+}
+log-lightning = Lightning!
+log-hit-by-meteor = { $target_you ->
+    [yes] A meteor hits you
+   *[no] A meteor hits { $target }
+}: { $dmg } damage
+log-hit-by-lightning = { $target_you ->
+    [yes] Lightning strikes you
+   *[no] Lightning strikes { $target }
+}: { $dmg } damage
 log-targets = { $name } targets { $target } ({ $reason })
 history-title = Battle log: round { $round }
 history-empty = Nothing has happened yet.

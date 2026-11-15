@@ -724,3 +724,29 @@ fn balance_fuel() {
         }
     }
 }
+
+/// How much luck the hazards bring. Whole games of a Shooter-like stand-in (see `ladder_games`) against a Moron
+/// (a game skill should win), a Shooter (an even one) and three Shooters, with the Hazards setting off, rare and
+/// often: the nearer the share of games won moves to an even chance, the more the sky decides. About six minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the hazards"]
+fn balance_hazards() {
+    use crate::world::Hazards;
+    for lineup in [vec![0], vec![1], vec![1, 1, 1]] {
+        let names: Vec<&str> = lineup.iter().map(|&p| PRESETS[p].name).collect();
+        println!(
+            "\na Shooter-like player against {}, 200 games of 5 rounds",
+            names.join(", ")
+        );
+        println!("{:>6} {:>7} {:>7}  hazards", "won", "shared", "rounds");
+        for hazards in [Hazards::Off, Hazards::Rare, Hazards::Often] {
+            let draw = || lineup.iter().map(|&p| PRESETS[p]).collect();
+            let prepare = |_: u32, _: &mut [Player], b: &mut Battle| {
+                b.rules.world.hazards = hazards;
+            };
+            let (won, shared, rounds) =
+                drawn_games(1, 111_000, 200, Setup::default().world.walls, draw, prepare);
+            println!("{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {hazards:?}");
+        }
+    }
+}

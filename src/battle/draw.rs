@@ -185,6 +185,7 @@ impl Battle {
         self.terrain.draw();
 
         self.draw_tracers(players);
+        self.draw_hazards();
         self.draw_aim_guides(players, settings);
 
         for (i, tank) in self.tanks.iter().enumerate() {
