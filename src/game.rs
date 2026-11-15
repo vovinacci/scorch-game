@@ -6,7 +6,7 @@ use macroquad::prelude::*;
 use crate::ai::CUSTOM;
 use crate::battle::Battle;
 use crate::choice::Choice;
-use crate::economy::Income;
+use crate::economy::{Income, Market};
 use crate::i18n::Language;
 use crate::i18n::t;
 use crate::ladder::{Ladder, Move, Outcome};
@@ -90,6 +90,8 @@ enum PauseAction {
 
 struct Game {
     players: Vec<Player>,
+    /// Prices of the game in progress (they move only with Market prices).
+    market: Market,
     /// Setup of the game in progress (a copy of the profile's at the start).
     setup: Setup,
     round: u32,
@@ -127,6 +129,7 @@ impl Game {
             self.abandon();
         }
         self.setup = setup;
+        self.market = Market::new(setup.prices);
         // On the ladder the rung sets the opponents.
         let lineup = if self.setup.on_ladder() {
             self.profile.ladder.opponents()
@@ -150,6 +153,12 @@ impl Game {
                 .push(Player::new(&name, COLORS[humans + i], Some(profile)));
         }
         self.round = 1;
+        self.battle()
+    }
+
+    /// Everyone has shopped: market prices move with what was bought, and the next round begins.
+    fn after_shopping(&mut self) -> Screen {
+        self.market.settle(shop::Ware::all().count());
         self.battle()
     }
 
@@ -183,6 +192,7 @@ impl Game {
             players: &self.players,
             setup: &self.setup,
             round: self.round,
+            market: &self.market,
             stage,
         });
         self.has_saved_run = true;
@@ -218,6 +228,7 @@ impl Game {
         self.players = run.players;
         self.setup = run.setup;
         self.round = run.round;
+        self.market = run.market;
         match run.stage {
             StageIn::Battle(battle) => Screen::Battle {
                 battle: *battle,
@@ -269,11 +280,11 @@ impl Game {
 
         self.round += 1;
         for p in self.players.iter_mut().filter(|p| p.is_bot()) {
-            shop::ai_shop(p);
+            shop::ai_shop(p, &mut self.market);
         }
         match self.next_shopper(0) {
             Some(shopper) => self.enter_shop(shopper),
-            None => self.battle(),
+            None => self.after_shopping(),
         }
     }
 
@@ -524,6 +535,7 @@ impl Game {
                     &mut self.players[shopper],
                     shoots_first,
                     self.setup.interest,
+                    &mut self.market,
                 ) {
                     ShopAction::Stay => Screen::Shop { shopper },
                     ShopAction::SaveAndExit => {
@@ -535,7 +547,7 @@ impl Game {
                     },
                     ShopAction::Done => match self.next_shopper(shopper + 1) {
                         Some(next) => self.enter_shop(next),
-                        None => self.battle(),
+                        None => self.after_shopping(),
                     },
                 }
             }
@@ -592,6 +604,7 @@ pub async fn run() {
     };
     let mut game = Game {
         players: Vec::new(),
+        market: Market::default(),
         setup: profile.setup,
         round: 1,
         profile,

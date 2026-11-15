@@ -5,7 +5,7 @@ use std::cell::Cell;
 
 use macroquad::prelude::*;
 
-use crate::economy::{self, Interest};
+use crate::economy::{self, Interest, Market};
 use crate::i18n::t;
 use crate::icons;
 use crate::items::ITEMS;
@@ -46,16 +46,52 @@ pub const SELL_SHARE: f32 = 0.5;
 
 /// Something the shop sells: a weapon or an item.
 #[derive(Clone, Copy)]
-enum Ware {
+pub enum Ware {
     Weapon(usize),
     Item(usize),
 }
 
 impl Ware {
-    fn price(self) -> i32 {
+    /// Every ware, weapons then items, in the order of `slot`.
+    pub fn all() -> impl Iterator<Item = Ware> {
+        (0..WEAPONS.len())
+            .map(Ware::Weapon)
+            .chain((0..ITEMS.len()).map(Ware::Item))
+    }
+
+    /// Its place in the market's lists.
+    pub fn slot(self) -> usize {
+        match self {
+            Ware::Weapon(w) => w,
+            Ware::Item(i) => WEAPONS.len() + i,
+        }
+    }
+
+    /// The price on the list.
+    fn list(self) -> i32 {
         match self {
             Ware::Weapon(w) => WEAPONS[w].price,
             Ware::Item(i) => ITEMS[i].price,
+        }
+    }
+
+    /// What a pack costs now.
+    fn price(self, market: &Market) -> i32 {
+        market.price(self.slot(), self.list())
+    }
+
+    /// What a pack costs now (for the balance tools).
+    #[cfg(test)]
+    pub fn cost(self, market: &Market) -> i32 {
+        self.price(market)
+    }
+
+    /// Its English name (for the balance tools).
+    #[cfg(test)]
+    pub fn name(self) -> &'static str {
+        match self {
+            Ware::Weapon(w) => WEAPONS[w].name,
+            Ware::Item(i) => ITEMS[i].name,
         }
     }
 
@@ -94,40 +130,39 @@ impl Ware {
         }
     }
 
-    fn buy_label(self) -> (String, String) {
+    /// The row's name and price; a market price that has moved shows the list price beside it.
+    fn buy_label(self, market: &Market) -> (String, String) {
+        let price = self.price(market);
+        let shown = if price == self.list() {
+            t!("shop-price", price = price)
+        } else {
+            t!("shop-price-moved", price = price, list = self.list())
+        };
         (
             t!("shop-buy", weapon = self.text(), bundle = self.bundle()),
-            t!("shop-price", price = self.price()),
+            shown,
         )
     }
 
-    fn buy(self, player: &mut Player) {
-        player.money -= self.price();
+    fn buy(self, player: &mut Player, market: &mut Market) {
+        player.money -= self.price(market);
         *self.owned_mut(player) += self.bundle();
+        market.trade(self.slot(), 1);
     }
 
     /// What selling this now takes away and pays: a pack, or what is left of one, at `SELL_SHARE` of its price.
-    fn sale(self, player: &Player) -> (u32, i32) {
+    fn sale(self, player: &Player, market: &Market) -> (u32, i32) {
         let count = self.owned(player).min(self.bundle());
-        let refund = self.price() as f32 * SELL_SHARE * count as f32 / self.bundle() as f32;
+        let refund = self.price(market) as f32 * SELL_SHARE * count as f32 / self.bundle() as f32;
         (count, refund as i32)
     }
 
-    fn sell(self, player: &mut Player) {
-        let (count, refund) = self.sale(player);
+    fn sell(self, player: &mut Player, market: &mut Market) {
+        let (count, refund) = self.sale(player, market);
         *self.owned_mut(player) -= count;
         player.money += refund;
+        market.trade(self.slot(), -1);
     }
-}
-
-fn buy(player: &mut Player, w: usize) {
-    player.money -= WEAPONS[w].price;
-    player.ammo[w] += WEAPONS[w].bundle;
-}
-
-fn buy_item(player: &mut Player, i: usize) {
-    player.money -= ITEMS[i].price;
-    player.items[i] += ITEMS[i].bundle;
 }
 
 pub enum ShopAction {
@@ -139,16 +174,21 @@ pub enum ShopAction {
 
 /// Draws the between-round screen for one human player: last round's
 /// earnings (left), the shop (middle) and the inventory (right).
-pub fn frame(player: &mut Player, shoots_first: bool, interest: Interest) -> ShopAction {
+pub fn frame(
+    player: &mut Player,
+    shoots_first: bool,
+    interest: Interest,
+    market: &mut Market,
+) -> ShopAction {
     draw_income(player, shoots_first, interest);
-    let action = shop_panel(player);
+    let action = shop_panel(player, market);
     // After the shop's buttons, so keyboard focus starts on the first thing to buy, not on an item switch.
     draw_inventory(player);
     action
 }
 
 /// The middle panel: weapons and items to buy, and Done / Save & exit / Abandon.
-fn shop_panel(player: &mut Player) -> ShopAction {
+fn shop_panel(player: &mut Player, market: &mut Market) -> ShopAction {
     /// Height of a row of buy buttons, gap included.
     const ROW: f32 = 31.0;
     let area = Rect::new(370.0, 70.0, 540.0, 620.0);
@@ -194,8 +234,8 @@ fn shop_panel(player: &mut Player) -> ShopAction {
     let lines: Vec<String> = wares
         .iter()
         .flat_map(|ware| {
-            let (name, price) = ware.buy_label();
-            let sell = t!("shop-sell-price", price = ware.price());
+            let (name, price) = ware.buy_label(market);
+            let sell = t!("shop-sell-price", price = ware.price(market));
             [format!("{name} {price}"), format!("{name} {sell}")]
         })
         .collect();
@@ -211,17 +251,17 @@ fn shop_panel(player: &mut Player) -> ShopAction {
         let k = if let Ware::Item(i) = ware { i } else { k };
         let icon = |centre, across, color| ware.icon(centre, across, color);
         if selling {
-            let (count, refund) = ware.sale(player);
+            let (count, refund) = ware.sale(player, market);
             let name = t!("shop-buy", weapon = ware.text(), bundle = count);
             let price = t!("shop-sell-price", price = refund);
             if ui::button_row(cell(y, k), icon, (&name, &price), size, count > 0) {
-                ware.sell(player);
+                ware.sell(player, market);
             }
         } else {
-            let (name, price) = ware.buy_label();
-            let can_pay = player.money >= ware.price();
+            let (name, price) = ware.buy_label(market);
+            let can_pay = player.money >= ware.price(market);
             if ui::button_row(cell(y, k), icon, (&name, &price), size, can_pay) {
-                ware.buy(player);
+                ware.buy(player, market);
             }
         }
     }
@@ -427,12 +467,12 @@ fn draw_income(player: &Player, shoots_first: bool, interest: Interest) {
 /// Bots buy at random what they can afford: weapons they fire, and now and then a parachute or a shield. First of
 /// all they see to a Riot Bomb, their way out from under a Dirt Bomb: without one, digging out takes two turns, and
 /// a player who buries a bot every other turn keeps it from ever firing.
-pub fn ai_shop(player: &mut Player) {
-    if let Some(riot) = WEAPONS.iter().position(|w| w.kind == Kind::Riot)
-        && player.ammo[riot] == 0
-        && player.money >= WEAPONS[riot].price
-    {
-        buy(player, riot);
+pub fn ai_shop(player: &mut Player, market: &mut Market) {
+    if let Some(riot) = WEAPONS.iter().position(|w| w.kind == Kind::Riot) {
+        let riot = Ware::Weapon(riot);
+        if riot.owned(player) == 0 && player.money >= riot.price(market) {
+            riot.buy(player, market);
+        }
     }
     // Bots never fire Dirt Bombs, Diggers or Tracers, so they don't buy them either. A Riot Bomb digs them out when
     // they get buried.
@@ -441,15 +481,13 @@ pub fn ai_shop(player: &mut Player) {
         .collect();
     for _ in 0..8 {
         let pick = gen_range(0, weapons.len() + ITEMS.len());
-        if let Some(&w) = weapons.get(pick) {
-            if player.money >= WEAPONS[w].price {
-                buy(player, w);
-            }
-        } else {
-            let i = pick - weapons.len();
-            if player.money >= ITEMS[i].price {
-                buy_item(player, i);
-            }
+        let ware = weapons
+            .get(pick)
+            .map_or(Ware::Item(pick.saturating_sub(weapons.len())), |&w| {
+                Ware::Weapon(w)
+            });
+        if player.money >= ware.price(market) {
+            ware.buy(player, market);
         }
     }
 }
@@ -475,7 +513,7 @@ mod tests {
         // Whatever the random picks turn out to be, the pack is bought before them.
         for _ in 0..20 {
             let mut player = bot(WEAPONS[riot()].price);
-            ai_shop(&mut player);
+            ai_shop(&mut player, &mut Market::default());
             assert_eq!(player.ammo[riot()], WEAPONS[riot()].bundle);
             assert_eq!(player.money, 0);
         }
@@ -488,25 +526,35 @@ mod tests {
         player.ammo[missile] = 3;
         let ware = Ware::Weapon(missile);
         // A whole pack of two: half its price.
-        assert_eq!(ware.sale(&player), (2, WEAPONS[missile].price / 2));
-        ware.sell(&mut player);
+        assert_eq!(
+            ware.sale(&player, &Market::default()),
+            (2, WEAPONS[missile].price / 2)
+        );
+        ware.sell(&mut player, &mut Market::default());
         assert_eq!(
             (player.ammo[missile], player.money),
             (1, WEAPONS[missile].price / 2)
         );
         // One left of a pack of two: a quarter.
-        assert_eq!(ware.sale(&player), (1, WEAPONS[missile].price / 4));
-        ware.sell(&mut player);
+        assert_eq!(
+            ware.sale(&player, &Market::default()),
+            (1, WEAPONS[missile].price / 4)
+        );
+        ware.sell(&mut player, &mut Market::default());
         assert_eq!(player.ammo[missile], 0);
-        assert_eq!(ware.sale(&player), (0, 0), "nothing left to sell");
+        assert_eq!(
+            ware.sale(&player, &Market::default()),
+            (0, 0),
+            "nothing left to sell"
+        );
         // Items too: 37 units of fuel out of a pack of 100.
         let fuel = Ware::Item(crate::items::FUEL);
         player.items[crate::items::FUEL] = 37;
-        assert_eq!(fuel.sale(&player), (37, 7));
+        assert_eq!(fuel.sale(&player, &Market::default()), (37, 7));
         // Buying it back costs the full price: selling is no way to make money.
         let before = player.money;
-        ware.buy(&mut player);
-        ware.sell(&mut player);
+        ware.buy(&mut player, &mut Market::default());
+        ware.sell(&mut player, &mut Market::default());
         assert!(player.money < before);
     }
 
@@ -514,11 +562,11 @@ mod tests {
     fn a_bot_with_riot_bombs_left_spends_its_money_on_other_things() {
         let mut player = bot(0);
         player.ammo[riot()] = 1;
-        ai_shop(&mut player);
+        ai_shop(&mut player, &mut Market::default());
         assert_eq!(player.ammo[riot()], 1, "no money, nothing bought");
         // One short of the pack: it can't have it yet.
         let mut player = bot(WEAPONS[riot()].price - 1);
-        ai_shop(&mut player);
+        ai_shop(&mut player, &mut Market::default());
         assert_eq!(player.ammo[riot()], 0);
     }
 }
