@@ -24,6 +24,7 @@ unit-kills = { $n } { $n ->
     [few] знищення
    *[many] знищень
 }
+unit-earned = зароблено ${ $money }
 
 ## Гравці
 
@@ -115,6 +116,10 @@ setup-walls = Стіни
 setup-sky = Небо
 setup-hazards = Небезпеки
 setup-interest = Відсотки
+setup-scoring = Перемагає
+Scoring-Rounds = Більше раундів
+Scoring-Money = Більше грошей
+Scoring-Kills = Більше знищень
 Interest-Off = Вимк.
 Interest-Low = 5%
 Interest-High = 10%

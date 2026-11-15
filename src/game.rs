@@ -158,7 +158,12 @@ impl Game {
             p.income = Income::default();
             p.round_stats = RoundStats::default();
         }
-        let order = setup::turn_order(self.setup.turn_order, &self.players, self.round);
+        let order = setup::turn_order(
+            self.setup.turn_order,
+            &self.players,
+            self.round,
+            self.setup.scoring,
+        );
         let mut battle = Battle::new(
             &self.players,
             order,
@@ -281,11 +286,14 @@ impl Game {
         if !self.setup.counts_for_ladder() {
             return Some(t!("ladder-not-counted"));
         }
-        let wins = |bot: bool| {
+        // Whatever wins the game decides the ladder too.
+        let best = |bot: bool| {
             let side = self.players.iter().filter(|p| p.is_bot() == bot);
-            side.map(|p| p.wins).max().unwrap_or(0)
+            side.map(|p| self.setup.scoring.points(p))
+                .max()
+                .unwrap_or(0)
         };
-        let outcome = Outcome::of(wins(false), wins(true));
+        let outcome = Outcome::of(best(false), best(true));
         let ladder = &mut self.profile.ladder;
         let step = ladder.record(outcome);
         let rung = ladder.rung();
@@ -300,9 +308,10 @@ impl Game {
     }
 
     fn end_game(&mut self) {
-        let best = self.players.iter().map(|p| p.wins).max().unwrap_or(0);
+        let points = |p: &Player| self.setup.scoring.points(p);
+        let best = self.players.iter().map(points).max().unwrap_or(0);
         for p in self.players.iter().filter(|p| !p.is_bot()) {
-            self.profile.stats.add_game(p.wins == best, p.wins);
+            self.profile.stats.add_game(points(p) == best, p.wins);
         }
         self.ladder_note = self.ladder_result();
         save::store_profile(&self.profile);
@@ -505,8 +514,12 @@ impl Game {
             }
 
             Screen::Shop { shopper } => {
-                let shoots_first =
-                    setup::sure_to_start(self.setup.turn_order, &self.players, shopper);
+                let shoots_first = setup::sure_to_start(
+                    self.setup.turn_order,
+                    &self.players,
+                    shopper,
+                    self.setup.scoring,
+                );
                 match shop::frame(
                     &mut self.players[shopper],
                     shoots_first,

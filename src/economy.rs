@@ -104,6 +104,7 @@ pub fn end_round(players: &mut [Player], winner: Option<usize>, interest: Intere
         }
         p.income.round_pay = ROUND_PAY;
         p.money += p.income.total();
+        p.earned += p.income.total();
     }
 }
 
@@ -156,5 +157,10 @@ mod tests {
         assert_eq!(ps[0].income.interest, 15);
         end_round(&mut ps, None, Interest::Off);
         assert_eq!(ps[0].income.interest, 0);
+        // Everything paid counts as earned, whatever is spent later.
+        let earned = ps[0].earned;
+        ps[0].money = 0;
+        assert_eq!(ps[0].earned, earned);
+        assert!(earned >= 3 * ROUND_PAY);
     }
 }

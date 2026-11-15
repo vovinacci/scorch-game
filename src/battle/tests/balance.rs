@@ -373,7 +373,7 @@ fn drawn_games(
             for p in &mut players {
                 p.income = economy::Income::default();
             }
-            let order = crate::setup::turn_order(setup.turn_order, &players, round);
+            let order = crate::setup::turn_order(setup.turn_order, &players, round, setup.scoring);
             let mut b = Battle::new(&players, order, round, ROUNDS, setup.rules());
             prepare(round, &mut players, &mut b);
             b.raise_shields(&mut players);
@@ -780,7 +780,8 @@ fn balance_interest() {
                 for p in &mut players {
                     p.income = economy::Income::default();
                 }
-                let order = crate::setup::turn_order(setup.turn_order, &players, round);
+                let order =
+                    crate::setup::turn_order(setup.turn_order, &players, round, setup.scoring);
                 let mut b = Battle::new(&players, order, round, ROUNDS, setup.rules());
                 b.raise_shields(&mut players);
                 b.skip_to_end(&mut players);
@@ -823,6 +824,90 @@ fn balance_interest() {
             share(comeback, comeback_games),
             winner_money / GAMES.cast_signed(),
             others_money / GAMES.cast_signed()
+        );
+    }
+}
+
+/// What each way of winning changes. Four Shooters play whole games (see `balance_interest`); for each game the
+/// table counts who would win by rounds, by money and by kills: how often each count has a single winner, and how
+/// often the money or kills winner is not the rounds winner. About four minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the scoring modes"]
+fn balance_scoring() {
+    use crate::setup::Scoring;
+    const GAMES: u64 = 300;
+    const ROUNDS: u32 = 5;
+    let modes = [Scoring::Rounds, Scoring::Money, Scoring::Kills];
+    let (mut single, mut first_only, mut differs) = ([0u32; 3], [0u32; 3], [0u32; 3]);
+    let setup = Setup::default();
+    for game in 0..GAMES {
+        crate::rng::seed(333_000 + game);
+        let mut players: Vec<Player> = (0..4)
+            .map(|_| Player::new("Bot", WHITE, Some(PRESETS[1])))
+            .collect();
+        for round in 1..=ROUNDS {
+            for p in &mut players {
+                p.income = economy::Income::default();
+            }
+            let order = crate::setup::turn_order(setup.turn_order, &players, round, setup.scoring);
+            let mut b = Battle::new(&players, order, round, ROUNDS, setup.rules());
+            b.raise_shields(&mut players);
+            b.skip_to_end(&mut players);
+            let winner = match b.phase {
+                Phase::Over { winner, .. } => winner,
+                _ => None,
+            };
+            economy::end_round(&mut players, winner, setup.interest);
+            if round < ROUNDS {
+                players.iter_mut().for_each(crate::shop::ai_shop);
+            }
+        }
+        let tops: Vec<Vec<usize>> = modes
+            .iter()
+            .map(|mode| {
+                let best = players.iter().map(|p| mode.points(p)).max().unwrap_or(0);
+                (0..4)
+                    .filter(|&i| mode.points(&players[i]) == best)
+                    .collect()
+            })
+            .collect();
+        let final_tops: Vec<usize> = modes
+            .iter()
+            .map(|mode| {
+                (0..4)
+                    .max_by_key(|&i| mode.standing(&players[i]))
+                    .unwrap_or(0)
+            })
+            .collect();
+        for k in 0..3 {
+            single[k] += u32::from(tops[k].len() == 1);
+            first_only[k] += u32::from(
+                tops[k].len() == 1 || {
+                    let mut tied: Vec<_> = tops[k]
+                        .iter()
+                        .map(|&i| modes[k].standing(&players[i]))
+                        .collect();
+                    tied.sort_unstable();
+                    tied.dedup();
+                    tied.len() == tops[k].len()
+                },
+            );
+            differs[k] += u32::from(final_tops[k] != final_tops[0]);
+        }
+    }
+    let share = |n: u32| 100.0 * n as f32 / GAMES as f32;
+    println!("\nfour Shooters, {GAMES} games of {ROUNDS} rounds");
+    println!(
+        "{:>8} {:>14} {:>18} {:>22}",
+        "won by", "single winner", "after tie-breaks", "not the rounds winner"
+    );
+    for k in 0..3 {
+        println!(
+            "{:>8} {:>13.1}% {:>17.1}% {:>21.1}%",
+            format!("{:?}", modes[k]),
+            share(single[k]),
+            share(first_only[k]),
+            share(differs[k])
         );
     }
 }

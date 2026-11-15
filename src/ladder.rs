@@ -46,8 +46,8 @@ pub enum Outcome {
 }
 
 impl Outcome {
-    /// From the round wins of the player and of the best bot.
-    pub fn of(player: u32, best_bot: u32) -> Self {
+    /// From the points (see `Scoring`) of the player and of the best bot.
+    pub fn of(player: i64, best_bot: i64) -> Self {
         match player.cmp(&best_bot) {
             std::cmp::Ordering::Greater => Outcome::Won,
             std::cmp::Ordering::Equal => Outcome::Shared,

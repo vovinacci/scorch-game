@@ -6,7 +6,7 @@ use macroquad::prelude::*;
 use super::{Game, PauseAction, Screen};
 use crate::i18n::t;
 use crate::player::Player;
-use crate::setup::Setup;
+use crate::setup::{Scoring, Setup};
 use crate::{crash, logo, save, ui, update, world};
 
 impl Game {
@@ -218,16 +218,21 @@ impl Game {
             GOLD,
         );
         let mut order: Vec<&Player> = self.players.iter().collect();
-        order.sort_by_key(|p| std::cmp::Reverse((p.wins, p.kills)));
+        let scoring = self.setup.scoring;
+        order.sort_by_key(|p| std::cmp::Reverse(scoring.standing(p)));
         let mut y = area.y + 130.0;
         for (rank, p) in order.iter().enumerate() {
             let name = format!("{}. {}", rank + 1, p.label());
             ui::text_fit(&name, area.x + 60.0, y, 300.0, 28.0, p.color);
-            let score = format!(
-                "{}   {}",
-                t!("unit-wins", n = p.wins),
-                t!("unit-kills", n = p.kills)
-            );
+            // What decides the game first.
+            let wins = t!("unit-wins", n = p.wins);
+            let kills = t!("unit-kills", n = p.kills);
+            let money = t!("unit-earned", money = p.earned);
+            let score = match scoring {
+                Scoring::Rounds => format!("{wins}   {kills}"),
+                Scoring::Money => format!("{money}   {wins}"),
+                Scoring::Kills => format!("{kills}   {wins}"),
+            };
             ui::text_fit(&score, area.x + 380.0, y, 280.0, 28.0, p.color);
             y += 44.0;
         }

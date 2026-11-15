@@ -3,7 +3,7 @@
 Scorch is a turn-based artillery game and a tribute to *Scorched Earth* (1991) by Wendell Hicks. Tanks stand on hills
 that can be blown apart. They take turns firing shells that fly under gravity and drift with the wind. The last tank
 standing wins the round. Between rounds you spend your money in a shop, and after the last round the player with the
-most round wins takes the game.
+most round wins takes the game (or the most money, or the most kills: see Game won by).
 
 The game is dedicated to the memory of Joseph Rivkind (1952–2026), who taught its author to never stop learning.
 
@@ -305,15 +305,17 @@ out and it has the health to spare, otherwise with Baby Missiles, a little healt
 2. Otherwise the same target as last time, while it's alive (it keeps the aim it has already learned, less what driving
    has cost it: see Fuel under Items).
 3. Otherwise it picks a new target, preferring tanks that are **nearest**, **weakest** or the **leader** (most round
-   wins). It avoids a tank that other bots are already aiming at, so bots don't all gang up on you.
+   wins, or whatever wins the game). It avoids a tank that other bots are already aiming at, so bots don't all gang up
+   on you.
 
 When only three bots are left (no human), they spread their fire so that each has one other after it: a bot rather
 doesn't pick the one that is aiming at it, and it leaves revenge to the third bot if that one is already after the
 attacker. Otherwise two bots would end up on whichever fired first.
 
-A **Spoiler** skips all of this once somebody has won a round: it shoots at the living tank with the most round wins
-(the nearer one of two level), whoever has hit it and however many others are already after that tank. Lead the game and
-every Spoiler is yours. While no living enemy has won a round it chooses like any other bot.
+A **Spoiler** skips all of this once somebody has won a round: it shoots at the living tank with the most round wins (or
+the most of whatever wins the game) (the nearer one of two level), whoever has hit it and however many others are
+already after that tank. Lead the game and every Spoiler is yours. While no living enemy has won a round it chooses like
+any other bot.
 
 The bottom line of the screen shows the target and the reason while a bot aims, and the full battle log keeps every
 choice. Right after continuing a saved game, the reason isn't shown until the bot picks a new target.
@@ -353,7 +355,7 @@ Difficulty options don't apply, and the setup screen shows your rung, whom you a
 | 9 | Spoiler, Shooter, Moron |
 | 10 | Cyborg, Sniper, Spoiler |
 
-- **Win the game outright** (more round wins than any bot) and you go up a rung.
+- **Win the game outright** (more round wins than any bot, or more of whatever wins the game) and you go up a rung.
 - **Lose twice in a row** on a rung and you go down one. A win in between wipes the first loss out. There is no way down
   from rung 1.
 - A **shared first place** changes nothing.
@@ -382,6 +384,17 @@ random except the number of human players; you can still check and change it all
 | Sudden death | Off, 8/12/16/24 shots each | 12 shots each |
 | Turn order | Losers first, Winners first, Random, Round robin | Losers first |
 | Interest | Off, 5%, 10% (see Money and the shop) | Off |
+| Game won by | Most rounds, Most money, Most kills | Most rounds |
+
+**Game won by** decides who takes the game after the last round:
+
+- **Most rounds:** round wins, then kills for a tie, then money earned.
+- **Most money:** all the money earned over the game, whatever you spent of it (the last round's panel shows each
+  round's), then round wins, then kills. Damage pays, so a game of steady hits can beat a game of lucky last shots.
+- **Most kills:** tanks destroyed (see Who gets the kill), then round wins, then money.
+
+The same count decides who shoots first with Losers first or Winners first, whom bots treat as the leader, the ladder
+and your statistics. The final standings list it first.
 
 ### World
 
@@ -529,8 +542,8 @@ A saved game continues fine in either language.
 
 **Statistics** on the main menu shows your all-time record (human players only): games played, won and abandoned, most
 rounds won in a game, rounds played and won, kills, deaths, rounds fled, shots fired, damage dealt, damage per shot,
-your biggest single hit and money earned. You win a game by having the most round wins at the end (a shared first place
-counts). Abandoned games don't count as played, but their finished rounds do.
+your biggest single hit and money earned. You win a game by having the most of what wins it (round wins unless set
+otherwise) at the end; a shared first place counts. Abandoned games don't count as played, but their finished rounds do.
 
 ## If the game crashes
 

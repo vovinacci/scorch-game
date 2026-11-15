@@ -32,6 +32,47 @@ choice!(AimHelp {
     FullPath,
 });
 
+choice!(Scoring {
+    Rounds,
+    Money,
+    Kills,
+});
+
+#[expect(
+    clippy::derivable_impls,
+    reason = "choice! declares the enum, so it can't take #[derive(Default)]"
+)]
+impl Default for Scoring {
+    fn default() -> Self {
+        Scoring::Rounds
+    }
+}
+
+impl Scoring {
+    /// What decides the game for `player`: rounds won, money earned over the game, or kills.
+    pub fn points(self, player: &Player) -> i64 {
+        match self {
+            Scoring::Rounds => i64::from(player.wins),
+            Scoring::Money => i64::from(player.earned),
+            Scoring::Kills => i64::from(player.kills),
+        }
+    }
+
+    /// Where `player` stands: the points that decide the game, then the other two measures for a tie.
+    pub fn standing(self, player: &Player) -> (i64, i64, i64) {
+        let (wins, money, kills) = (
+            i64::from(player.wins),
+            i64::from(player.earned),
+            i64::from(player.kills),
+        );
+        match self {
+            Scoring::Rounds => (wins, kills, money),
+            Scoring::Money => (money, wins, kills),
+            Scoring::Kills => (kills, wins, money),
+        }
+    }
+}
+
 #[expect(
     clippy::derivable_impls,
     reason = "choice! declares the enum, so it can't take #[derive(Default)]"
@@ -70,7 +111,7 @@ choice!(TurnOrder {
 ///   of the cycle is shuffled every round, so nobody always fires right after the same opponent.
 /// - Random: all shuffled.
 /// - Round robin: player order, the starter moving one place each round.
-pub fn turn_order(kind: TurnOrder, players: &[Player], round: u32) -> Vec<usize> {
+pub fn turn_order(kind: TurnOrder, players: &[Player], round: u32, scoring: Scoring) -> Vec<usize> {
     let n = players.len();
     let mut order: Vec<usize> = (0..n).collect();
     if kind == TurnOrder::RoundRobin {
@@ -78,7 +119,7 @@ pub fn turn_order(kind: TurnOrder, players: &[Player], round: u32) -> Vec<usize>
         return order;
     }
     shuffle(&mut order);
-    let score = |i: usize| (players[i].wins, players[i].kills);
+    let score = |i: usize| scoring.standing(&players[i]);
     let best = match kind {
         TurnOrder::LosersFirst => order.iter().map(|&i| score(i)).min(),
         TurnOrder::WinnersFirst => order.iter().map(|&i| score(i)).max(),
@@ -95,8 +136,8 @@ pub fn turn_order(kind: TurnOrder, players: &[Player], round: u32) -> Vec<usize>
 
 /// Whether player `i` is sure to start the next round (shown in the shop): only with Losers first, and only when
 /// they're alone in last place.
-pub fn sure_to_start(kind: TurnOrder, players: &[Player], i: usize) -> bool {
-    let score = |j: usize| (players[j].wins, players[j].kills);
+pub fn sure_to_start(kind: TurnOrder, players: &[Player], i: usize, scoring: Scoring) -> bool {
+    let score = |j: usize| scoring.standing(&players[j]);
     kind == TurnOrder::LosersFirst && (0..players.len()).all(|j| j == i || score(j) > score(i))
 }
 
@@ -158,6 +199,8 @@ pub struct Setup {
     pub aim_help: AimHelp,
     /// Interest on money kept between rounds.
     pub interest: Interest,
+    /// What wins the game.
+    pub scoring: Scoring,
 }
 
 impl Default for Setup {
@@ -174,6 +217,7 @@ impl Default for Setup {
             world: World::default(),
             aim_help: AimHelp::Off,
             interest: Interest::Off,
+            scoring: Scoring::Rounds,
         }
     }
 }
@@ -188,6 +232,8 @@ pub struct Rules {
     /// (shots x tanks), which is what saved battles store.
     pub sudden_death: Option<u32>,
     pub aim_help: AimHelp,
+    /// What wins the game: whom bots see as the leader.
+    pub scoring: Scoring,
 }
 
 impl Setup {
@@ -197,6 +243,7 @@ impl Setup {
             power_limit: self.power_limit,
             sudden_death: self.sudden_death.shots_each(),
             aim_help: self.aim_help,
+            scoring: self.scoring,
         }
     }
 
@@ -283,6 +330,7 @@ impl Setup {
         lines.extend([
             ("setup-power-limit", on(self.power_limit), false),
             ("setup-interest", self.interest.text(), false),
+            ("setup-scoring", self.scoring.text(), false),
             ("setup-sudden-death", self.sudden_death.text(), false),
             ("setup-turn-order", self.turn_order.text(), false),
             ("setup-aim-help", self.aim_help.text(), false),
@@ -347,6 +395,7 @@ impl Setup {
         self.sudden_death = pick();
         self.turn_order = pick();
         self.interest = pick();
+        self.scoring = pick();
         // Real values, so the preview shows what you get (Random stays a choice you make yourself).
         self.world = World {
             terrain: TerrainKind::any_real(),
@@ -498,6 +547,7 @@ pub fn screen(
         &mut setup.turn_order,
     );
     ui::choice(row(left, 10.0), &t!("setup-interest"), &mut setup.interest);
+    ui::choice(row(left, 11.0), &t!("setup-scoring"), &mut setup.scoring);
 
     // Right: the battlefield.
     let right = Rect::new(660.0, 90.0, 570.0, 540.0);
@@ -620,25 +670,38 @@ mod tests {
     fn last_place_starts_with_losers_first() {
         let ps = players(&[(2, 0), (1, 0), (1, 3)]);
         for _ in 0..20 {
-            let order = turn_order(TurnOrder::LosersFirst, &ps, 3);
+            let order = turn_order(TurnOrder::LosersFirst, &ps, 3, Scoring::Rounds);
             assert!(is_permutation(&order, 3));
             assert_eq!(order[0], 1, "fewest wins, then fewest kills");
         }
-        assert!(sure_to_start(TurnOrder::LosersFirst, &ps, 1));
-        assert!(!sure_to_start(TurnOrder::WinnersFirst, &ps, 1));
+        assert!(sure_to_start(
+            TurnOrder::LosersFirst,
+            &ps,
+            1,
+            Scoring::Rounds
+        ));
+        assert!(!sure_to_start(
+            TurnOrder::WinnersFirst,
+            &ps,
+            1,
+            Scoring::Rounds
+        ));
     }
 
     #[test]
     fn the_leader_starts_with_winners_first() {
         let ps = players(&[(2, 1), (1, 0), (2, 0)]);
-        assert_eq!(turn_order(TurnOrder::WinnersFirst, &ps, 3)[0], 0);
+        assert_eq!(
+            turn_order(TurnOrder::WinnersFirst, &ps, 3, Scoring::Rounds)[0],
+            0
+        );
     }
 
     #[test]
     fn ties_are_broken_at_random() {
         let ps = players(&[(0, 0), (0, 0), (0, 0)]);
         let starters: std::collections::BTreeSet<usize> = (0..200)
-            .map(|_| turn_order(TurnOrder::LosersFirst, &ps, 1)[0])
+            .map(|_| turn_order(TurnOrder::LosersFirst, &ps, 1, Scoring::Rounds)[0])
             .collect();
         assert_eq!(
             starters.len(),
@@ -646,7 +709,7 @@ mod tests {
             "every tied player gets to start sometimes"
         );
         assert!(
-            !sure_to_start(TurnOrder::LosersFirst, &ps, 0),
+            !sure_to_start(TurnOrder::LosersFirst, &ps, 0, Scoring::Rounds),
             "a tie isn't sure"
         );
     }
@@ -654,9 +717,18 @@ mod tests {
     #[test]
     fn round_robin_rotates_the_starter() {
         let ps = players(&[(0, 0), (0, 0), (0, 0)]);
-        assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 1), [0, 1, 2]);
-        assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 2), [1, 2, 0]);
-        assert_eq!(turn_order(TurnOrder::RoundRobin, &ps, 4), [0, 1, 2]);
+        assert_eq!(
+            turn_order(TurnOrder::RoundRobin, &ps, 1, Scoring::Rounds),
+            [0, 1, 2]
+        );
+        assert_eq!(
+            turn_order(TurnOrder::RoundRobin, &ps, 2, Scoring::Rounds),
+            [1, 2, 0]
+        );
+        assert_eq!(
+            turn_order(TurnOrder::RoundRobin, &ps, 4, Scoring::Rounds),
+            [0, 1, 2]
+        );
     }
 
     #[test]
@@ -675,5 +747,43 @@ mod tests {
         setup.aim_help = AimHelp::Off;
         setup.humans = 2;
         assert!(!setup.on_ladder() && !setup.counts_for_ladder());
+    }
+
+    #[test]
+    fn the_game_is_won_by_what_the_scoring_counts() {
+        use macroquad::prelude::WHITE;
+        let mut ps: Vec<Player> = (0..3)
+            .map(|i| Player::new(&format!("P{i}"), WHITE, None))
+            .collect();
+        // P0 won most rounds, P1 earned most, P2 killed most.
+        (ps[0].wins, ps[0].earned, ps[0].kills) = (3, 400, 1);
+        (ps[1].wins, ps[1].earned, ps[1].kills) = (1, 900, 2);
+        (ps[2].wins, ps[2].earned, ps[2].kills) = (1, 500, 5);
+        let top = |ps: &[Player], scoring: Scoring| {
+            (0..3).max_by_key(|&i| scoring.standing(&ps[i])).unwrap()
+        };
+        assert_eq!(top(&ps, Scoring::Rounds), 0);
+        assert_eq!(top(&ps, Scoring::Money), 1);
+        assert_eq!(top(&ps, Scoring::Kills), 2);
+        // Last place starts the next round, by the same count.
+        assert!(sure_to_start(
+            TurnOrder::LosersFirst,
+            &ps,
+            0,
+            Scoring::Kills
+        ));
+        assert!(!sure_to_start(
+            TurnOrder::LosersFirst,
+            &ps,
+            0,
+            Scoring::Rounds
+        ));
+        // A tie on what counts goes to the next measure: rounds, then kills (or money).
+        ps[2].earned = 900;
+        assert_eq!(
+            top(&ps, Scoring::Money),
+            2,
+            "the same money and rounds: more kills"
+        );
     }
 }

@@ -263,6 +263,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     often: how much luck they bring. About six minutes.
   - `balance_interest` plays four Shooters with interest off, at 5% and at 10%: whether it lets the leader run away.
     About four minutes.
+  - `balance_scoring` plays four Shooters and counts who would win each game by rounds, money and kills. About four
+    minutes.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
@@ -342,6 +344,15 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   game outright in 24 / 18 / 26% of games with interest off / 5% / 10%, a first-round loser comes back to win it in 15 /
   15 / 13%, and the winner ends with $291 / $259 / $260 against the others' $254 / $226 / $244. Nothing beyond noise:
   the cap and the catch-up pay keep interest from feeding the leader. Hence 10% is allowed.
+- Game won by (`setup::Scoring`: Rounds, Money, Kills; a match setting, Rounds by default): `Scoring::points` is what
+  decides, `Scoring::standing` adds the tie-breaks (rounds: kills then money; money: rounds then kills; kills: rounds
+  then money). Money is `Player::earned`, everything `end_round` paid over the game. The same count orders Losers /
+  Winners first (`setup::turn_order`, `sure_to_start`), picks the leader for bots' target score and the Spoiler
+  (`Rules::scoring`), decides the ladder's outcome (`Game::ladder_result`) and a won game in the statistics, and sorts
+  the final standings.
+- `balance_scoring` (four Shooters, 300 whole 5-round games): by rounds a game has a single winner 59% of the time and
+  needs the tie-breaks otherwise; by money always; by kills 83%. The money winner is someone other than the rounds
+  winner in 45% of games, the kills winner in 20%: money rewards steady damage, kills the last shot.
 - Selling (`shop::Ware::sell`): the Sell tab turns the shop's rows into sales. A row sells a pack, or what is left of
   one, for `SELL_SHARE` (half) of the pack's price times the share sold, rounded down. Bots never sell.
 
