@@ -87,9 +87,17 @@ impl Battle {
 
     /// Tank `i` drives towards `dir` for `dt` seconds, as far as its fuel and the ground let it. Says whether it
     /// moved.
+    /// A frame shorter than a px's worth of driving (on a fast screen) keeps the part for the next one.
     pub(super) fn drive(&mut self, i: usize, dir: f32, dt: f32, players: &mut [Player]) -> bool {
         let mut moved = false;
         self.tanks[i].drive_carry += DRIVE_SPEED * dt;
+        let blocked = |battle: &Self| {
+            players[i].items[FUEL] == 0 || battle.drive_step(i, battle.tanks[i].pos, dir).is_none()
+        };
+        if blocked(self) {
+            self.tanks[i].drive_carry = 0.0;
+            return false;
+        }
         while self.tanks[i].drive_carry >= 1.0 {
             self.tanks[i].drive_carry -= 1.0;
             if players[i].items[FUEL] == 0 {
@@ -106,10 +114,7 @@ impl Battle {
             players[i].items[FUEL] = players[i].items[FUEL].saturating_sub(whole as u32);
             moved = true;
         }
-        if !moved {
-            self.tanks[i].drive_carry = 0.0;
-        }
-        moved
+        moved || self.tanks[i].drive_carry > 0.0
     }
 
     /// A bot's turn, before it aims: once a turn it looks whether its shots reach the tank it is after, and if

@@ -182,3 +182,17 @@ fn a_bot_that_was_hit_drives_off_unless_it_would_lose_its_own_aim() {
     assert!((b.tanks[0].pos.x - 300.0).abs() > 88.0);
     assert!(players[0].items[FUEL] <= 210);
 }
+
+#[test]
+fn a_tank_drives_on_a_fast_screen_too() {
+    // 144 frames a second: less than a px each.
+    let (mut players, mut b) = field(|_| 600.0, 100);
+    for _ in 0..144 {
+        b.drive(0, 1.0, 1.0 / 144.0, &mut players);
+    }
+    assert!(
+        (b.tanks[0].pos.x - 360.0).abs() <= 1.0,
+        "{}",
+        b.tanks[0].pos.x
+    );
+}
