@@ -519,6 +519,8 @@ pub struct Battle {
     #[serde(skip)]
     bolts: Vec<hazards::Bolt>,
     #[serde(skip)]
+    storms: Vec<hazards::Storm>,
+    #[serde(skip)]
     hazard_turn: Option<u32>,
     #[serde(skip)]
     accumulator: f32,
@@ -647,6 +649,7 @@ impl Battle {
             drive_goal: None,
             meteors: Vec::new(),
             bolts: Vec::new(),
+            storms: Vec::new(),
             hazard_turn: None,
             accumulator: 0.0,
             round,
@@ -710,6 +713,11 @@ impl Battle {
                 chosen.hazards.is_random(),
                 "setup-hazards",
                 world.hazards.text(),
+            ),
+            pick(
+                chosen.weather.is_random(),
+                "setup-weather",
+                world.weather.text(),
             ),
         ]
         .into_iter()
@@ -1151,7 +1159,7 @@ impl Battle {
             self.step_fires(players);
             self.step_meteors(players);
         }
-        let hazards = self.hazards_busy(dt);
+        let hazards = self.hazards_busy(dt, players);
         if self.projectiles.is_empty()
             && self.explosions.is_empty()
             && self.fires.is_empty()
@@ -1292,7 +1300,7 @@ impl Battle {
             };
         } else if self.hazard_turn != Some(self.turns) && {
             self.hazard_turn = Some(self.turns);
-            self.hazard(players)
+            self.hazard()
         } {
             // The sky throws something: the shells' phase runs again until it is over, then things settle anew.
             self.phase = Phase::Flight;
