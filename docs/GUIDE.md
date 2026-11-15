@@ -255,6 +255,12 @@ afford, and they use them like you do.
 half the price of a pack, and takes a pack away, or what is left of one for its share. Use it to undo a bad buy or to
 change plans between rounds; **Buy** goes back to buying. Selling costs half, so buying and selling never makes money.
 
+**Market prices.** With Prices set to Market, prices follow what everyone buys, bots included. After each round's
+shopping, every pack bought makes that weapon or item 10% dearer, and one that nobody kept gets 5% cheaper, between 60%
+and 160% of its list price (rounded to
+$5). Selling a pack back counts as one bought less. A price that has moved shows the list price beside it, for example "$80
+($60)". Popular weapons get expensive; a cheap Nuke nobody wanted is a bargain.
+
 **Interest.** With the Interest option on, the money you come back with at the end of a round earns 5% or 10% more, up
 to $100 a round; it shows in the last round's panel. Saving up for a Nuke or a Heavy Shield pays a little, but every
 dollar you keep is a weapon you don't fire.
@@ -385,6 +391,7 @@ random except the number of human players; you can still check and change it all
 | Turn order | Losers first, Winners first, Random, Round robin | Losers first |
 | Interest | Off, 5%, 10% (see Money and the shop) | Off |
 | Game won by | Most rounds, Most money, Most kills | Most rounds |
+| Prices | Fixed, Market (see Money and the shop) | Fixed |
 
 **Game won by** decides who takes the game after the last round:
 

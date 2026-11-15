@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ai::{self, AiProfile, CUSTOM, DIFFICULTIES};
 use crate::choice::{Choice, choice};
-use crate::economy::Interest;
+use crate::economy::{Interest, Prices};
 use crate::i18n::t;
 use crate::ladder::Ladder;
 use crate::player::Player;
@@ -201,6 +201,8 @@ pub struct Setup {
     pub interest: Interest,
     /// What wins the game.
     pub scoring: Scoring,
+    /// Prices fixed, or moving with what players buy.
+    pub prices: Prices,
 }
 
 impl Default for Setup {
@@ -218,6 +220,7 @@ impl Default for Setup {
             aim_help: AimHelp::Off,
             interest: Interest::Off,
             scoring: Scoring::Rounds,
+            prices: Prices::Fixed,
         }
     }
 }
@@ -331,6 +334,7 @@ impl Setup {
             ("setup-power-limit", on(self.power_limit), false),
             ("setup-interest", self.interest.text(), false),
             ("setup-scoring", self.scoring.text(), false),
+            ("setup-prices", self.prices.text(), false),
             ("setup-sudden-death", self.sudden_death.text(), false),
             ("setup-turn-order", self.turn_order.text(), false),
             ("setup-aim-help", self.aim_help.text(), false),
@@ -396,6 +400,7 @@ impl Setup {
         self.turn_order = pick();
         self.interest = pick();
         self.scoring = pick();
+        self.prices = pick();
         // Real values, so the preview shows what you get (Random stays a choice you make yourself).
         self.world = World {
             terrain: TerrainKind::any_real(),
@@ -451,15 +456,15 @@ pub fn screen(
     ladder: &Ladder,
     preview: &mut Preview,
 ) -> SetupAction {
-    const STEP: f32 = 40.0;
+    const STEP: f32 = 38.0;
     ui::text_centered(&t!("setup-title"), ui::WIDTH / 2.0, 62.0, 48.0, ORANGE);
 
     // Left: who plays and how.
-    let left = Rect::new(50.0, 90.0, 570.0, 540.0);
+    let left = Rect::new(50.0, 88.0, 570.0, 552.0);
     ui::panel(left);
     ui::text_at(t!("setup-match"), left.x + 24.0, left.y + 36.0, 26.0, GOLD);
     let row = |area: Rect, i: f32| {
-        Rect::new(area.x + 20.0, area.y + 52.0 + i * STEP, area.w - 40.0, 36.0)
+        Rect::new(area.x + 20.0, area.y + 52.0 + i * STEP, area.w - 40.0, 34.0)
     };
 
     let mut humans = setup.humans - 1;
@@ -548,9 +553,10 @@ pub fn screen(
     );
     ui::choice(row(left, 10.0), &t!("setup-interest"), &mut setup.interest);
     ui::choice(row(left, 11.0), &t!("setup-scoring"), &mut setup.scoring);
+    ui::choice(row(left, 12.0), &t!("setup-prices"), &mut setup.prices);
 
     // Right: the battlefield.
-    let right = Rect::new(660.0, 90.0, 570.0, 540.0);
+    let right = Rect::new(660.0, 88.0, 570.0, 552.0);
     ui::panel(right);
     ui::text_at(
         t!("setup-world"),
@@ -583,15 +589,15 @@ pub fn screen(
         ),
     );
 
-    let back = ui::button(Rect::new(50.0, 648.0, 220.0, 52.0), &t!("back"), true)
+    let back = ui::button(Rect::new(50.0, 652.0, 220.0, 50.0), &t!("back"), true)
         || is_key_pressed(KeyCode::Escape);
     let random = ui::button(
-        Rect::new(530.0, 648.0, 220.0, 52.0),
+        Rect::new(530.0, 652.0, 220.0, 50.0),
         &t!("setup-lucky"),
         true,
     );
     let start = ui::button(
-        Rect::new(1010.0, 648.0, 220.0, 52.0),
+        Rect::new(1010.0, 652.0, 220.0, 50.0),
         &t!("setup-start"),
         true,
     );

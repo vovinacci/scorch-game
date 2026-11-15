@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ai::AiProfile;
 use crate::battle::Battle;
+use crate::economy::Market;
 use crate::ladder::Ladder;
 use crate::player::Player;
 use crate::settings::Settings;
@@ -68,6 +69,7 @@ pub struct RunOut<'a> {
     pub players: &'a [Player],
     pub setup: &'a Setup,
     pub round: u32,
+    pub market: &'a Market,
     pub stage: StageOut<'a>,
 }
 
@@ -84,6 +86,8 @@ pub struct RunIn {
     #[serde(default)]
     pub setup: Setup,
     pub round: u32,
+    #[serde(default)]
+    pub market: Market,
     pub stage: StageIn,
 }
 
@@ -304,6 +308,7 @@ mod tests {
             players: &players,
             setup: &setup,
             round: 3,
+            market: &Market::default(),
             stage: StageOut::Battle(&battle),
         })
         .unwrap();

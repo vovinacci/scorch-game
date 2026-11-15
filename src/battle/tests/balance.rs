@@ -398,7 +398,9 @@ fn drawn_games(
             };
             economy::end_round(&mut players, winner, setup.interest);
             if round < ROUNDS {
-                players.iter_mut().for_each(crate::shop::ai_shop);
+                for p in &mut players {
+                    crate::shop::ai_shop(p, &mut economy::Market::default());
+                }
             }
         }
         let best_bot = players[1..].iter().map(|p| p.wins).max().unwrap_or(0);
@@ -794,7 +796,9 @@ fn balance_interest() {
                 }
                 economy::end_round(&mut players, winner, interest);
                 if round < ROUNDS {
-                    players.iter_mut().for_each(crate::shop::ai_shop);
+                    for p in &mut players {
+                        crate::shop::ai_shop(p, &mut economy::Market::default());
+                    }
                 }
             }
             let most = players.iter().map(|p| p.wins).max().unwrap_or(0);
@@ -859,7 +863,9 @@ fn balance_scoring() {
             };
             economy::end_round(&mut players, winner, setup.interest);
             if round < ROUNDS {
-                players.iter_mut().for_each(crate::shop::ai_shop);
+                for p in &mut players {
+                    crate::shop::ai_shop(p, &mut economy::Market::default());
+                }
             }
         }
         let tops: Vec<Vec<usize>> = modes
@@ -908,6 +914,72 @@ fn balance_scoring() {
             share(single[k]),
             share(first_only[k]),
             share(differs[k])
+        );
+    }
+}
+
+/// Where market prices go. Four Shooters play whole games with Market prices (bots shop as they do, nobody
+/// sells); the table shows each ware's average price at the end of the game, next to its list price, and how much
+/// money the players had left unspent on average. About four minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning market prices"]
+fn balance_market() {
+    use crate::economy::{Market, Prices};
+    use crate::shop::Ware;
+    const GAMES: u64 = 200;
+    const ROUNDS: u32 = 5;
+    let slots = Ware::all().count();
+    let (mut ends, mut unspent) = (vec![0i64; slots], [0i64; 2]);
+    for (k, prices) in [Prices::Fixed, Prices::Market].into_iter().enumerate() {
+        let setup = Setup::default();
+        for game in 0..GAMES {
+            crate::rng::seed(444_000 + game);
+            let mut players: Vec<Player> = (0..4)
+                .map(|_| Player::new("Bot", WHITE, Some(PRESETS[1])))
+                .collect();
+            let mut market = Market::new(prices);
+            for round in 1..=ROUNDS {
+                for p in &mut players {
+                    p.income = economy::Income::default();
+                }
+                let order =
+                    crate::setup::turn_order(setup.turn_order, &players, round, setup.scoring);
+                let mut b = Battle::new(&players, order, round, ROUNDS, setup.rules());
+                b.raise_shields(&mut players);
+                b.skip_to_end(&mut players);
+                let winner = match b.phase {
+                    Phase::Over { winner, .. } => winner,
+                    _ => None,
+                };
+                economy::end_round(&mut players, winner, setup.interest);
+                if round < ROUNDS {
+                    for p in &mut players {
+                        crate::shop::ai_shop(p, &mut market);
+                    }
+                    market.settle(slots);
+                    unspent[k] += players.iter().map(|p| i64::from(p.money)).sum::<i64>();
+                }
+            }
+            if prices == Prices::Market {
+                for (slot, ware) in Ware::all().enumerate() {
+                    ends[slot] += i64::from(ware.cost(&market));
+                }
+            }
+        }
+    }
+    let per_shop = |total: i64| total / (GAMES * 4 * u64::from(ROUNDS - 1)).cast_signed();
+    println!(
+        "\nfour Shooters, {GAMES} games of {ROUNDS} rounds: money left after shopping ${} with fixed prices, ${} with the market",
+        per_shop(unspent[0]),
+        per_shop(unspent[1])
+    );
+    println!("{:>22} {:>6} {:>8}", "ware", "list", "at end");
+    for (slot, ware) in Ware::all().enumerate().skip(1) {
+        println!(
+            "{:>22} {:>6} {:>8}",
+            ware.name(),
+            ware.cost(&Market::default()),
+            ends[slot] / GAMES.cast_signed()
         );
     }
 }

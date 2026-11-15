@@ -86,6 +86,84 @@ impl Interest {
     }
 }
 
+choice!(Prices { Fixed, Market });
+
+#[expect(
+    clippy::derivable_impls,
+    reason = "choice! declares the enum, so it can't take #[derive(Default)]"
+)]
+impl Default for Prices {
+    fn default() -> Self {
+        Prices::Fixed
+    }
+}
+
+/// With Market prices, each weapon's and item's price follows what players buy: every pack bought in a round's
+/// shopping raises it by `MARKET_UP`, a round when nobody buys any lowers it by `MARKET_DOWN`, between `MARKET_LOW`
+/// and `MARKET_HIGH` times the list price. Selling a pack counts as one bought less. Saved with the game.
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Market {
+    on: bool,
+    /// Per ware (`slot`): the share of the list price it costs now.
+    factors: Vec<f32>,
+    /// Per ware: packs bought this round, less packs sold.
+    demand: Vec<i32>,
+}
+
+pub const MARKET_UP: f32 = 0.1;
+pub const MARKET_DOWN: f32 = 0.05;
+pub const MARKET_LOW: f32 = 0.6;
+pub const MARKET_HIGH: f32 = 1.6;
+
+impl Market {
+    pub fn new(prices: Prices) -> Self {
+        Self {
+            on: prices == Prices::Market,
+            ..Self::default()
+        }
+    }
+
+    /// What a ware with this `list` price costs now: the list price, or on the market the nearest $5 to its share
+    /// of it, $5 at least.
+    pub fn price(&self, slot: usize, list: i32) -> i32 {
+        let factor = self.factors.get(slot).copied().unwrap_or(1.0);
+        if !self.on {
+            return list;
+        }
+        ((list as f32 * factor / 5.0).round() as i32 * 5).max(5)
+    }
+
+    /// A pack of the ware in `slot` was bought (`packs` 1) or sold (-1).
+    pub fn trade(&mut self, slot: usize, packs: i32) {
+        if !self.on {
+            return;
+        }
+        if self.demand.len() <= slot {
+            self.demand.resize(slot + 1, 0);
+        }
+        self.demand[slot] += packs;
+    }
+
+    /// The round's shopping is over: prices move with what was bought, for `slots` wares.
+    pub fn settle(&mut self, slots: usize) {
+        if !self.on {
+            return;
+        }
+        self.factors.resize(slots.max(self.factors.len()), 1.0);
+        self.demand.resize(self.factors.len(), 0);
+        for (factor, demand) in self.factors.iter_mut().zip(&mut self.demand) {
+            let change = if *demand > 0 {
+                MARKET_UP * *demand as f32
+            } else {
+                -MARKET_DOWN
+            };
+            *factor = (*factor + change).clamp(MARKET_LOW, MARKET_HIGH);
+            *demand = 0;
+        }
+    }
+}
+
 /// The most interest pays in a round: saving is a plan, not a way to stop playing.
 pub const INTEREST_MAX: i32 = 100;
 
@@ -162,5 +240,31 @@ mod tests {
         ps[0].money = 0;
         assert_eq!(ps[0].earned, earned);
         assert!(earned >= 3 * ROUND_PAY);
+    }
+
+    #[test]
+    fn market_prices_follow_what_is_bought() {
+        let mut fixed = Market::new(Prices::Fixed);
+        fixed.trade(0, 5);
+        fixed.settle(3);
+        assert_eq!(fixed.price(0, 100), 100, "fixed prices never move");
+        let mut market = Market::new(Prices::Market);
+        assert_eq!(market.price(0, 60), 60, "list prices to begin with");
+        // Three packs of the first bought, one of the second bought and sold back, none of the third.
+        market.trade(0, 3);
+        market.trade(1, 1);
+        market.trade(1, -1);
+        market.settle(3);
+        assert_eq!(market.price(0, 60), 80, "30% dearer, to the nearest $5");
+        assert_eq!(market.price(1, 60), 55, "nobody kept any: cheaper");
+        assert_eq!(market.price(2, 60), 55);
+        // It stays within its limits however long the run.
+        for _ in 0..40 {
+            market.trade(0, 3);
+            market.settle(3);
+        }
+        assert_eq!(market.price(0, 100), 160);
+        assert_eq!(market.price(2, 100), 60);
+        assert_eq!(market.price(2, 5), 5, "never free");
     }
 }

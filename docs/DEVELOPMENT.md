@@ -233,7 +233,15 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
 
 - The table is `WEAPONS` in `src/weapons.rs`; saves store ammo by index, so new weapons go at the end.
 - Balance: `make balance` prints its tables (ignored tests in `src/battle/tests/balance.rs`; they assert nothing, and
-  give the same numbers on every run):
+  give the same numbers on every run). One test runs alone with `make balance` replaced by its name:
+  `nix-shell --run "cargo test --release balance_fuel -- --ignored --nocapture"`. Most tables play whole games of a
+  stand-in for the player: a bot of the skill named in the heading whose aim the other bots can't see, as they can't see
+  a human's, against the opponents named there, 5 rounds a game, default settings, everyone shopping between rounds as
+  bots do. Their columns:
+  - **won**: the share of games the stand-in wins outright, more round wins than every opponent;
+  - **shared**: the share it ends level on round wins with the best opponent (neither won nor lost);
+  - **rounds**: its round wins per game, out of 5 (an even duel is about 2.5);
+  - the last column: what differs from row to row (what the stand-in was given, the line-up, the setting).
   - `balance_table` fires every weapon 300 times per aim through the real physics (perfect aim, about 1 degree / 15
     power off, about 3 degrees / 45 off) in three scenarios: one tank 700 px away on flat ground, three tanks 60 px
     apart, one tank at the bottom of a valley. The aim used is the one, among those whose first damage lands within 150
@@ -265,6 +273,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     About four minutes.
   - `balance_scoring` plays four Shooters and counts who would win each game by rounds, money and kills. About four
     minutes.
+  - `balance_market` plays four Shooters with market prices: where each price ends up and the money left unspent. About
+    four minutes.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
@@ -355,6 +365,17 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   winner in 45% of games, the kills winner in 20%: money rewards steady damage, kills the last shot.
 - Selling (`shop::Ware::sell`): the Sell tab turns the shop's rows into sales. A row sells a pack, or what is left of
   one, for `SELL_SHARE` (half) of the pack's price times the share sold, rounded down. Bots never sell.
+- Market prices (`economy::Market`, with the Prices setting on Market; Fixed by default): one factor per ware
+  (`shop::Ware::slot`: weapons, then items), saved with the game in progress. Every pack bought adds 1 to the ware's
+  demand, every pack sold back takes 1 off. When everyone has shopped (`Game::after_shopping`), a ware with demand above
+  0 gets `MARKET_UP` (0.1) per pack on its factor, any other loses `MARKET_DOWN` (0.05); factors stay within 0.6 and
+  1.6. Price = list price x factor to the nearest $5, $5 at least; selling pays half of it.
+- `balance_market` (four Shooters, 200 whole 5-round games, bots shopping as they do): after the last shopping a Riot
+  Bomb, which every bot without one buys first, costs $77 instead of $50; what bots buy at random ends 10-30% dearer
+  (Missile $73, Battery $75, guidance $65-73); what they never buy gets cheaper (Dirt Bomb and Digger $30, Tracer
+  $40); the dearest packs barely move (Nuke $201, Death's Head $243, Heavy Shield $206), since few are bought. Players
+  are left with as much money after shopping as with fixed prices ($27 against $26): the market moves what is worth
+  buying, not how much is bought.
 
 ### Turn order
 
