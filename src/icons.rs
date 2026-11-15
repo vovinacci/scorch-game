@@ -200,5 +200,18 @@ pub fn item(i: usize, centre: Vec2, size: f32, color: Color) {
         }
         Use::Guidance(Steer::Horizontal) => pen.arrow((-0.95, 0.0), (0.95, 0.0)),
         Use::Guidance(Steer::Vertical) => pen.arrow((0.0, -0.95), (0.0, 0.95)),
+        // A can with a spout.
+        Use::Fuel => {
+            let (corner, far) = (pen.at(-0.7, -0.45), pen.at(0.6, 0.95));
+            draw_rectangle(
+                corner.x,
+                corner.y,
+                far.x - corner.x,
+                far.y - corner.y,
+                color,
+            );
+            pen.line((0.1, -0.45), (0.1, -0.9));
+            pen.line((0.1, -0.9), (0.9, -0.55));
+        }
     }
 }

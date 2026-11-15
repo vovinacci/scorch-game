@@ -681,3 +681,46 @@ fn balance_guidance() {
         }
     }
 }
+
+/// What fuel is worth to a bot. Whole games of a Shooter-like stand-in against one and against three Shooters
+/// (see `ladder_games`), on three kinds of ground. Nobody else has fuel; each round the stand-in is given some
+/// for nothing and drives as bots do (`bot_drives`). About ten minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning fuel or the bots' driving"]
+fn balance_fuel() {
+    use crate::items::FUEL;
+    use crate::world::TerrainKind;
+    for terrain in [
+        TerrainKind::Rolling,
+        TerrainKind::Mountains,
+        TerrainKind::Canyon,
+    ] {
+        for lineup in [vec![1], vec![1, 1, 1]] {
+            println!(
+                "\na Shooter-like player against {} Shooter(s) on {terrain:?}, 200 games of 5 rounds",
+                lineup.len()
+            );
+            println!(
+                "{:>6} {:>7} {:>7}  fuel each round",
+                "won", "shared", "rounds"
+            );
+            for given in [0, 100, 300] {
+                let draw = || lineup.iter().map(|&p| PRESETS[p]).collect();
+                let prepare = |_: u32, players: &mut [Player], b: &mut Battle| {
+                    for player in players.iter_mut() {
+                        player.items[FUEL] = 0;
+                    }
+                    players[0].items[FUEL] = given;
+                    b.terrain = Terrain::generate(terrain);
+                    for tank in &mut b.tanks {
+                        b.terrain.flatten(tank.pos.x, TANK_RADIUS + 2.0);
+                        tank.pos.y = b.terrain.height_at(tank.pos.x);
+                    }
+                };
+                let (won, shared, rounds) =
+                    drawn_games(1, 99_000, 200, Setup::default().world.walls, draw, prepare);
+                println!("{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {given}");
+            }
+        }
+    }
+}

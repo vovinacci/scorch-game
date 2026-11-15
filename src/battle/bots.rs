@@ -7,7 +7,7 @@ use macroquad::prelude::*;
 use super::shells::{blast_damage, damage_point, simulate};
 use super::{
     AimMemory, BARREL, Battle, CROWD_PENALTY, DIG_HEALTH_SHARE, FACE_OFF_PENALTY, PREFER_LEADER,
-    PREFER_NEAREST, PREFER_WEAKEST, Shot, TANK_RADIUS, direction, launch_velocity, you,
+    PREFER_NEAREST, PREFER_WEAKEST, RERANGE, Shot, TANK_RADIUS, direction, launch_velocity, you,
 };
 use crate::ai::{AiProfile, Shots, Targets};
 use crate::i18n::t;
@@ -67,6 +67,7 @@ impl Battle {
             target,
             error: profile.first_error(),
             reason,
+            ranged: None,
         };
         let memory = match (current, revenge) {
             (Some(memory), Some(attacker)) if memory.target == attacker => memory,
@@ -80,6 +81,7 @@ impl Battle {
                 fresh(target, reason)
             }
         };
+        let memory = self.reranged(me, memory, profile);
         if current.map(|m| m.target) != Some(memory.target) {
             let text = t!(
                 "log-targets",
@@ -104,6 +106,43 @@ impl Battle {
                 (players[a].wins, near(a))
                     .partial_cmp(&(players[b].wins, near(b)))
                     .unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
+
+    /// What is left of a bot's ranging once it or its target has driven since its last shot: the error moves
+    /// towards a new target's rough one by the share of `RERANGE` driven, the two distances added up.
+    fn reranged(&self, me: usize, memory: AimMemory, profile: &AiProfile) -> AimMemory {
+        let Some((from, at)) = memory.ranged else {
+            return memory;
+        };
+        let driven =
+            (self.tanks[me].pos.x - from).abs() + (self.tanks[memory.target].pos.x - at).abs();
+        let lost = (driven / RERANGE).min(1.0);
+        if lost <= 0.0 {
+            return memory;
+        }
+        let (rough, learned) = (profile.first_error(), memory.error);
+        AimMemory {
+            error: (
+                learned.0 + (rough.0 - learned.0) * lost,
+                learned.1 + (rough.1 - learned.1) * lost,
+            ),
+            ..memory
+        }
+    }
+
+    /// The tank a bot will most likely shoot at this turn, without changing what it remembers (`choose_target`
+    /// does that): whoever it owes revenge, else the tank it was on, else the best scored one.
+    pub(super) fn likely_target(&self, me: usize, players: &[Player]) -> Option<usize> {
+        let alive = |j: &usize| *j != me && self.tanks[*j].alive;
+        let tank = &self.tanks[me];
+        tank.revenge
+            .filter(alive)
+            .or(tank.aim.map(|memory| memory.target).filter(alive))
+            .or_else(|| {
+                (0..self.tanks.len())
+                    .any(|j| alive(&j))
+                    .then(|| self.score_targets(me, players).0)
             })
     }
 
@@ -308,6 +347,7 @@ impl Battle {
         // The next shot at this target will be closer, with a little fresh wobble.
         self.tanks[me].aim = Some(AimMemory {
             error: profile.next_error(memory.error),
+            ranged: Some((self.tanks[me].pos.x, self.tanks[memory.target].pos.x)),
             ..memory
         });
         best

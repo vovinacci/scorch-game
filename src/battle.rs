@@ -30,6 +30,7 @@ use crate::world::World;
 mod bots;
 mod coach;
 mod draw;
+mod drive;
 mod guidance;
 mod shells;
 #[cfg(test)]
@@ -129,7 +130,15 @@ struct AimMemory {
     /// Why this target was picked, shown on screen.
     #[serde(skip)]
     reason: &'static str,
+    /// Where the bot and its target stood (x) at the last shot: if either has driven since, some of the ranging
+    /// is lost (`Battle::reranged`).
+    #[serde(default)]
+    ranged: Option<(f32, f32)>,
 }
+
+/// A bot that has driven this far, or whose target has (their distances added up), aims as at a new target, px;
+/// less far, it loses that share of what it had learned.
+const RERANGE: f32 = 120.0;
 
 /// How much each reason counts when a bot picks a new target.
 const PREFER_NEAREST: f32 = 1.0;
@@ -189,6 +198,11 @@ struct Tank {
     /// The tank Horizontal or Vertical guidance steers for; the nearest enemy while there is none.
     #[serde(default)]
     guide_target: Option<usize>,
+    /// Driving: the part of a px not yet driven, and the part of a unit of fuel not yet paid.
+    #[serde(skip)]
+    drive_carry: f32,
+    #[serde(skip)]
+    fuel_debt: f32,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -322,6 +336,8 @@ struct PreviewKey {
     wind: f32,
     /// The guidance switched on and the tank it is for.
     guided: (Option<usize>, Option<usize>),
+    /// Where the tank stands: it may drive.
+    from: f32,
 }
 
 /// Power per pixel between the tank and the cursor when aiming with the mouse: 500 px is full power.
@@ -491,6 +507,11 @@ pub struct Battle {
     /// Only the balance tools set it, to compare rules.
     #[serde(skip)]
     battery_health: Vec<f32>,
+    /// The turn in which the bot whose turn it is last looked for better ground, and where it is driving to.
+    #[serde(skip)]
+    drive_checked: Option<u32>,
+    #[serde(skip)]
+    drive_goal: Option<f32>,
     #[serde(skip)]
     accumulator: f32,
     round: u32,
@@ -593,6 +614,8 @@ impl Battle {
                     parachute: false,
                     guidance: None,
                     guide_target: None,
+                    drive_carry: 0.0,
+                    fuel_debt: 0.0,
                 }
             })
             .collect();
@@ -612,6 +635,8 @@ impl Battle {
             burns: Vec::new(),
             burn_clock: 0.0,
             battery_health: Vec::new(),
+            drive_checked: None,
+            drive_goal: None,
             accumulator: 0.0,
             round,
             rounds,
@@ -898,6 +923,10 @@ impl Battle {
                 while self.tanks[i].health <= below.unwrap_or(BOT_BATTERY_HEALTH)
                     && self.use_battery(i, players)
                 {}
+                // Then where it stands: it drives to better ground first if it can't reach anyone from here.
+                if self.bot_drives(i, dt, players) {
+                    return;
+                }
                 // Guidance for every shot it has some for; `plan_shot` says whom the shot is for.
                 self.tanks[i].guidance = BOT_GUIDANCE
                     .into_iter()
@@ -927,6 +956,11 @@ impl Battle {
         }
         if is_key_pressed(KeyCode::G) {
             self.next_guidance(i, &players[i]);
+        }
+        let keys = i8::from(is_key_down(KeyCode::D)) - i8::from(is_key_down(KeyCode::A));
+        let steer = f32::from(keys) + Self::drive_buttons_held(&players[i]);
+        if steer != 0.0 {
+            self.drive(i, steer.signum(), dt, players);
         }
         if is_key_pressed(KeyCode::T) {
             self.next_guide_target(i);
@@ -993,6 +1027,7 @@ impl Battle {
         if is_mouse_button_pressed(MouseButton::Left)
             && cursor.y > HUD_HEIGHT
             && !strip.iter().any(|(_, r)| r.contains(cursor))
+            && !drive::BUTTONS.iter().any(|(r, _)| r.contains(cursor))
         {
             self.drag = Some(Drag { fine: None });
         }
@@ -1336,6 +1371,7 @@ impl Battle {
         const VERTICAL: usize = 7;
         self.current = 0;
         players[0].items[BATTERY] = 2;
+        players[0].items[crate::items::FUEL] = 120;
         players[0].items[VERTICAL] = 3;
         self.tanks[0].guidance = Some(VERTICAL);
     }

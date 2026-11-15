@@ -41,7 +41,7 @@ pub fn frame(player: &mut Player, shoots_first: bool) -> ShopAction {
 /// The middle panel: weapons and items to buy, and Done / Save & exit / Abandon.
 fn shop_panel(player: &mut Player) -> ShopAction {
     /// Height of a row of buy buttons, gap included.
-    const ROW: f32 = 34.0;
+    const ROW: f32 = 31.0;
     let area = Rect::new(370.0, 70.0, 540.0, 620.0);
     ui::panel(area);
     // Hotseat players need to see whose turn it is to shop.
