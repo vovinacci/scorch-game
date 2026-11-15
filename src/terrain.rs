@@ -156,6 +156,11 @@ impl Look {
 /// Mountain ground higher than this (smaller screen y) gets snow.
 const SNOW_LINE: f32 = 290.0;
 
+/// How far the ground beside a tank's starting pad is eased into a ramp, px, and how steep the ramp may be: px up
+/// or down per px along, gentle enough to drive.
+const PAD_RAMP: usize = 48;
+const PAD_RAMP_SLOPE: f32 = 1.0;
+
 impl Terrain {
     fn with(ground: Vec<f32>, look: Look) -> Self {
         Self {
@@ -233,13 +238,31 @@ impl Terrain {
             .fold(HEIGHT, f32::min)
     }
 
-    /// Flattens a small pad so tanks start on level ground.
+    /// Flattens a small pad so tanks start on level ground, and eases the ground on each side into a ramp no
+    /// steeper than `PAD_RAMP_SLOPE` for up to `PAD_RAMP` px: cut into a hillside, the pad would otherwise leave a
+    /// wall on the uphill side and a drop on the other that a tank can't drive over.
     pub fn flatten(&mut self, x: f32, half: f32) {
         let level = self.height_at(x);
         let from = (x - half).max(0.0) as usize;
         let to = ((x + half) as usize).min(WIDTH - 1);
         for g in &mut self.ground[from..=to] {
             *g = level;
+        }
+        let right = (to + 1..WIDTH).take(PAD_RAMP);
+        let left = (0..from).rev().take(PAD_RAMP);
+        for (edge, columns) in [(to, right.collect::<Vec<_>>()), (from, left.collect())] {
+            let mut prev = self.ground[edge];
+            for c in columns {
+                // Higher ground is dug down, lower ground filled up, to the steepest the ramp allows.
+                let ground = self.ground[c];
+                let eased = ground.clamp(prev - PAD_RAMP_SLOPE, prev + PAD_RAMP_SLOPE);
+                // Within reach already: the ground from here on is as it was.
+                if (eased - ground).abs() < f32::EPSILON {
+                    break;
+                }
+                self.ground[c] = eased;
+                prev = eased;
+            }
         }
     }
 

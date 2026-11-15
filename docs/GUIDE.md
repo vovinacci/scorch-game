@@ -209,7 +209,8 @@ Besides weapons, the shop sells items that protect or repair your tank, or steer
     climb. The top right of the screen shows the fuel you have left.
   - A tank can't climb dirt steeper than about 55 degrees, so a crater's wall or a cliff stops it, and it won't drive
     over a drop high enough to hurt. Another tank in the way and the edge of the field stop it too, and a buried tank
-    can't drive at all: dig out first.
+    can't drive at all: dig out first. Every tank starts the round on a small level pad with gentle ramps on both sides,
+    so even on a steep hillside it can drive off it.
   - Use it to get out of a hole you can't shoot out of, to get closer when your health limits your power, to leave a
     spot an enemy has ranged in on, or to take the high ground. Fuel you don't burn stays for the next rounds.
   - Driving shakes off a bot's aim. A bot walks its shots onto a tank that stands still (see Bot skills); when that tank

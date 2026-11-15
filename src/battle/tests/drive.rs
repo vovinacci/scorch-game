@@ -196,3 +196,23 @@ fn a_tank_drives_on_a_fast_screen_too() {
         b.tanks[0].pos.x
     );
 }
+
+#[test]
+fn a_tank_on_a_hillside_can_drive_off_its_starting_pad() {
+    // A steep hillside, 2 px up for each px to the right.
+    let slope = |x: f32| 1000.0 - 2.0 * x;
+    let mut players = bots(2);
+    players[0].items[FUEL] = 1000;
+    let mut b = battle(&players, Setup::default().rules());
+    b.terrain = Terrain::from_fn(slope);
+    b.terrain.flatten(300.0, TANK_RADIUS + 2.0);
+    b.tanks[0].pos = vec2(300.0, b.terrain.height_at(300.0));
+    b.tanks[1].pos = vec2(1200.0, b.terrain.height_at(1200.0));
+    // Both ways out: down the ramp on one side, up it on the other.
+    assert!(
+        drive_for(&mut b, &mut players, -1.0, 1.0) < -40.0,
+        "downhill"
+    );
+    b.tanks[0].pos = vec2(300.0, b.terrain.height_at(300.0));
+    assert!(drive_for(&mut b, &mut players, 1.0, 1.0) > 40.0, "uphill");
+}

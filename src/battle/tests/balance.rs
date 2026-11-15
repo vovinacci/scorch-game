@@ -983,3 +983,53 @@ fn balance_market() {
         );
     }
 }
+
+/// What driving costs on each kind of ground: tanks placed at random on freshly made fields, as at the start of a
+/// round, drive as far as 100 units of fuel or the ground lets them, each way. For each terrain: how far they get,
+/// the fuel a px costs on average, and how often a drive ends on an obstacle (a wall, a drop, another tank, the
+/// edge) rather than an empty tank. A few seconds.
+#[test]
+#[ignore = "prints a table; run by hand when tuning driving or its fuel costs"]
+fn balance_driving() {
+    use crate::items::FUEL;
+    use crate::world::TerrainKind;
+    const TRIES: u64 = 300;
+    println!("\ndriving with 100 units of fuel, {TRIES} starts each way per terrain");
+    println!(
+        "{:>10} {:>9} {:>11} {:>14}",
+        "terrain", "px driven", "fuel per px", "stopped by ground"
+    );
+    for terrain in [
+        TerrainKind::Rolling,
+        TerrainKind::Mountains,
+        TerrainKind::Flat,
+        TerrainKind::Canyon,
+    ] {
+        let (mut driven, mut burnt, mut blocked) = (0.0, 0.0, 0);
+        for k in 0..TRIES {
+            crate::rng::seed(555_000 + k);
+            let mut players = vec![
+                Player::new("You", WHITE, None),
+                Player::new("Bot", WHITE, Some(PRESETS[1])),
+            ];
+            let mut rules = Setup::default().rules();
+            rules.world.terrain = terrain;
+            let mut b = Battle::new(&players, vec![0, 1], 1, 5, rules);
+            let dir = if k % 2 == 0 { 1.0 } else { -1.0 };
+            players[0].items[FUEL] = 100;
+            let from = b.tanks[0].pos.x;
+            while b.drive(0, dir, 1.0 / 60.0, &mut players) {}
+            driven += (b.tanks[0].pos.x - from).abs();
+            burnt += f64::from(100 - players[0].items[FUEL]) as f32;
+            blocked += u32::from(players[0].items[FUEL] > 0);
+        }
+        let n = TRIES as f32;
+        println!(
+            "{:>10} {:>9.0} {:>11.2} {:>13.0}%",
+            format!("{terrain:?}"),
+            driven / n,
+            burnt / driven.max(1.0),
+            100.0 * blocked as f32 / n
+        );
+    }
+}
