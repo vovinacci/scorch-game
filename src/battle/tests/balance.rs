@@ -396,7 +396,7 @@ fn drawn_games(
                 Phase::Over { winner, .. } => winner,
                 _ => None,
             };
-            economy::end_round(&mut players, winner);
+            economy::end_round(&mut players, winner, setup.interest);
             if round < ROUNDS {
                 players.iter_mut().for_each(crate::shop::ai_shop);
             }
@@ -748,5 +748,81 @@ fn balance_hazards() {
                 drawn_games(1, 111_000, 200, Setup::default().world.walls, draw, prepare);
             println!("{won:>5.1}% {shared:>6.1}% {rounds:>7.2}  {hazards:?}");
         }
+    }
+}
+
+/// Whether interest lets the leader run away. Four Shooters play whole games (see `ladder_games`, no stand-in this
+/// time) with interest off, at 5% and at 10%. For each: how often the tank that won the first round wins the game
+/// outright, how often one that lost it still does, and the money the winner and the others end with. About five
+/// minutes.
+#[test]
+#[ignore = "prints a table; run by hand when tuning interest"]
+fn balance_interest() {
+    use crate::economy::Interest;
+    const GAMES: u64 = 300;
+    const ROUNDS: u32 = 5;
+    println!("\nfour Shooters, {GAMES} games of {ROUNDS} rounds");
+    println!(
+        "{:>8} {:>13} {:>13} {:>13} {:>13}",
+        "interest", "1st round won", "1st round lost", "winner's $", "others' $"
+    );
+    for interest in [Interest::Off, Interest::Low, Interest::High] {
+        let setup = Setup::default();
+        let (mut first_won, mut first_games, mut comeback, mut comeback_games) = (0, 0, 0, 0);
+        let (mut winner_money, mut others_money) = (0i64, 0i64);
+        for game in 0..GAMES {
+            crate::rng::seed(222_000 + game);
+            let mut players: Vec<Player> = (0..4)
+                .map(|_| Player::new("Bot", WHITE, Some(PRESETS[1])))
+                .collect();
+            let mut first = None;
+            for round in 1..=ROUNDS {
+                for p in &mut players {
+                    p.income = economy::Income::default();
+                }
+                let order = crate::setup::turn_order(setup.turn_order, &players, round);
+                let mut b = Battle::new(&players, order, round, ROUNDS, setup.rules());
+                b.raise_shields(&mut players);
+                b.skip_to_end(&mut players);
+                let winner = match b.phase {
+                    Phase::Over { winner, .. } => winner,
+                    _ => None,
+                };
+                if round == 1 {
+                    first = winner;
+                }
+                economy::end_round(&mut players, winner, interest);
+                if round < ROUNDS {
+                    players.iter_mut().for_each(crate::shop::ai_shop);
+                }
+            }
+            let most = players.iter().map(|p| p.wins).max().unwrap_or(0);
+            let outright: Vec<usize> = (0..4).filter(|&i| players[i].wins == most).collect();
+            let Some(first) = first else { continue };
+            first_games += 1;
+            comeback_games += 3;
+            if outright == [first] {
+                first_won += 1;
+            } else if outright.len() == 1 {
+                comeback += 1;
+            }
+            if let [top] = outright[..] {
+                winner_money += i64::from(players[top].money);
+                others_money += (0..4)
+                    .filter(|&i| i != top)
+                    .map(|i| i64::from(players[i].money))
+                    .sum::<i64>()
+                    / 3;
+            }
+        }
+        let share = |n: u32, of: u32| 100.0 * n as f32 / of.max(1) as f32;
+        println!(
+            "{:>8} {:>12.1}% {:>12.1}% {:>13} {:>13}",
+            format!("{interest:?}"),
+            share(first_won, first_games),
+            share(comeback, comeback_games),
+            winner_money / GAMES.cast_signed(),
+            others_money / GAMES.cast_signed()
+        );
     }
 }

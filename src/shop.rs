@@ -1,15 +1,124 @@
 //! Between-round shop: spend money earned from damage, kills and wins.
 
 use crate::rng::gen_range;
+use std::cell::Cell;
+
 use macroquad::prelude::*;
 
-use crate::economy;
+use crate::economy::{self, Interest};
 use crate::i18n::t;
 use crate::icons;
 use crate::items::ITEMS;
 use crate::player::Player;
 use crate::ui;
 use crate::weapons::{Kind, WEAPONS};
+
+thread_local! {
+    /// The shop shows what you can sell instead of what you can buy.
+    static SELLING: Cell<bool> = const { Cell::new(false) };
+}
+
+/// The two tabs at the right of the money, Buy and Sell; returns whether the shop sells.
+fn buy_or_sell(area: Rect) -> bool {
+    let selling = SELLING.get();
+    let tabs = [(false, t!("shop-tab-buy")), (true, t!("shop-tab-sell"))];
+    for (k, (mode, label)) in tabs.into_iter().enumerate() {
+        let r = Rect::new(
+            area.x + area.w - 210.0 + k as f32 * 98.0,
+            area.y + 64.0,
+            92.0,
+            30.0,
+        );
+        let shown = if mode == selling {
+            format!("[{label}]")
+        } else {
+            label
+        };
+        if ui::button(r, &shown, true) {
+            SELLING.set(mode);
+        }
+    }
+    SELLING.get()
+}
+
+/// Selling pays this share of what a pack costs.
+pub const SELL_SHARE: f32 = 0.5;
+
+/// Something the shop sells: a weapon or an item.
+#[derive(Clone, Copy)]
+enum Ware {
+    Weapon(usize),
+    Item(usize),
+}
+
+impl Ware {
+    fn price(self) -> i32 {
+        match self {
+            Ware::Weapon(w) => WEAPONS[w].price,
+            Ware::Item(i) => ITEMS[i].price,
+        }
+    }
+
+    fn bundle(self) -> u32 {
+        match self {
+            Ware::Weapon(w) => WEAPONS[w].bundle,
+            Ware::Item(i) => ITEMS[i].bundle,
+        }
+    }
+
+    fn text(self) -> String {
+        match self {
+            Ware::Weapon(w) => WEAPONS[w].text(),
+            Ware::Item(i) => ITEMS[i].text(),
+        }
+    }
+
+    fn owned(self, player: &Player) -> u32 {
+        match self {
+            Ware::Weapon(w) => player.ammo[w],
+            Ware::Item(i) => player.items[i],
+        }
+    }
+
+    fn owned_mut(self, player: &mut Player) -> &mut u32 {
+        match self {
+            Ware::Weapon(w) => &mut player.ammo[w],
+            Ware::Item(i) => &mut player.items[i],
+        }
+    }
+
+    fn icon(self, centre: Vec2, across: f32, color: Color) {
+        match self {
+            Ware::Weapon(w) => icons::weapon(w, centre, across, color),
+            Ware::Item(i) => icons::item(i, centre, across, color),
+        }
+    }
+
+    fn buy_label(self) -> (String, String) {
+        (
+            t!("shop-buy", weapon = self.text(), bundle = self.bundle()),
+            t!("shop-price", price = self.price()),
+        )
+    }
+
+    fn buy(self, player: &mut Player) {
+        player.money -= self.price();
+        *self.owned_mut(player) += self.bundle();
+    }
+
+    /// What selling this now takes away and pays: a pack, or what is left of one, at `SELL_SHARE` of its price.
+    fn sale(self, player: &Player) -> (u32, i32) {
+        let count = self.owned(player).min(self.bundle());
+        let refund = self.price() as f32 * SELL_SHARE * count as f32 / self.bundle() as f32;
+        (count, refund as i32)
+    }
+
+    fn sell(self, player: &mut Player) {
+        let (count, refund) = self.sale(player);
+        *self.owned_mut(player) -= count;
+        player.money += refund;
+    }
+}
 
 fn buy(player: &mut Player, w: usize) {
     player.money -= WEAPONS[w].price;
@@ -30,8 +139,8 @@ pub enum ShopAction {
 
 /// Draws the between-round screen for one human player: last round's
 /// earnings (left), the shop (middle) and the inventory (right).
-pub fn frame(player: &mut Player, shoots_first: bool) -> ShopAction {
-    draw_income(player, shoots_first);
+pub fn frame(player: &mut Player, shoots_first: bool, interest: Interest) -> ShopAction {
+    draw_income(player, shoots_first, interest);
     let action = shop_panel(player);
     // After the shop's buttons, so keyboard focus starts on the first thing to buy, not on an item switch.
     draw_inventory(player);
@@ -51,10 +160,12 @@ fn shop_panel(player: &mut Player) -> ShopAction {
         t!("shop-title-for", name = player.label())
     };
     ui::text_centered(&title, area.center().x, area.y + 46.0, 38.0, player.color);
-    ui::text_centered(
+    // The money at the left, the Buy and Sell tabs at the right (`buy_or_sell`).
+    ui::text_fit(
         &t!("shop-money", money = player.money),
-        area.center().x,
-        area.y + 82.0,
+        area.x + 20.0,
+        area.y + 86.0,
+        area.w - 230.0,
         26.0,
         GOLD,
     );
@@ -73,42 +184,45 @@ fn shop_panel(player: &mut Player) -> ShopAction {
     // Cheapest first.
     let mut weapons: Vec<usize> = (1..WEAPONS.len()).collect();
     weapons.sort_by_key(|&w| WEAPONS[w].price);
-    // Every row in one text size, the one its longest line needs.
-    let goods = |name: String, bundle: u32, price: i32| {
-        (
-            t!("shop-buy", weapon = name, bundle = bundle),
-            t!("shop-price", price = price),
-        )
-    };
-    let weapon_rows: Vec<(String, String)> = weapons
+    let selling = buy_or_sell(area);
+    let wares: Vec<Ware> = weapons
         .iter()
-        .map(|&w| goods(WEAPONS[w].text(), WEAPONS[w].bundle, WEAPONS[w].price))
+        .map(|&w| Ware::Weapon(w))
+        .chain((0..ITEMS.len()).map(Ware::Item))
         .collect();
-    let item_rows: Vec<(String, String)> = ITEMS
+    // Every row in one text size, the one its longest line needs, buying or selling.
+    let lines: Vec<String> = wares
         .iter()
-        .map(|item| goods(item.text(), item.bundle, item.price))
-        .collect();
-    let lines: Vec<String> = weapon_rows
-        .iter()
-        .chain(&item_rows)
-        .map(|(name, price)| format!("{name} {price}"))
+        .flat_map(|ware| {
+            let (name, price) = ware.buy_label();
+            let sell = t!("shop-sell-price", price = ware.price());
+            [format!("{name} {price}"), format!("{name} {sell}")]
+        })
         .collect();
     let size = ui::common_size(&lines, 20.0, col_w - 16.0 - ui::row_icon_space(ROW - 6.0));
-    for (k, (&w, (name, price))) in weapons.iter().zip(&weapon_rows).enumerate() {
-        let can_pay = player.money >= WEAPONS[w].price;
-        let icon = |centre, across, color| icons::weapon(w, centre, across, color);
-        if ui::button_row(cell(top, k), icon, (name, price), size, can_pay) {
-            buy(player, w);
+    let mut y = top;
+    for (k, &ware) in wares.iter().enumerate() {
+        let first_item = matches!(ware, Ware::Item(0));
+        if first_item {
+            y += weapons.len().div_ceil(2) as f32 * ROW;
+            ui::text_at(t!("shop-items"), area.x + 20.0, y + 20.0, 22.0, GOLD);
+            y += 28.0;
         }
-    }
-    let mut y = top + weapons.len().div_ceil(2) as f32 * ROW;
-    ui::text_at(t!("shop-items"), area.x + 20.0, y + 20.0, 22.0, GOLD);
-    y += 28.0;
-    for (i, (name, price)) in item_rows.iter().enumerate() {
-        let icon = |centre, across, color| icons::item(i, centre, across, color);
-        let can_pay = player.money >= ITEMS[i].price;
-        if ui::button_row(cell(y, i), icon, (name, price), size, can_pay) {
-            buy_item(player, i);
+        let k = if let Ware::Item(i) = ware { i } else { k };
+        let icon = |centre, across, color| ware.icon(centre, across, color);
+        if selling {
+            let (count, refund) = ware.sale(player);
+            let name = t!("shop-buy", weapon = ware.text(), bundle = count);
+            let price = t!("shop-sell-price", price = refund);
+            if ui::button_row(cell(y, k), icon, (&name, &price), size, count > 0) {
+                ware.sell(player);
+            }
+        } else {
+            let (name, price) = ware.buy_label();
+            let can_pay = player.money >= ware.price();
+            if ui::button_row(cell(y, k), icon, (&name, &price), size, can_pay) {
+                ware.buy(player);
+            }
         }
     }
     y += ITEMS.len().div_ceil(2) as f32 * ROW;
@@ -119,6 +233,7 @@ fn shop_panel(player: &mut Player) -> ShopAction {
         &t!("shop-done"),
         true,
     ) {
+        SELLING.set(false);
         ShopAction::Done
     } else if ui::button(
         Rect::new(area.x + 30.0 + half, y + 6.0, half, 42.0),
@@ -231,7 +346,7 @@ fn draw_inventory(player: &mut Player) {
 }
 
 /// Last round's earnings, line by line, so the catch-up rules are visible.
-fn draw_income(player: &Player, shoots_first: bool) {
+fn draw_income(player: &Player, shoots_first: bool, interest: Interest) {
     let area = Rect::new(30.0, 70.0, 320.0, 620.0);
     ui::panel(area);
     ui::text_at(t!("income-title"), area.x + 20.0, area.y + 36.0, 28.0, GOLD);
@@ -248,9 +363,18 @@ fn draw_income(player: &Player, shoots_first: bool) {
             pay = economy::LOSS_BONUS,
             most = economy::loss_bonus(economy::LOSS_BONUS_MAX_STREAK)
         ),
+        t!(
+            "income-rate-interest",
+            rate = (interest.rate() * 100.0).round(),
+            most = economy::INTEREST_MAX
+        ),
     ];
     let mut y = area.y + 76.0;
-    for ((key, amount), rate) in player.income.lines().into_iter().zip(rates) {
+    let lines = player.income.lines().into_iter().zip(rates);
+    // Interest only where the game has it.
+    for ((key, amount), rate) in
+        lines.filter(|((key, _), _)| *key != "income-interest" || interest.rate() > 0.0)
+    {
         let (label, money) = if amount == 0 {
             (GRAY, GRAY)
         } else {
@@ -355,6 +479,35 @@ mod tests {
             assert_eq!(player.ammo[riot()], WEAPONS[riot()].bundle);
             assert_eq!(player.money, 0);
         }
+    }
+
+    #[test]
+    fn selling_pays_half_a_pack_or_its_share_of_what_is_left() {
+        let missile = WEAPONS.iter().position(|w| w.name == "Missile").unwrap();
+        let mut player = bot(0);
+        player.ammo[missile] = 3;
+        let ware = Ware::Weapon(missile);
+        // A whole pack of two: half its price.
+        assert_eq!(ware.sale(&player), (2, WEAPONS[missile].price / 2));
+        ware.sell(&mut player);
+        assert_eq!(
+            (player.ammo[missile], player.money),
+            (1, WEAPONS[missile].price / 2)
+        );
+        // One left of a pack of two: a quarter.
+        assert_eq!(ware.sale(&player), (1, WEAPONS[missile].price / 4));
+        ware.sell(&mut player);
+        assert_eq!(player.ammo[missile], 0);
+        assert_eq!(ware.sale(&player), (0, 0), "nothing left to sell");
+        // Items too: 37 units of fuel out of a pack of 100.
+        let fuel = Ware::Item(crate::items::FUEL);
+        player.items[crate::items::FUEL] = 37;
+        assert_eq!(fuel.sale(&player), (37, 7));
+        // Buying it back costs the full price: selling is no way to make money.
+        let before = player.money;
+        ware.buy(&mut player);
+        ware.sell(&mut player);
+        assert!(player.money < before);
     }
 
     #[test]
