@@ -247,7 +247,7 @@ impl Game {
     }
 
     fn end_round(&mut self, winner: Option<usize>) -> Screen {
-        economy::end_round(&mut self.players, winner);
+        economy::end_round(&mut self.players, winner, self.setup.interest);
         for (i, p) in self.players.iter().enumerate() {
             if !p.is_bot() {
                 self.profile
@@ -507,7 +507,11 @@ impl Game {
             Screen::Shop { shopper } => {
                 let shoots_first =
                     setup::sure_to_start(self.setup.turn_order, &self.players, shopper);
-                match shop::frame(&mut self.players[shopper], shoots_first) {
+                match shop::frame(
+                    &mut self.players[shopper],
+                    shoots_first,
+                    self.setup.interest,
+                ) {
                     ShopAction::Stay => Screen::Shop { shopper },
                     ShopAction::SaveAndExit => {
                         self.save_run(StageOut::Shop { shopper });

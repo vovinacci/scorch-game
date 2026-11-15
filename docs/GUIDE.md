@@ -235,6 +235,7 @@ You earn money every round:
 | Winning the round | $100 |
 | Taking part (everyone) | $75 |
 | Loss bonus | $40 per round lost in a row, up to 4 ($160); a win resets it |
+| Interest (if on) | 5% or 10% of the money you kept, up to $100 |
 
 The game helps whoever is behind, so one bad start doesn't decide the whole game:
 
@@ -249,6 +250,14 @@ and your **Inventory** (right: what you own, a switch for each item that works b
 two-player game the shop title shows whose turn it is to buy. Bots shop too: first a pack of Riot Bombs if they have
 none (their way out from under a Dirt Bomb), then random weapons (never Dirt Bombs or Diggers) and items they can
 afford, and they use them like you do.
+
+**Selling back.** The **Sell** tab at the top of the shop (beside your money) turns every row into a sale: a row pays
+half the price of a pack, and takes a pack away, or what is left of one for its share. Use it to undo a bad buy or to
+change plans between rounds; **Buy** goes back to buying. Selling costs half, so buying and selling never makes money.
+
+**Interest.** With the Interest option on, the money you come back with at the end of a round earns 5% or 10% more, up
+to $100 a round; it shows in the last round's panel. Saving up for a Nuke or a Heavy Shield pays a little, but every
+dollar you keep is a weapon you don't fire.
 
 ## Opponents
 
@@ -372,6 +381,7 @@ random except the number of human players; you can still check and change it all
 | Health limits power | Off, On | On |
 | Sudden death | Off, 8/12/16/24 shots each | 12 shots each |
 | Turn order | Losers first, Winners first, Random, Round robin | Losers first |
+| Interest | Off, 5%, 10% (see Money and the shop) | Off |
 
 ### World
 

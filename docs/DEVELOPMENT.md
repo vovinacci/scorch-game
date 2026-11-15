@@ -261,6 +261,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     ten minutes.
   - `balance_hazards` plays the stand-in against a Moron, a Shooter and three Shooters with the hazards off, rare and
     often: how much luck they bring. About six minutes.
+  - `balance_interest` plays four Shooters with interest off, at 5% and at 10%: whether it lets the leader run away.
+    About four minutes.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
@@ -330,6 +332,18 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   68 Baby Missiles, 21 of 84 Missiles and 43 of 105 Baby Nukes still do (with 3000 it was 32, 63 and 91).
 - Parachute: opens once a fall passes the free 15 px (if owned and switched on), uses one, slows the fall to 90 px/s and
   cancels the fall damage.
+
+### Money options
+
+- Interest (`economy::Interest`: Off, 5%, 10%; a match setting, off by default): at the end of a round, before the
+  round's other pay, each player gets the rate times the money they still have, whole dollars, at most $100
+  (`INTEREST_MAX`). Shown as a seventh line of the last round's panel, only when on.
+- `balance_interest` (four Shooters, 300 whole games each, nobody saving on purpose): the first round's winner wins the
+  game outright in 24 / 18 / 26% of games with interest off / 5% / 10%, a first-round loser comes back to win it in 15 /
+  15 / 13%, and the winner ends with $291 / $259 / $260 against the others' $254 / $226 / $244. Nothing beyond noise:
+  the cap and the catch-up pay keep interest from feeding the leader. Hence 10% is allowed.
+- Selling (`shop::Ware::sell`): the Sell tab turns the shop's rows into sales. A row sells a pack, or what is left of
+  one, for `SELL_SHARE` (half) of the pack's price times the share sold, rounded down. Bots never sell.
 
 ### Turn order
 
