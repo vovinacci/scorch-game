@@ -19,8 +19,8 @@ saves, signed updates, two languages. Roughly in order of fun per effort:
 - **Character:** talking tanks ([#49](https://github.com/vovinacci/scorch-game/issues/49)) and the remaining touches: an
   Unknown bot, a cavern sky, erratic walls, flying dirt, whistling shells
   ([#140](https://github.com/vovinacci/scorch-game/issues/140)).
-- **Easier to get and play:** a Windows installer ([#45](https://github.com/vovinacci/scorch-game/issues/45)) and a
-  browser build ([#46](https://github.com/vovinacci/scorch-game/issues/46)).
+- **Easier to get and play:** a browser build ([#46](https://github.com/vovinacci/scorch-game/issues/46)).
+- **Ideas, not planned:** a Windows installer ([#45](https://github.com/vovinacci/scorch-game/issues/45)).
 
 Labels: `planned` (we intend to build it), `idea` (a suggestion, not decided), and an area: `weapons`, `bots`,
 `gameplay`, `platform`.
