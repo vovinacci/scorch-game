@@ -114,11 +114,12 @@ fn three(players: &[Player]) -> Battle {
     b
 }
 
-fn aim_at(target: usize) -> AimMemory {
+pub(super) fn aim_at(target: usize) -> AimMemory {
     AimMemory {
         target,
         error: (0.0, 0.0),
         reason: "nearest",
+        ranged: None,
     }
 }
 

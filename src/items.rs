@@ -15,6 +15,8 @@ pub enum Use {
     Battery { health: u32 },
     /// Switched on by hand for a shot: steers the shell once on its way. One per shot.
     Guidance(Steer),
+    /// Burnt by driving the tank on its owner's turn: a unit is a px on level ground.
+    Fuel,
 }
 
 /// How a guidance item steers a shell (see `battle::guidance`).
@@ -42,13 +44,16 @@ impl Item {
     pub fn shield_energy(&self) -> Option<f32> {
         match self.kind {
             Use::Shield { energy } | Use::Deflector { energy } => Some(energy as f32),
-            Use::Parachute | Use::Battery { .. } | Use::Guidance(_) => None,
+            Use::Parachute | Use::Battery { .. } | Use::Guidance(_) | Use::Fuel => None,
         }
     }
 
     /// Does it work by itself, so that the inventory has a switch for it?
     pub fn automatic(&self) -> bool {
-        !matches!(self.kind, Use::Battery { .. } | Use::Guidance(_))
+        !matches!(
+            self.kind,
+            Use::Battery { .. } | Use::Guidance(_) | Use::Fuel
+        )
     }
 
     pub fn steer(&self) -> Option<Steer> {
@@ -61,10 +66,11 @@ impl Item {
 
 pub const PARACHUTE: usize = 0;
 pub const BATTERY: usize = 4;
+pub const FUEL: usize = 8;
 /// Health one battery gives back.
 pub const BATTERY_HEALTH: f32 = 25.0;
 
-pub const ITEMS: [Item; 8] = [
+pub const ITEMS: [Item; 9] = [
     Item {
         name: "Parachute",
         kind: Use::Parachute,
@@ -113,6 +119,12 @@ pub const ITEMS: [Item; 8] = [
         price: 60,
         bundle: 2,
     },
+    Item {
+        name: "Fuel",
+        kind: Use::Fuel,
+        price: 40,
+        bundle: 100,
+    },
 ];
 
 pub const ITEM_COUNT: usize = ITEMS.len();
@@ -132,23 +144,30 @@ mod tests {
 
     #[test]
     fn the_strongest_switched_on_shield_goes_up() {
-        let owned = [3, 1, 1, 1, 2, 1, 1, 1];
+        let owned = [3, 1, 1, 1, 2, 1, 1, 1, 50];
         assert_eq!(
             shield_to_raise(&owned, [true; ITEM_COUNT]),
             Some(2),
             "Heavy Shield"
         );
         assert_eq!(
-            shield_to_raise(&owned, [true, true, false, true, true, true, true, true]),
+            shield_to_raise(
+                &owned,
+                [true, true, false, true, true, true, true, true, true]
+            ),
             Some(1),
             "Shield beats Deflector"
         );
         assert_eq!(
-            shield_to_raise(&owned, [true, false, false, false, true, true, true, true]),
+            shield_to_raise(
+                &owned,
+                [true, false, false, false, true, true, true, true, true]
+            ),
             None,
             "parachutes aren't shields"
         );
         assert_eq!(shield_to_raise(&[0; ITEM_COUNT], [true; ITEM_COUNT]), None);
+        assert_eq!(ITEMS[FUEL].kind, Use::Fuel);
         assert_eq!(
             ITEMS[BATTERY].kind,
             Use::Battery {

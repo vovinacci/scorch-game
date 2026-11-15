@@ -27,6 +27,7 @@ The game is dedicated to the memory of Joseph Rivkind (1952–2026), who taught 
 | Space | Fire | Choose |
 | Enter | Skip to the end of the round (only bots left) | Choose |
 | B | Use a battery: 25 health back, and your turn goes on | |
+| A / D | Drive left / right, while you have fuel (or hold the arrow buttons beside the weapon strip) | |
 | G | Switch guidance for your next shot: each kind you own in turn, then off | |
 | T | Pick the tank that Horizontal or Vertical guidance steers for | |
 | L (hold) | Full battle log of this round | |
@@ -169,6 +170,7 @@ Besides weapons, the shop sells items that protect or repair your tank, or steer
 | Heat Guidance | Your shell turns onto the first enemy tank it comes within 100 px of | $50 | 2 |
 | Horizontal Guidance | At the height of the tank you picked, your shell turns and flies level towards it | $50 | 2 |
 | Vertical Guidance | Above the tank you picked, your shell turns and drops straight down | $60 | 2 |
+| Fuel | Lets you drive on your turn: hold **A** or **D** | $40 | 100 |
 
 - At the start of every round, your strongest shield goes up by itself (Heavy Shield, then Shield, then Mag Deflector)
   and lasts until its energy is used up or the round ends. It's used up either way, so a new round needs a new shield. A
@@ -201,6 +203,21 @@ Besides weapons, the shop sells items that protect or repair your tank, or steer
   - A MIRV's warheads, a Funky Bomb's bomblets and a Leapfrog's hops are not guided: guidance takes the shell to where
     it first comes down. A Tracer flies unguided and uses none up.
   - Bots switch on the guidance they have for every shot.
+- **Fuel** moves your tank. While you aim, hold **A** to drive left or **D** to drive right, or hold one of the two
+  arrow buttons that appear beside the weapon strip; then aim and fire as usual. Driving doesn't end your turn.
+  - A unit of fuel takes you one px on level ground or downhill. Uphill costs more: two units extra for every px you
+    climb. The top right of the screen shows the fuel you have left.
+  - A tank can't climb dirt steeper than about 55 degrees, so a crater's wall or a cliff stops it, and it won't drive
+    over a drop high enough to hurt. Another tank in the way and the edge of the field stop it too, and a buried tank
+    can't drive at all: dig out first.
+  - Use it to get out of a hole you can't shoot out of, to get closer when your health limits your power, to leave a
+    spot an enemy has ranged in on, or to take the high ground. Fuel you don't burn stays for the next rounds.
+  - Driving shakes off a bot's aim. A bot walks its shots onto a tank that stands still (see Bot skills); when that tank
+    drives, the bot loses part of what it had learned, and all of it after 120 px: it starts again with a rough first
+    shot. The same goes for a bot that drives itself, so moving costs it its own aim too.
+  - Bots buy fuel and drive in two cases: when no shot of theirs can reach the tank they are after from where they
+    stand, and when they have just been hit and have no good aim of their own to lose. Then they drive about 90 px off,
+    whichever way is clearer.
 - Parachutes and shields each have an on/off switch in the inventory. Switched off, an item stays in your inventory
   unused, for example to save your only Heavy Shield for later rounds.
 - Shields stop every kind of damage from blasts, including death blasts and self-destructs, but not falls (that's what
@@ -276,7 +293,8 @@ out and it has the health to spare, otherwise with Baby Missiles, a little healt
 ### Whom a bot shoots at
 
 1. **Revenge:** whoever hit it since its last shot.
-2. Otherwise the same target as last time, while it's alive (it keeps the aim it has already learned).
+2. Otherwise the same target as last time, while it's alive (it keeps the aim it has already learned, less what driving
+   has cost it: see Fuel under Items).
 3. Otherwise it picks a new target, preferring tanks that are **nearest**, **weakest** or the **leader** (most round
    wins). It avoids a tank that other bots are already aiming at, so bots don't all gang up on you.
 

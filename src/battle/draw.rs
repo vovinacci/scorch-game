@@ -9,7 +9,7 @@ use super::{
     launch_velocity, weapon_strip, wraps, you,
 };
 use crate::i18n::t;
-use crate::items::{BATTERY, ITEMS, Steer};
+use crate::items::{BATTERY, FUEL, ITEMS, Steer};
 use crate::player::Player;
 use crate::settings::HealthDisplay;
 use crate::settings::Settings;
@@ -45,6 +45,7 @@ impl Battle {
                 power: tank.power,
                 wind: self.wind,
                 guided: (tank.guidance, self.guide_target(self.current)),
+                from: tank.pos.x,
             };
             let mut cache = self.preview.borrow_mut();
             if cache.as_ref().is_none_or(|(k, _)| *k != key) {
@@ -304,6 +305,9 @@ impl Battle {
         // Your turn only: on bot turns the bottom of the screen has the skip button.
         if matches!(self.phase, Phase::Aim { .. }) && !player.is_bot() {
             draw_weapon_strip(player, tank.weapon, self.tracer != TracerTurn::Unused);
+            if player.items[FUEL] > 0 {
+                Self::draw_drive_buttons();
+            }
             // A tank down in a deep valley or crater behind the strip is drawn again on top of it (without its
             // name, which would run into the strip's text), so it stays in sight.
             let strip = weapon_strip(player);
@@ -402,6 +406,10 @@ impl Battle {
         let human_aims = !players[self.current].is_bot() && matches!(self.phase, Phase::Aim { .. });
         if batteries > 0 && human_aims {
             lines.push((t!("hud-battery", n = batteries), GREEN));
+        }
+        let fuel = players[self.current].items[FUEL];
+        if fuel > 0 && human_aims {
+            lines.push((t!("hud-fuel", n = fuel), ORANGE));
         }
         if human_aims && !Self::guidance_owned(&players[self.current]).is_empty() {
             lines.extend(

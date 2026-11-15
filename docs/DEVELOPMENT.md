@@ -55,7 +55,7 @@ Command line options:
 | `--version`, `-V` | Print the version and exit |
 | `--crash-test` | Crash on purpose, to check crash reports |
 | `--update` | Check for a new version and install it from the command line (same checks as the menu) |
-| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, watch (you flee and the bots play the round out, with sound), over (a round just won), defence (every tank with a shield), guidance (your turn with Vertical guidance on), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
+| `--screen <name>` | Open one screen directly with a fresh game: intro, menu, about, setup, custom, settings, pause-settings (settings opened from the pause menu), stats, crash, unreadable (the notice about a save file that couldn't be read), battle, pause, watch (you flee and the bots play the round out, with sound), over (a round just won), defence (every tank with a shield), guidance (your turn with batteries, fuel and Vertical guidance on), buried (a Dirt Bomb on every tank), arsenal (every tank with every weapon), log, shop, abandon, new-game (the warning before replacing a saved game), final. Saving is off. |
 | `--shot <file.png>` | With `--screen`: save a screenshot after a moment and quit. The pointer is ignored, so nothing is highlighted by where it happens to be. The name must end in `.png` and its folder must exist, or the game says so and exits with status 2 before opening the window |
 | `--keys <keys>` | With `--screen`: press menu keys before the screenshot, one every 4 frames: a comma-separated list of up, down, left, right, enter (`--screen shop --keys down,down,right --shot shop.png`) |
 
@@ -257,6 +257,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     three health limits for using them: what a battery is worth and when to use it. About seven minutes.
   - `balance_guidance` gives the stand-in two or five of each guidance each round, next to a shield given the same way:
     what guidance is worth. About nine minutes.
+  - `balance_fuel` gives the stand-in fuel each round on three kinds of ground: what driving is worth to a bot. About
+    ten minutes.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
@@ -266,7 +268,7 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
 ### Items
 
 - Items live in `src/items.rs`: Parachute $40 x2, Shield 50 energy $120, Heavy Shield 100 $200, Mag Deflector 40 $150,
-  Battery 25 health $60, Heat and Horizontal Guidance $50 x2, Vertical Guidance $60 x2.
+  Battery 25 health $60, Heat and Horizontal Guidance $50 x2, Vertical Guidance $60 x2, Fuel $40 x100.
 - Battery (`Battle::use_battery`): the **B** key while a human aims, as often as there are batteries; +25 health up to
   100, not used at full health; the turn goes on. No switch in the inventory (`Item::automatic`). A bot uses one at the
   start of its turn while its health is 75 or less (`BOT_BATTERY_HEALTH`), so none of a battery is wasted.
@@ -291,6 +293,27 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
   Horizontal 71 / 22%, 5 Horizontal 80 / 36%; 2 Vertical 78 / 27%, 5 Vertical 84 / 39%; one more Shield 90 / 36%; one
   more Heavy Shield 98 / 59%. Five of any kind are worth about a Shield ($120), so a pack of two costs $50, Vertical a
   little more.
+- Driving (`battle/drive.rs`): **A** / **D** held while a human aims, or the left mouse button held on one of the two
+  arrow buttons beside the weapon strip (shown while the player has fuel). 60 px/s, a px at a time (`drive_step`): the
+  tank stands on the highest ground under its width; a px costs 1 unit of fuel plus 2 for every px of height gained; a
+  rise of more than 1.5 px in one px (about 56°) or a drop of more than 15 px (the height a fall starts to hurt from)
+  stops it, as do another living tank within 28 px ahead, the edge of the field and dirt over the tank's centre. Fuel is
+  an item counted in units (`items::FUEL`), 100 a purchase.
+- A bot drives once a turn, before it aims (`bot_drives`, `better_ground`): if a Baby Missile from where it stands can't
+  land within 40 px of the tank it is likely to shoot at (`likely_target`), it tries the places every 25 px up to 300 px
+  each way that its fuel reaches and drives to the one from where a shot lands closest, if that is 30 px closer or more.
+- Driving costs a bot its ranging (`Battle::reranged`): `AimMemory::ranged` keeps where the bot and its target stood at
+  its last shot; the px either has driven since, added up, over 120 (`RERANGE`) is the share of the way its error goes
+  back to a first shot's rough one (all of it from 120 px on). Falling doesn't count, only x.
+- A bot also drives to dodge (`dodge`): hit since its last shot by a tank still alive, and with no aim of its own worth
+  keeping (no target yet, or an angle error over 30% of its first miss), it drives up to 90 px the way it gets furthest,
+  if that is 40 px or more. Reaching its target comes first (`better_ground`). - `balance_fuel` (whole games of a
+  Shooter-like stand-in given fuel for nothing each round, nobody else having any): with 0 / 100 / 300 units it wins 55
+  / 50 / 52% of games against one Shooter on Rolling ground, 51 / 48 / 51% on Mountains and 54 / 49 / 50% on Canyon;
+  against three, 21 / 17 / 24%, 19 / 18 / 20% and 18 / 19 / 20%. Nothing beyond noise: a bot nearly always has a lob
+  that reaches, and a dodge costs it its own ranging as well as the attacker's. So fuel's price ($40 for 100) is set by
+  feel, not by this table: it is worth what a player makes of it. Bots buy it like any other item, for the sight of them
+  driving, at no measurable cost to their strength.
 - Round start: the switched-on shield with the most energy is raised and used up (`items::shield_to_raise`).
 - A blast's damage to a tank goes to its shield first; the rest to health. Damage pay and stats count shield damage too,
   so shields don't shut down the catch-up money.
@@ -488,6 +511,7 @@ dirty.
 | `battle/shells.rs` | Shells: flight, what happens where they land, fire, Mag Deflectors, blasts and damage; the flight simulation bots and the aiming help share |
 | `battle/bots.rs` | Bots: whom they shoot at, what with, how they find the aim and dig out |
 | `battle/coach.rs` | The coaching advice of the aiming help |
+| `battle/drive.rs` | Driving: where a tank can go and what it costs, the mouse buttons, when a bot drives |
 | `battle/guidance.rs` | Guidance: when a guided shell turns and how it flies on |
 | `battle/draw.rs` | Drawing the battle: scene, HUD, tanks, flames, weapon strip, full battle log |
 | `battle/tests.rs`, `battle/tests/` | The battle's unit tests: shared helpers, then one file each for rules, weapons, shields, bots, coaching, what is on screen, and the balance tools (other files keep their tests in a `tests` module at the bottom) |
