@@ -429,9 +429,10 @@ fn ladder_card(area: Rect, setup: &Setup, ladder: &Ladder) {
         .collect();
     let (x, w) = (area.x + 10.0, area.w - 20.0);
     let rung = t!("ladder-rung", rung = ladder.rung(), of = Ladder::RUNGS);
-    ui::text_fit(&rung, x, area.y + 34.0, w, 30.0, GOLD);
+    // Sized to fit the rows it takes the place of (`screen`): the best rung goes on the card's last line.
+    ui::text_fit(&rung, x, area.y + 28.0, w, 26.0, GOLD);
     let against = t!("ladder-opponents", bots = bots.join(", "));
-    ui::text_fit(&against, x, area.y + 68.0, w, 22.0, WHITE);
+    ui::text_fit(&against, x, area.y + 56.0, w, 20.0, WHITE);
     let (note, color) = if !setup.counts_for_ladder() {
         (t!("ladder-no-count", help = setup.aim_help.text()), ORANGE)
     } else if ladder.losses_left() == 1 {
@@ -439,7 +440,7 @@ fn ladder_card(area: Rect, setup: &Setup, ladder: &Ladder) {
     } else {
         (t!("ladder-rule"), GRAY)
     };
-    let y = ui::text_wrapped(&note, x, area.y + 100.0, w, 18.0, color);
+    ui::text_wrapped(&note, x, area.y + 80.0, w, 16.0, color);
     let best = if ladder.champion > 0 {
         t!(
             "ladder-best-champion",
@@ -449,7 +450,7 @@ fn ladder_card(area: Rect, setup: &Setup, ladder: &Ladder) {
     } else {
         t!("ladder-best", rung = ladder.best())
     };
-    ui::text_fit(&best, x, y + 12.0, w, 18.0, LIGHTGRAY);
+    ui::text_fit(&best, x, area.y + area.h - 6.0, w, 16.0, LIGHTGRAY);
 }
 
 #[expect(
