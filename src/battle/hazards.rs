@@ -2,7 +2,7 @@
 //! turn's shells have come to rest.
 //!   Meteors   - fall from above the screen and go off like a Missile where they land.
 //!   Lightning - a storm cell gathers and the light dims, then a bolt strikes high ground below it: the highest
-//!               of a few spots, or a tank standing high.
+//!               of a few spots, a tank's among them.
 //!
 //! Nobody owns them: a hit pays nobody and calls for no revenge. A tank they finish off still counts for the last
 //! enemy who hit it, as with falls and sudden death.
@@ -19,14 +19,36 @@ use crate::terrain::WIDTH;
 use crate::weapons::WEAPONS;
 use crate::world::{Flight, Hazards, Weather, step_shell};
 
+/// What a Hazards setting brings after a turn: the chance that something comes, and how much at once.
+struct Odds {
+    chance: f32,
+    /// Meteors (fewest, most) when it is meteors.
+    meteors: (usize, usize),
+    /// Storm cells (fewest, most) when it is lightning.
+    cells: (usize, usize),
+}
+
 impl Hazards {
-    /// The chance that something happens after a turn, and the most that comes down at once.
-    fn odds(self) -> (f32, usize) {
+    fn odds(self) -> Odds {
         match self {
             // Random is resolved before a round starts (`World::for_round`).
-            Hazards::Off | Hazards::Random => (0.0, 0),
-            Hazards::Rare => (0.1, 1),
-            Hazards::Often => (0.3, 3),
+            Hazards::Off | Hazards::Random => Odds {
+                chance: 0.0,
+                meteors: (0, 0),
+                cells: (0, 0),
+            },
+            // Now and then, one thing.
+            Hazards::Rare => Odds {
+                chance: 1.0 / 12.0,
+                meteors: (1, 1),
+                cells: (1, 1),
+            },
+            // Every few turns, a shower or a storm front.
+            Hazards::Often => Odds {
+                chance: 1.0 / 3.0,
+                meteors: (2, 4),
+                cells: (1, 2),
+            },
         }
     }
 }
@@ -89,34 +111,50 @@ impl Battle {
     /// then runs again until it is over).
     pub(super) fn hazard(&mut self) -> bool {
         // A stormy round has its own lightning, on top of whatever the Hazards setting brings.
-        if self.rules.world.weather == Weather::Storm && chance(STORM_LIGHTNING) {
-            self.log(t!("log-lightning"), SKYBLUE);
-            self.gather_storm();
-            return true;
+        let mut cells =
+            usize::from(self.rules.world.weather == Weather::Storm && chance(STORM_LIGHTNING));
+        let mut meteors = 0;
+        let odds = self.rules.world.hazards.odds();
+        if chance(odds.chance) {
+            let between = |(fewest, most): (usize, usize)| gen_range(fewest, most + 1);
+            if chance(0.5) {
+                meteors = between(odds.meteors);
+            } else {
+                cells += between(odds.cells);
+            }
         }
-        let (odds, most) = self.rules.world.hazards.odds();
-        if most == 0 || !chance(odds) {
-            return false;
-        }
-        let count = gen_range(1, most + 1);
-        if chance(0.5) {
-            self.log(t!("log-meteors", n = count), ORANGE);
-            for _ in 0..count {
+        if meteors > 0 {
+            self.log(t!("log-meteors", n = meteors), ORANGE);
+            for _ in 0..meteors {
                 let pos = vec2(gen_range(40.0, WIDTH as f32 - 40.0), -20.0);
                 let vel = vec2(gen_range(-160.0, 160.0), gen_range(120.0, 260.0));
                 self.meteors.push(Meteor::falling(pos, vel));
             }
-        } else {
-            self.log(t!("log-lightning"), SKYBLUE);
-            self.gather_storm();
         }
-        true
+        if cells > 0 {
+            self.log(t!("log-lightning"), SKYBLUE);
+            self.gather_storms(cells);
+        }
+        meteors + cells > 0
     }
 
-    /// Lightning doesn't come out of a clear sky: a storm cell gathers first, and the bolt falls when it is ready.
-    fn gather_storm(&mut self) {
-        let x = gen_range(CLOUD_WIDTH / 3.0, WIDTH as f32 - CLOUD_WIDTH / 3.0);
-        self.storms.push(Storm { x, age: 0.0 });
+    /// Lightning doesn't come out of a clear sky: storm cells gather first, and each bolt falls when its cell is
+    /// ready. Two cells keep apart, and the second gathers a little later.
+    fn gather_storms(&mut self, cells: usize) {
+        let edge = CLOUD_WIDTH / 3.0;
+        let first = gen_range(edge, WIDTH as f32 - edge);
+        self.storms.push(Storm { x: first, age: 0.0 });
+        for k in 1..cells {
+            let mut x = gen_range(edge, WIDTH as f32 - edge);
+            if (x - first).abs() < CLOUD_WIDTH {
+                // Too close: across the field instead.
+                x = (first + WIDTH as f32 / 2.0).rem_euclid(WIDTH as f32 - 2.0 * edge) + edge;
+            }
+            self.storms.push(Storm {
+                x,
+                age: -0.6 * k as f32,
+            });
+        }
     }
 
     /// A stormy round's sky: a grey overcast over the sky as set (the sun hidden), drawn before the ground.
@@ -169,8 +207,8 @@ impl Battle {
         rain.draw();
     }
 
-    /// Lightning under a cell over `x`: the highest of `BOLT_TRIES` random spots within `BOLT_STRETCH` and the tops of
-    /// the tanks there; it hurts the tanks close to it. No crater, only a burn mark.
+    /// Lightning under a cell over `x`: the highest of `BOLT_TRIES` random spots within `BOLT_STRETCH` and of the
+    /// ground the tanks there stand on; it hurts the tanks close to it. No crater, only a burn mark.
     pub(super) fn strike(&mut self, x: f32, players: &mut [Player]) {
         let (from, to) = (
             (x - BOLT_STRETCH / 2.0).max(0.0) as usize,
@@ -182,11 +220,13 @@ impl Battle {
             let column = gen_range(from as f32, to as f32);
             vec2(column, self.terrain.height_at(column))
         });
+        // A tank counts as the ground it stands on: struck when it stands at the highest spot, or hurt when the bolt
+        // lands close, but no lightning rod.
         let tanks = self
             .tanks
             .iter()
             .filter(|tank| tank.alive && (from as f32..=to as f32).contains(&tank.pos.x))
-            .map(|tank| tank.center() - vec2(0.0, TANK_RADIUS));
+            .map(|tank| tank.pos);
         let Some(at) = ground.chain(tanks).min_by(|a, b| a.y.total_cmp(&b.y)) else {
             return;
         };
