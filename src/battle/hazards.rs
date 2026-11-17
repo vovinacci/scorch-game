@@ -37,17 +37,17 @@ impl Hazards {
                 meteors: (0, 0),
                 cells: (0, 0),
             },
-            // Now and then, one thing.
+            // Now and then, one thing: a few percent of a round's damage (`balance_sky`).
             Hazards::Rare => Odds {
-                chance: 1.0 / 12.0,
+                chance: 1.0 / 16.0,
                 meteors: (1, 1),
                 cells: (1, 1),
             },
-            // Every few turns, a shower or a storm front.
+            // Twice as often, a meteor or two: about a tenth of a round's damage, felt but not in charge.
             Hazards::Often => Odds {
-                chance: 1.0 / 3.0,
-                meteors: (2, 4),
-                cells: (1, 2),
+                chance: 1.0 / 8.0,
+                meteors: (1, 2),
+                cells: (1, 1),
             },
         }
     }
@@ -63,7 +63,7 @@ const BOLT_STRETCH: f32 = 300.0;
 /// How many spots under the cell lightning picks from, besides the tanks there.
 const BOLT_TRIES: usize = 6;
 /// A stormy round: the chance of lightning after each turn, and how thick the overcast is.
-const STORM_LIGHTNING: f32 = 0.35;
+const STORM_LIGHTNING: f32 = 0.1;
 const OVERCAST: f32 = 0.7;
 /// How long a bolt stays on screen, s.
 const BOLT_TIME: f32 = 0.4;
@@ -110,12 +110,19 @@ impl Battle {
     /// Once a turn, when everything has come to rest: maybe a hazard. Says whether one began (the shells' phase
     /// then runs again until it is over).
     pub(super) fn hazard(&mut self) -> bool {
-        // A stormy round has its own lightning, on top of whatever the Hazards setting brings.
+        // A stormy round has its own lightning. One thing at most comes down after a turn: when the storm strikes,
+        // the Hazards setting waits for the next turn, so the two together never pile up.
         let mut cells =
             usize::from(self.rules.world.weather == Weather::Storm && chance(STORM_LIGHTNING));
         let mut meteors = 0;
         let odds = self.rules.world.hazards.odds();
-        if chance(odds.chance) {
+        // In a storm the sky's other hazards get half their chance: the storm is already the round's hazard.
+        let share = if self.rules.world.weather == Weather::Storm {
+            0.5
+        } else {
+            1.0
+        };
+        if cells == 0 && chance(odds.chance * share) {
             let between = |(fewest, most): (usize, usize)| gen_range(fewest, most + 1);
             if chance(0.5) {
                 meteors = between(odds.meteors);

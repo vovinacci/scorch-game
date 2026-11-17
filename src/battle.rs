@@ -522,6 +522,9 @@ pub struct Battle {
     storms: Vec<hazards::Storm>,
     #[serde(skip)]
     hazard_turn: Option<u32>,
+    /// Damage dealt this round, all of it and the part from the sky (hazards and storms): for the balance tools.
+    #[serde(skip)]
+    damage_seen: (f32, f32),
     #[serde(skip)]
     accumulator: f32,
     round: u32,
@@ -651,6 +654,7 @@ impl Battle {
             bolts: Vec::new(),
             storms: Vec::new(),
             hazard_turn: None,
+            damage_seen: (0.0, 0.0),
             accumulator: 0.0,
             round,
             rounds,

@@ -277,6 +277,8 @@ preview and, for Night, behind the menus). Nothing in it takes part in the game.
     four minutes.
   - `balance_driving` drives tanks from their starting spots on each terrain with 100 units of fuel: how far they get,
     the fuel a px costs, and how often the ground stops them first. A few seconds.
+  - `balance_sky` plays single rounds of four Shooters with each mix of hazards and weather: the share of all damage
+    that came from the sky. About a minute.
   - `balance_ladder` and `balance_ladder_sniper` play whole games (5 rounds, default settings, everyone shopping between
     rounds as bots do) of a stand-in for the player against 38 line-ups of one to three bots, 200 games each: the share
     of games it wins outright, the share with a shared first place, and its mean round wins. The stand-in is a Shooter
@@ -453,10 +455,10 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
 ### Hazards
 
 - The world's Hazards setting (`world::Hazards`: Off, Rare, Often, Random; off by default) is rolled once a turn, when
-  everything has come to rest and before sudden death drains (`Battle::after_settling`, `hazards::hazard`): a 1 in 12
-  chance on Rare, 1 in 3 on Often (`hazards::Odds`); then meteors or lightning, even odds: one meteor or one storm cell
-  on Rare, 2 to 4 meteors or 1 or 2 cells on Often (a second cell keeps a cloud's width away and gathers 0.6 s later).
-  The shells' phase runs again while it lasts.
+  everything has come to rest and before sudden death drains (`Battle::after_settling`, `hazards::hazard`): a 1 in 16
+  chance on Rare, 1 in 8 on Often (`hazards::Odds`); then meteors or lightning, even odds: one meteor or one storm cell
+  on Rare, 1 or 2 meteors or one cell on Often. In a storm the chance is halved and the roll skipped when the storm
+  strikes: one thing at most after a turn. The shells' phase runs again while it lasts.
 - Meteors: from 20 px above the screen at a random x (40 px in from each side), sideways speed up to 160 px/s either
   way, falling at 120 to 260 px/s; wind, gravity and walls as for a shell. Every Mag Deflector with energy pushes them,
   at no cost. Where one lands it goes off with a Missile's radius and damage.
@@ -470,15 +472,17 @@ first" note only shows when it's certain (`setup::sure_to_start`). Battles saved
   for it (`hazards_busy`).
 - Weather (`world::Weather`: Clear, Windy, Storm, Random; Clear by default): Windy and Storm make `max_wind` 70 (as
   Strong) whatever the Wind setting; Storm draws a grey overcast of 0.5 over the sky (`draw_overcast`) and rain over the
-  field (looks only), and after each turn has a 35% chance of a storm cell (`STORM_LIGHTNING`), on top of the Hazards
-  setting's own roll.
+  field (looks only), and after each turn has a 10% chance of a storm cell (`STORM_LIGHTNING`), before the Hazards
+  setting's roll (which it halves).
 - Hazard damage has no owner (`hurt` with `None`): no pay, no shot marked as a hit, no `last_hit_by` and no revenge, so
   a tank they finish off counts for the last enemy who hit it. Shields absorb it as any damage.
+- How much they weigh (`balance_sky`, four Shooters, 300 single rounds each, share of all damage dealt that came from
+  the sky): Rare 5%, Often 12%, a storm 9%, a storm with Rare 10%, with Often 12.5%. Before this tuning Often was 42%
+  and a storm with Often 53%: the sky ran the game.
 - How much luck they bring (`balance_hazards`, whole games of a Shooter-like stand-in, share of games won outright with
-  hazards off / rare / often, and with a storm and hazards off): against a Moron 98 / 97 / 89 / 89%, against a Shooter
-  50 / 52 / 59 / 55%, against three Shooters 24 / 25 / 16 / 23%. Rare is a light touch; Often and a storm turn about one
-  game in nine that the better player would have won, and even games stay even. Hence games with hazards or storms count
-  for the ladder.
+  hazards off / rare / often, and with a storm and hazards off): against a Moron 98 / 96 / 96 / 96%, against a Shooter
+  50 / 46 / 53 / 53%, against three Shooters 24 / 19 / 15 / 21%. The better player keeps winning; the sky shakes up
+  crowded games a little. Hence games with hazards or storms count for the ladder.
 - Ten rungs (`ladder::RUNGS`), each a fixed line-up of bots; the Bots and Difficulty settings aren't used. The order
   comes from `balance_ladder` (whole games, see Weapons), which plays 38 line-ups a rung could be made of: against the
   ten chosen a Sniper-like player wins 100, 91, 89, 83, 80, 64, 54, 45, 29 and 15% of games outright, a Shooter-like one

@@ -441,16 +441,18 @@ The pause menu's "This game" shows the setting, so everyone knows what help was 
 
 - **Clear:** the wind as set.
 - **Windy:** strong wind (up to 70), whatever the Wind option says.
-- **Storm:** strong wind, a grey overcast that hides the sun, rain, and lightning after about one turn in three, on top
-  of whatever the Hazards setting brings (see below). The rain is only a look: it doesn't slow shells or put out napalm.
+- **Storm:** strong wind, a grey overcast that hides the sun, rain, and lightning after about one turn in ten (see
+  below). In a storm the Hazards setting brings half as much as usual, and never on the same turn as the storm's
+  lightning. The rain is only a look: it doesn't slow shells or put out napalm.
 - **Random:** a new weather every round.
 
 **Wind changes each turn** stays its own option in any weather: the weather sets how strong the wind can blow, the
 option whether it shifts between turns.
 
 **Hazards** make the sky take part. After a turn's shells have landed, something may come down. **Rare:** about one turn
-in twelve, one meteor or one bolt. **Often:** about one turn in three, a shower of 2 to 4 meteors or a front of 1 or 2
-storm cells.
+in sixteen, one meteor or one bolt. **Often:** about one turn in eight, one or two meteors or one bolt. At most one
+thing comes down after a turn. The sky adds some luck without running the game: in a round it deals about a twentieth of
+all damage on Rare and about an eighth on Often.
 
 - **Meteors** fall from above the screen. The wind moves them like shells, and each goes off like a Missile where it
   lands: a crater, and damage to any tank near it.
