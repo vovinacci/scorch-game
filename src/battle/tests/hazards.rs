@@ -26,8 +26,33 @@ fn hazards_come_now_and_then_and_more_often_when_set_so() {
     };
     let rare = events(&mut b, Hazards::Rare);
     let often = events(&mut b, Hazards::Often);
-    assert!((60..=140).contains(&rare), "about one turn in ten: {rare}");
-    assert!((240..=360).contains(&often), "about three in ten: {often}");
+    assert!(
+        (50..=120).contains(&rare),
+        "about one turn in twelve: {rare}"
+    );
+    assert!(
+        (280..=390).contains(&often),
+        "about one turn in three: {often}"
+    );
+}
+
+#[test]
+fn often_brings_more_at_once_than_rare() {
+    let (_, mut b) = range(|_| 600.0);
+    let most_at_once = |b: &mut Battle, setting| {
+        b.rules.world.hazards = setting;
+        let (mut meteors, mut cells) = (0, 0);
+        for _ in 0..2000 {
+            b.meteors.clear();
+            b.storms.clear();
+            b.hazard();
+            meteors = meteors.max(b.meteors.len());
+            cells = cells.max(b.storms.len());
+        }
+        (meteors, cells)
+    };
+    assert_eq!(most_at_once(&mut b, Hazards::Rare), (1, 1));
+    assert_eq!(most_at_once(&mut b, Hazards::Often), (4, 2));
 }
 
 #[test]
@@ -83,11 +108,20 @@ fn lightning_strikes_the_highest_point_near_where_it_comes_down() {
     assert_eq!(b.tanks[1].health, 100.0);
     assert_eq!(b.bolts.len(), 1);
     assert_eq!((b.tanks[0].last_hit_by, b.tanks[0].revenge), (None, None));
-    // Far from the hill, the highest point is the low tank's own top.
+    // Far from the hill, on flat ground, the bolt lands anywhere under the cell: the tank there is no lightning rod,
+    // hurt only when the bolt happens to land close.
     b.tanks[0].health = 100.0;
-    b.strike(620.0, &mut players);
-    assert_eq!(b.tanks[0].health, 100.0);
-    assert!(b.tanks[1].health < 100.0);
+    let mut hurt = 0;
+    for _ in 0..200 {
+        b.tanks[1].health = 100.0;
+        b.strike(620.0, &mut players);
+        hurt += u32::from(b.tanks[1].health < 100.0);
+    }
+    assert_eq!(b.tanks[0].health, 100.0, "the hill is out of reach");
+    assert!(
+        (10..=100).contains(&hurt),
+        "now and then, not always: {hurt} of 200"
+    );
 }
 
 #[test]
@@ -141,7 +175,7 @@ fn weather_sets_the_wind_and_a_storm_brings_its_own_lightning() {
         b.rules.world.weather = weather;
         assert_eq!(b.world().max_wind(), 70.0, "{weather:?}: strong");
     }
-    // Hazards off, yet a storm strikes now and then, always with lightning.
+    // Hazards off, yet a storm strikes now and then, always with lightning; with Hazards on as well, both come.
     assert_eq!(b.rules.world.hazards, Hazards::Off);
     let strikes = (0..1000)
         .filter(|_| {

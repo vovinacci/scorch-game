@@ -441,21 +441,23 @@ The pause menu's "This game" shows the setting, so everyone knows what help was 
 
 - **Clear:** the wind as set.
 - **Windy:** strong wind (up to 70), whatever the Wind option says.
-- **Storm:** strong wind, a grey overcast that hides the sun, rain, and lightning after about one turn in three, even
-  with Hazards off (see below). The rain is only a look: it doesn't slow shells or put out napalm.
+- **Storm:** strong wind, a grey overcast that hides the sun, rain, and lightning after about one turn in three, on top
+  of whatever the Hazards setting brings (see below). The rain is only a look: it doesn't slow shells or put out napalm.
 - **Random:** a new weather every round.
 
 **Wind changes each turn** stays its own option in any weather: the weather sets how strong the wind can blow, the
 option whether it shifts between turns.
 
-**Hazards** make the sky take part. After a turn's shells have landed, something may come down: about one turn in ten on
-Rare, three in ten on Often.
+**Hazards** make the sky take part. After a turn's shells have landed, something may come down. **Rare:** about one turn
+in twelve, one meteor or one bolt. **Often:** about one turn in three, a shower of 2 to 4 meteors or a front of 1 or 2
+storm cells.
 
-- **Meteors** fall from above the screen, one on Rare and up to three on Often. The wind moves them like shells, and
-  each goes off like a Missile where it lands: a crater, and damage to any tank near it.
+- **Meteors** fall from above the screen. The wind moves them like shells, and each goes off like a Missile where it
+  lands: a crater, and damage to any tank near it.
 - **Lightning** comes from a thunderstorm cell: it gathers over part of the field and the light dims for about a second,
-  then a bolt strikes high ground below it, within about 150 px either side: usually the higher spots, and a tank
-  standing high most of all. It does up to 35 damage to tanks within about 40 px, leaves a burn mark and no crater. High
+  then a bolt strikes high ground below it, within about 150 px either side: the highest of a few spots there, a tank's
+  among them as the ground it stands on. A tank is struck when it stands highest, and hurt when a bolt lands close; it
+  doesn't draw every bolt. It does up to 35 damage to tanks within about 40 px, leaves a burn mark and no crater. High
   ground is a good place to shoot from and a bad one to stand on in a storm.
 - They belong to nobody: a hit pays nobody and no bot takes revenge for it. If one finishes a tank off, the kill goes to
   the last enemy who hit that tank, as with falls and sudden death.
