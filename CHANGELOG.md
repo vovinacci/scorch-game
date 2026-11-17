@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/vovinacci/scorch-game/compare/v0.10.0...v0.11.0) - 2026-11-17
+
+### Documentation
+
+- *(roadmap)* take the Windows installer off the planned work ([#141](https://github.com/vovinacci/scorch-game/pull/141))
+- *(roadmap)* plan the rest of the original ([#139](https://github.com/vovinacci/scorch-game/pull/139))
+- retake the screenshots for 0.11.0 and update the roadmap ([#135](https://github.com/vovinacci/scorch-game/pull/135))
+
+### Features
+
+- *(world)* add weather, and let lightning come from storm cells ([#143](https://github.com/vovinacci/scorch-game/pull/143))
+- *(economy)* add market prices ([#134](https://github.com/vovinacci/scorch-game/pull/134))
+- *(game)* choose what wins a game: rounds, money or kills ([#133](https://github.com/vovinacci/scorch-game/pull/133))
+- *(economy)* add interest on savings and selling back ([#132](https://github.com/vovinacci/scorch-game/pull/132))
+- *(world)* add hazards: meteors and lightning ([#130](https://github.com/vovinacci/scorch-game/pull/130))
+- *(tanks)* drive on fuel ([#128](https://github.com/vovinacci/scorch-game/pull/128))
+
+### Fixes
+
+- *(world)* calm the hazards so they spice a game without running it ([#148](https://github.com/vovinacci/scorch-game/pull/148))
+- *(setup)* fit the ladder card into the rows it replaces ([#147](https://github.com/vovinacci/scorch-game/pull/147))
+- *(world)* make lightning spread out and Rare and Often feel apart ([#146](https://github.com/vovinacci/scorch-game/pull/146))
+- *(tanks)* ease the ground beside starting pads into ramps ([#144](https://github.com/vovinacci/scorch-game/pull/144))
+- *(tanks)* drive on screens faster than 60 Hz ([#131](https://github.com/vovinacci/scorch-game/pull/131))
+
 ## [0.10.0](https://github.com/vovinacci/scorch-game/compare/v0.9.0...v0.10.0) - 2026-11-14
 
 ### Features
