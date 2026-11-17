@@ -458,6 +458,11 @@ impl Battle {
     ) {
         let mut hits = Vec::new();
         for &(i, raw) in damage {
+            // Only the sky's damage has no owner.
+            self.damage_seen.0 += raw;
+            if owner.is_none() {
+                self.damage_seen.1 += raw;
+            }
             let tank = &mut self.tanks[i];
             let mut dmg = raw;
             // A shield takes the hit first.

@@ -1043,3 +1043,41 @@ fn balance_driving() {
         );
     }
 }
+
+/// How much the sky weighs in a round: four Shooters play single rounds (`skip_to_end`) with each mix of hazards and
+/// weather, and the table shows the share of all damage dealt that came from meteors and lightning. About a minute.
+#[test]
+#[ignore = "prints a table; run by hand when tuning the hazards or the storms"]
+fn balance_sky() {
+    use crate::world::{Hazards, Weather};
+    const ROUNDS: u64 = 300;
+    println!("\nfour Shooters, {ROUNDS} rounds each");
+    println!("{:>9} {:>8}  hazards, weather", "from sky", "turns");
+    for (hazards, weather) in [
+        (Hazards::Off, Weather::Clear),
+        (Hazards::Rare, Weather::Clear),
+        (Hazards::Often, Weather::Clear),
+        (Hazards::Off, Weather::Storm),
+        (Hazards::Rare, Weather::Storm),
+        (Hazards::Often, Weather::Storm),
+    ] {
+        let (mut all, mut sky, mut turns) = (0.0, 0.0, 0);
+        for round in 0..ROUNDS {
+            crate::rng::seed(666_000 + round);
+            let mut players = bots(4);
+            let mut rules = Setup::default().rules();
+            rules.world.hazards = hazards;
+            rules.world.weather = weather;
+            let mut b = battle(&players, rules);
+            b.skip_to_end(&mut players);
+            all += b.damage_seen.0;
+            sky += b.damage_seen.1;
+            turns += b.turns;
+        }
+        println!(
+            "{:>8.1}% {:>8.1}  {hazards:?}, {weather:?}",
+            100.0 * sky / all.max(1.0),
+            turns as f32 / ROUNDS as f32
+        );
+    }
+}
